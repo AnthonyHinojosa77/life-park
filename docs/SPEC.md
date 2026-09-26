@@ -76,6 +76,10 @@ It fails if a normal person cannot get value in the first few minutes without le
 - Model picking, compare, the coding agent, and cost tracking are removed from what users see.
 - Cost tracking stays as a private owner dashboard for Anthony.
 
+### Look and feel
+
+- Floating bubble buttons with offset shadows read as generic. Controls move toward a hand-drawn chalk and crayon look instead: crayon-filled buttons with rough edges, hand-lettered labels, and light chalk dust. The sign-in and sign-up screens use it first (2026-09-26).
+
 ### Name
 
 - LifePark. lifepark.app was unregistered on 2026-09-26; lifepark.com is registered. Other apps named LifePark exist for an Istanbul concert venue, a German gym, and a church. A trademark check happens before public launch.

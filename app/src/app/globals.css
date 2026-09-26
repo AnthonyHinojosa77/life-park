@@ -46,6 +46,7 @@
 
   --font-sans: var(--font-nunito), "Segoe UI", system-ui, sans-serif;
   --font-serif: var(--font-instrument-serif), Georgia, serif;
+  --font-hand: var(--font-patrick-hand), "Comic Sans MS", "Segoe Print", cursive;
 
   --radius-pill: 999px;
   --radius-card: 22px;
