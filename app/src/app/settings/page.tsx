@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { Preferences } from "@/components/settings/preferences";
 import { RulesEditor } from "@/components/settings/rules-editor";
 import { Card } from "@/components/ui/card";
-import { Chip } from "@/components/ui/chip";
 import { formatDollars, monthlyCosts } from "@/lib/costs";
 import { fetchCatalog } from "@/lib/models/catalog";
 import { getRules } from "@/lib/rules";
@@ -78,22 +76,6 @@ export default async function SettingsPage() {
             voice={settings.voice}
             monthlyLimitCents={settings.monthlyLimitCents}
           />
-        </section>
-
-        <section className="flex flex-col gap-4">
-          <div className="flex items-end justify-between">
-            <h2 className="font-serif text-2xl">Favorite models</h2>
-            <Link href="/onboarding" className="text-sm font-extrabold underline">
-              Change
-            </Link>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {settings.favoriteModels.map((id) => (
-              <Chip key={id} variant="grass">
-                {names.get(id) ?? id}
-              </Chip>
-            ))}
-          </div>
         </section>
 
         <section className="flex flex-col gap-4">

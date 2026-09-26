@@ -12,6 +12,8 @@ vi.mock("next/headers", () => ({
 
 vi.mock("@/lib/chat/model", () => ({
   ModelsUnavailableError: class extends Error {},
+  defaultAssistantModel: "test/assistant",
+  assistantModelId: () => "test/assistant",
   getLanguageModel: () =>
     new MockLanguageModelV4({
       doStream: async () => ({
@@ -40,6 +42,7 @@ const { auth } = await import("@/lib/auth");
 const { saveSettings, defaultSettings } = await import("@/lib/settings");
 const { getMessages, listConversations } = await import("@/lib/chat/store");
 const { POST } = await import("./route");
+const { defaultAssistantModel } = await import("@/lib/chat/model");
 
 const conversationId = "11111111-1111-1111-1111-111111111111";
 
@@ -66,14 +69,8 @@ describe("POST /api/chat", () => {
     await saveSettings(userId, defaultSettings);
   });
 
-  it("rejects a model that is not in the favorites", async () => {
-    const res = await POST(
-      request({
-        conversationId,
-        modelId: "acme/not-mine",
-        messages: [{ id: "m1", role: "user", parts: [{ type: "text", text: "hi" }] }],
-      }),
-    );
+  it("rejects a request without messages", async () => {
+    const res = await POST(request({ conversationId, messages: [] }));
     expect(res.status).toBe(400);
   });
 
@@ -81,7 +78,6 @@ describe("POST /api/chat", () => {
     const res = await POST(
       request({
         conversationId,
-        modelId: defaultSettings.favoriteModels[0],
         messages: [{ id: "m1", role: "user", parts: [{ type: "text", text: "Say hello" }] }],
       }),
     );
@@ -98,7 +94,7 @@ describe("POST /api/chat", () => {
     expect(stored.map((m) => m.role)).toEqual(["user", "assistant"]);
     const reply = stored[1];
     expect((reply.parts[0] as { text: string }).text).toBe("Hello Anthony.");
-    expect(reply.metadata).toMatchObject({ modelId: defaultSettings.favoriteModels[0], costMicros: 420 });
+    expect(reply.metadata).toMatchObject({ modelId: defaultAssistantModel, costMicros: 420 });
   });
 
   it("requires a session", async () => {
@@ -106,7 +102,6 @@ describe("POST /api/chat", () => {
     const res = await POST(
       request({
         conversationId,
-        modelId: defaultSettings.favoriteModels[0],
         messages: [{ id: "m2", role: "user", parts: [{ type: "text", text: "hi" }] }],
       }),
     );

@@ -7,15 +7,13 @@ import {
 } from "ai";
 import { z } from "zod";
 import { buildInstructions } from "@/lib/chat/instructions";
-import { getLanguageModel, ModelsUnavailableError } from "@/lib/chat/model";
+import { assistantModelId, getLanguageModel, ModelsUnavailableError } from "@/lib/chat/model";
 import { saveMessage, textOf, titleFromText, touchConversation } from "@/lib/chat/store";
 import { getRules } from "@/lib/rules";
 import { getSession } from "@/lib/session";
-import { getSettings } from "@/lib/settings";
 
 const bodySchema = z.object({
   conversationId: z.string().min(8).max(64),
-  modelId: z.string().min(3).max(120),
   messages: z.array(z.custom<UIMessage>((m) => typeof m === "object" && m !== null)).min(1),
 });
 
@@ -25,13 +23,8 @@ export async function POST(req: Request) {
 
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Bad request." }, { status: 400 });
-  const { conversationId, modelId, messages } = parsed.data;
-
-  const settings = await getSettings(session.user.id);
-  const allowed = settings?.favoriteModels ?? [];
-  if (!allowed.includes(modelId)) {
-    return Response.json({ error: "Pick a model from your favorites." }, { status: 400 });
-  }
+  const { conversationId, messages } = parsed.data;
+  const modelId = assistantModelId();
 
   let model;
   try {
