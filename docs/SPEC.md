@@ -23,7 +23,7 @@ It fails if a normal person cannot get value in the first few minutes without le
 
 - One AI model, chosen and tuned to work well inside LifePark. Users never see or pick a model. The model can be swapped later without users noticing.
 - No model training. Tuning happens through instructions, tools, and the structure of the data.
-- The model is chosen by Anthony using the app in his own daily life with each of GPT-6 Luna, Qwen 3.8 Flash, and Gemini 3.8 Flash in turn. Claude switches the model and reports the cost of each round. The shortlist comes from a cost-versus-quality check. Gemini 3.8 Flash is the default until then.
+- The model is chosen by Anthony using the app in his own daily life with each of GPT-6 Luna, Qwen 3.8 Flash, Gemini 3.8 Flash, and GLM 5.3 Flash in turn. Claude switches the model and reports the cost of each round. The shortlist comes from a cost-versus-quality check. Gemini 3.8 Flash is the default until then.
 
 ### Getting information in
 

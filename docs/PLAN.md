@@ -73,7 +73,7 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 
 **What you get:** Safe and ready for invite-only testers, then the public.
 
-- [ ] 5.1 Model trial for Anthony. Anthony uses LifePark in his own daily life with each model in turn: GPT-6 Luna, Qwen 3.8 Flash, then Gemini 3.8 Flash. Claude switches the model on his account for each round and shows what each round cost. Anthony picks the one that worked best for him, and it becomes the one AI for everyone.
+- [ ] 5.1 Model trial for Anthony. Anthony uses LifePark in his own daily life with each model in turn: GPT-6 Luna, Qwen 3.8 Flash, Gemini 3.8 Flash, then GLM 5.3 Flash. Claude switches the model on his account for each round and shows what each round cost. Anthony picks the one that worked best for him, and it becomes the one AI for everyone.
 - [ ] 5.2 Export everything and delete everything, from Settings.
 - [ ] 5.3 Share one thing by link, like a recipe or a gift list.
 - [ ] 5.4 Free tier limits and the monthly subscription, with price set from research and the trial's real cost per user.
@@ -96,6 +96,7 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 
 ## Decisions log
 
+- 2026-09-26: GLM 5.3 Flash joins the model trial as a fourth round (Anthony). It scored highest of the four on Artificial Analysis at about $0.09 per task.
 - 2026-09-26: The chalk and crayon look replaces every floating bubble across the app (Anthony).
 - 2026-09-26: Sign-in and sign-up move to a hand-drawn chalk and crayon look, replacing the floating bubble buttons (Anthony, from a reference image).
 - 2026-09-26: The final AI is chosen by Anthony using each of GPT-6 Luna, Qwen 3.8 Flash, and Gemini 3.8 Flash in his own daily life. The shortlist came from a cost-versus-quality check against Artificial Analysis scores.
