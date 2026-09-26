@@ -6,10 +6,9 @@ import { passkey } from "@better-auth/passkey";
 import { importPKCS8, SignJWT } from "jose";
 import { db } from "./db";
 import { configuredProviders } from "./auth-providers";
+import { authBaseURL, trustedAppOrigins } from "./auth-url";
 
-const baseURL =
-  process.env.BETTER_AUTH_URL ??
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+const baseURL = authBaseURL();
 const host = new URL(baseURL).hostname;
 
 function secret() {
@@ -82,7 +81,7 @@ export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "pg" }),
   emailAndPassword: { enabled: true, minPasswordLength: 10 },
   socialProviders: socialProviders(),
-  trustedOrigins: ["https://appleid.apple.com"],
+  trustedOrigins: trustedAppOrigins(),
   plugins: [
     passkey({ rpID: host, rpName: "LifePark", origin: baseURL }),
     nextCookies(),
