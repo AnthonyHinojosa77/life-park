@@ -5,6 +5,7 @@ import { completeOnboarding, skipOnboarding } from "@/app/onboarding/actions";
 import { Button } from "@/components/ui/button";
 import { Wordmark } from "@/components/wordmark";
 import type { SettingsInput } from "@/lib/settings";
+import { ChalkOutline } from "@/components/ui/chalk";
 
 type Props = {
   name: string;
@@ -136,10 +137,11 @@ function ChoiceCard({
       role="radio"
       aria-checked={on}
       onClick={onClick}
-      className={`flex flex-col gap-1.5 rounded-card border-2 p-4 text-left ${
-        on ? "border-ink bg-card shadow-[var(--shadow-stamp)]" : "border-tan bg-card"
+      className={`relative isolate flex flex-col gap-1.5 rounded-card bg-card p-4 text-left ${
+        on ? "" : "border-2 border-tan"
       }`}
     >
+      {on && <ChalkOutline radius={22} width={3} />}
       <span className="font-serif text-xl">{title}</span>
       <span className="text-sm font-semibold text-ink-soft">{body}</span>
     </button>

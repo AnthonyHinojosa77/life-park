@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChalkFill, chalk } from "@/components/ui/chalk";
 import type { Conversation } from "@/lib/chat/store";
 
 type Props = {
@@ -25,10 +26,11 @@ export function ConversationList({ conversations, activeId, large }: Props) {
             <Link
               href={`/chats/${c.id}`}
               aria-current={active ? "page" : undefined}
-              className={`block truncate rounded-xl px-3 ${large ? "py-3.5 text-[15px]" : "py-2 text-[13px]"} font-bold ${
-                active ? "bg-sun text-ink" : "text-ink-soft hover:bg-paper"
+              className={`relative isolate block truncate rounded-xl px-3 ${large ? "py-3.5 text-[15px]" : "py-2 text-[13px]"} font-bold ${
+                active ? "text-ink" : "text-ink-soft hover:bg-paper"
               } ${large ? "border-2 border-tan bg-card" : ""}`}
             >
+              {active && <ChalkFill color={chalk.sun} radius={10} />}
               {c.title}
             </Link>
           </li>

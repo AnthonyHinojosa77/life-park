@@ -6,14 +6,15 @@ describe("Button", () => {
   it("renders its label and defaults to the press variant", () => {
     render(<Button>Listen</Button>);
     const button = screen.getByRole("button", { name: "Listen" });
-    expect(button.className).toContain("bg-grass");
+    expect(button.dataset.variant).toBe("press");
   });
 
-  it("applies the stamp variant when asked", () => {
+  it("applies the stamp variant when asked, drawn in chalk with no floating shadow", () => {
     render(<Button variant="stamp">Open</Button>);
-    expect(screen.getByRole("button", { name: "Open" }).className).toContain(
-      "border-ink",
-    );
+    const button = screen.getByRole("button", { name: "Open" });
+    expect(button.dataset.variant).toBe("stamp");
+    expect(button.className).not.toContain("shadow");
+    expect(button.querySelector("svg rect")).not.toBeNull();
   });
 });
 

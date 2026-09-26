@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Instrument_Serif, Nunito, Patrick_Hand } from "next/font/google";
 import { RegisterServiceWorker } from "@/components/register-sw";
 import "./globals.css";
+import { ChalkDefs } from "@/components/ui/chalk";
 
 const nunito = Nunito({
   variable: "--font-nunito",
@@ -51,6 +52,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${nunito.variable} ${instrumentSerif.variable} ${patrickHand.variable} h-full`}
     >
       <body className="min-h-full flex flex-col">
+        <ChalkDefs />
         {children}
         <RegisterServiceWorker />
       </body>

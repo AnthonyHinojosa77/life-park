@@ -51,13 +51,6 @@
   --radius-pill: 999px;
   --radius-card: 22px;
   --radius-chip: 14px;
-
-  /* Ink emphasis: outline plus a solid offset shadow. Used sparingly. */
-  --shadow-stamp: 4px 4px 0 var(--ink);
-  --shadow-stamp-sm: 3px 3px 0 var(--ink);
-  /* Pressed buttons: a darker bottom edge. */
-  --shadow-press: 0 4px 0 var(--grass-deep);
-  --shadow-press-tan: 0 3px 0 var(--tan);
 }
 
 html {

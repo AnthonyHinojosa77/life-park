@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { ChatIcon, ParkIcon, SettingsIcon, WorkflowsIcon } from "./icons";
+import { ChalkFill, ChalkOutline, chalk } from "./chalk";
 
 export type NavKey = "chats" | "park" | "workflows" | "settings";
 
@@ -10,7 +11,7 @@ export const navItems: { key: NavKey; label: string; icon: ReactNode }[] = [
   { key: "settings", label: "Settings", icon: <SettingsIcon size={22} /> },
 ];
 
-/** Phone: the bar along the bottom. The active item wears the stamped green pad. */
+/** Phone: the bar along the bottom. The active item is colored in with green crayon. */
 export function BottomNav({ active }: { active: NavKey }) {
   return (
     <nav
@@ -29,10 +30,11 @@ export function BottomNav({ active }: { active: NavKey }) {
             }`}
           >
             <span
-              className={`flex h-8 w-11 items-center justify-center rounded-xl ${
-                isActive ? "border-2 border-ink bg-grass text-white" : ""
+              className={`relative isolate flex h-8 w-11 items-center justify-center rounded-xl ${
+                isActive ? "text-white" : ""
               }`}
             >
+              {isActive && <ChalkFill color={chalk.grass} radius={10} />}
               {item.icon}
             </span>
             {item.label}
@@ -43,7 +45,7 @@ export function BottomNav({ active }: { active: NavKey }) {
   );
 }
 
-/** Laptop: the list in the left rail. The active item carries the ink outline. */
+/** Laptop: the list in the left rail. The active item gets a chalk outline. */
 export function SideNav({ active }: { active: NavKey }) {
   return (
     <nav aria-label="Main" className="flex flex-col gap-1">
@@ -54,12 +56,16 @@ export function SideNav({ active }: { active: NavKey }) {
             key={item.key}
             href={`/${item.key}`}
             aria-current={isActive ? "page" : undefined}
-            className={`flex h-10 items-center gap-2.5 rounded-xl px-3 text-sm ${
-              isActive
-                ? "border-2 border-ink bg-card font-extrabold shadow-[var(--shadow-stamp-sm)]"
-                : "font-bold text-muted hover:bg-card"
+            className={`relative isolate flex h-10 items-center gap-2.5 rounded-xl px-3 text-sm ${
+              isActive ? "font-extrabold" : "font-bold text-muted hover:bg-card"
             }`}
           >
+            {isActive && (
+              <>
+                <ChalkFill color={chalk.paper} radius={10} opacity={0.8} />
+                <ChalkOutline radius={10} width={2} />
+              </>
+            )}
             {item.icon}
             {item.label}
           </a>

@@ -112,3 +112,36 @@ export function ChalkButton({ tone, icon, className = "", children, ...rest }: C
     </button>
   );
 }
+
+/** Colors the chalk pieces draw with, matching the Paper stamp palette. */
+export const chalk = {
+  grass: "#3a7f43",
+  grassLight: "#58c26a",
+  sun: "#ffd95a",
+  paper: "#e9e1cf",
+  ink: "#22332a",
+  charcoal: "#2e2e2e",
+} as const;
+
+type SurfaceProps = { color: string; radius?: number | string; opacity?: number };
+
+/**
+ * A crayon-colored background that fills its parent. The parent needs
+ * `relative isolate`. Sizes in percent so the texture never stretches.
+ */
+export function ChalkFill({ color, radius = 12, opacity = 1 }: SurfaceProps) {
+  return (
+    <svg className="pointer-events-none absolute inset-0 -z-10 h-full w-full overflow-visible" aria-hidden="true">
+      <rect width="100%" height="100%" rx={radius} fill={color} opacity={opacity} filter="url(#chalk-fill)" />
+    </svg>
+  );
+}
+
+/** A chalk-drawn outline around its parent. The parent needs `relative isolate`. */
+export function ChalkOutline({ color = chalk.ink, radius = 12, width = 2.5 }: { color?: string; radius?: number | string; width?: number }) {
+  return (
+    <svg className="pointer-events-none absolute inset-0 -z-10 h-full w-full overflow-visible" aria-hidden="true">
+      <rect width="100%" height="100%" rx={radius} fill="none" stroke={color} strokeWidth={width} filter="url(#chalk-line)" />
+    </svg>
+  );
+}

@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { ChalkFill, ChalkOutline, chalk } from "./chalk";
 
 export type ButtonVariant = "press" | "stamp" | "soft" | "ghost";
 export type ButtonSize = "sm" | "md" | "lg";
@@ -9,24 +10,36 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   icon?: ReactNode;
 };
 
-const variants: Record<ButtonVariant, string> = {
-  // The main action. Grass green with a darker bottom edge that flattens on press.
-  press:
-    "bg-grass text-white shadow-[var(--shadow-press)] hover:brightness-105 active:translate-y-[3px] active:shadow-none",
-  // Emphasis. Ink outline with a solid offset shadow.
-  stamp:
-    "bg-card text-ink border-2 border-ink shadow-[var(--shadow-stamp-sm)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none",
-  // Everyday. Cream with a tan edge.
-  soft:
-    "bg-card text-ink border-2 border-tan shadow-[var(--shadow-press-tan)] active:translate-y-[2px] active:shadow-none",
-  // Quiet. No chrome until hovered.
-  ghost: "bg-transparent text-ink-soft hover:bg-card",
+const text: Record<ButtonVariant, string> = {
+  press: "text-white",
+  stamp: "text-ink",
+  soft: "text-ink",
+  ghost: "text-ink-soft hover:bg-card",
 };
 
+/**
+ * Each variant is drawn in crayon rather than floated on a shadow:
+ * press is the main action (green), stamp is emphasis (chalk outline),
+ * soft is everyday (pale crayon), ghost has no chrome.
+ */
+function Surface({ variant, radius }: { variant: ButtonVariant; radius: number | string }) {
+  if (variant === "press") return <ChalkFill color={chalk.grass} radius={radius} />;
+  if (variant === "soft") return <ChalkFill color={chalk.paper} radius={radius} />;
+  if (variant === "stamp") {
+    return (
+      <>
+        <ChalkFill color={chalk.paper} radius={radius} opacity={0.7} />
+        <ChalkOutline radius={radius} />
+      </>
+    );
+  }
+  return null;
+}
+
 const sizes: Record<ButtonSize, string> = {
-  sm: "h-9 px-3.5 text-[13px] gap-1.5",
-  md: "h-11 px-4 text-sm gap-2",
-  lg: "h-12 px-5 text-[15px] gap-2.5",
+  sm: "h-9 px-4 text-[17px] gap-1.5",
+  md: "h-11 px-5 text-[19px] gap-2",
+  lg: "h-12 px-6 text-[21px] gap-2.5",
 };
 
 export function Button({
@@ -39,11 +52,13 @@ export function Button({
 }: ButtonProps) {
   return (
     <button
-      className={`inline-flex items-center justify-center rounded-pill font-extrabold transition-[transform,box-shadow,filter] duration-100 disabled:opacity-50 disabled:pointer-events-none ${variants[variant]} ${sizes[size]} ${className}`}
+      data-variant={variant}
+      className={`relative isolate inline-flex items-center justify-center rounded-pill font-hand leading-none transition-[transform,filter] duration-100 hover:brightness-105 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 ${text[variant]} ${sizes[size]} ${className}`}
       {...rest}
     >
+      <Surface variant={variant} radius={12} />
       {icon}
-      {children}
+      <span className="pt-0.5">{children}</span>
     </button>
   );
 }
@@ -66,9 +81,11 @@ export function IconButton({
     <button
       aria-label={label}
       title={label}
-      className={`inline-flex size-11 items-center justify-center rounded-full transition-[transform,box-shadow] duration-100 ${variants[variant]} ${className}`}
+      data-variant={variant}
+      className={`relative isolate inline-flex size-11 items-center justify-center rounded-full transition-transform duration-100 active:scale-95 disabled:opacity-50 ${text[variant]} ${className}`}
       {...rest}
     >
+      <Surface variant={variant} radius="50%" />
       {children}
     </button>
   );

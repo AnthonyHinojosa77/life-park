@@ -96,6 +96,7 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 
 ## Decisions log
 
+- 2026-09-26: The chalk and crayon look replaces every floating bubble across the app (Anthony).
 - 2026-09-26: Sign-in and sign-up move to a hand-drawn chalk and crayon look, replacing the floating bubble buttons (Anthony, from a reference image).
 - 2026-09-26: The final AI is chosen by Anthony using each of GPT-6 Luna, Qwen 3.8 Flash, and Gemini 3.8 Flash in his own daily life. The shortlist came from a cost-versus-quality check against Artificial Analysis scores.
 - 2026-09-26: Customizable calendar added. Customizing means a cover photo for each month (Q16).

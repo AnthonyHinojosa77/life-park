@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { MicIcon, PaperclipIcon, SendIcon } from "@/components/ui/icons";
 import { useReadAloud, type VoiceSource } from "@/lib/speech/use-read-aloud";
 import { HandsFreeToggle, ListenButton } from "./read-aloud-controls";
+import { ChalkOutline } from "@/components/ui/chalk";
 
 type Props = {
   conversationId: string;
@@ -101,7 +102,8 @@ export function ChatView({
       </div>
 
       <form onSubmit={submit} className="px-4 pt-2 pb-3 md:px-8 md:pb-6">
-        <div className="flex items-center gap-2 rounded-pill border-2 border-ink bg-card py-1 pr-1 pl-4 shadow-[var(--shadow-stamp)] md:min-h-15 md:py-1.5 md:pr-1.5 md:pl-5">
+        <div className="relative isolate flex items-center gap-2 rounded-pill bg-card py-1 pr-1 pl-4 md:min-h-15 md:py-1.5 md:pr-1.5 md:pl-5">
+          <ChalkOutline radius={28} />
           <PaperclipIcon className="shrink-0 text-muted" />
           <input
             type="text"
@@ -124,7 +126,6 @@ export function ChatView({
               label="Send"
               variant="press"
               type="submit"
-              className="border-2 border-ink shadow-none active:translate-y-0"
               disabled={!input.trim()}
             >
               <SendIcon className="text-white" />
