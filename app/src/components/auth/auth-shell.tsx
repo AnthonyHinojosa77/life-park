@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ChalkDefs, ChalkDust } from "@/components/ui/chalk";
+import { ChalkDust, ChalkOutline } from "@/components/ui/chalk";
 import { Wordmark } from "@/components/wordmark";
 import { isPreview } from "@/lib/preview";
 
@@ -22,9 +22,11 @@ export function AuthShell({ title, footer, children }: Props) {
           Preview: accounts and chats last until the server restarts.
         </p>
       )}
-      <ChalkDefs />
-      <div className="relative flex w-full max-w-sm flex-col gap-5 overflow-hidden rounded-card border-2 border-ink bg-card p-6">
-        <ChalkDust />
+      <div className="relative isolate flex w-full max-w-sm flex-col gap-5 rounded-card bg-card p-6">
+        <ChalkOutline radius={22} width={3} />
+        <div className="absolute inset-0 overflow-hidden rounded-card">
+          <ChalkDust />
+        </div>
         <h1 className="relative font-serif text-3xl">{title}</h1>
         <div className="relative">{children}</div>
       </div>

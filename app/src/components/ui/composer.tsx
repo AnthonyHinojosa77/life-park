@@ -1,5 +1,6 @@
 import { IconButton } from "./button";
 import { MicIcon, PaperclipIcon, SendIcon } from "./icons";
+import { ChalkOutline } from "./chalk";
 
 type ComposerProps = {
   placeholder?: string;
@@ -17,10 +18,11 @@ export function Composer({
 }: ComposerProps) {
   return (
     <div
-      className={`flex items-center gap-2 rounded-pill border-2 border-ink bg-card shadow-[var(--shadow-stamp)] ${
+      className={`relative isolate flex items-center gap-2 rounded-pill bg-card ${
         wide ? "min-h-15 py-1.5 pr-1.5 pl-5" : "min-h-13 py-1 pr-1 pl-4"
       }`}
     >
+      <ChalkOutline radius={28} />
       <PaperclipIcon className="shrink-0 text-muted" />
       <input
         type="text"
@@ -34,7 +36,6 @@ export function Composer({
       <IconButton
         label="Send"
         variant="press"
-        className="border-2 border-ink shadow-none active:translate-y-0"
       >
         <SendIcon className="text-white" />
       </IconButton>

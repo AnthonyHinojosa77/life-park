@@ -78,7 +78,7 @@ It fails if a normal person cannot get value in the first few minutes without le
 
 ### Look and feel
 
-- Floating bubble buttons with offset shadows read as generic. Controls move toward a hand-drawn chalk and crayon look instead: crayon-filled buttons with rough edges, hand-lettered labels, and light chalk dust. The sign-in and sign-up screens use it first (2026-09-26).
+- Floating bubble buttons with offset shadows read as generic. Controls move toward a hand-drawn chalk and crayon look instead: crayon-filled buttons with rough edges, hand-lettered labels, and light chalk dust. It now covers the whole app: buttons, the message box, cards, chips, the menus, and the logo badge (2026-09-26). No offset shadows remain.
 
 ### Name
 

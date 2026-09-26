@@ -1,4 +1,5 @@
 import type { HTMLAttributes, ReactNode } from "react";
+import { ChalkFill, chalk } from "./chalk";
 
 export type ChipVariant = "sun" | "grass" | "soft" | "ink";
 
@@ -10,7 +11,8 @@ type ChipProps = HTMLAttributes<HTMLSpanElement> & {
 };
 
 const variants: Record<ChipVariant, string> = {
-  sun: "bg-sun text-ink border-2 border-ink",
+  // Selected or highlighted: colored in with yellow crayon.
+  sun: "relative isolate text-ink",
   grass: "bg-grass-light text-grass-deep",
   soft: "bg-card text-ink-soft border-2 border-tan",
   ink: "bg-ink text-paper",
@@ -32,6 +34,7 @@ export function Chip({
       className={`inline-flex h-7 items-center gap-1.5 rounded-pill px-3 ${type} ${variants[variant]} ${className}`}
       {...rest}
     >
+      {variant === "sun" && <ChalkFill color={chalk.sun} radius={10} />}
       {icon}
       {children}
     </span>

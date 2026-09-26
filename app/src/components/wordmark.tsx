@@ -1,3 +1,5 @@
+import { ChalkFill, ChalkOutline, chalk } from "@/components/ui/chalk";
+
 type WordmarkProps = {
   size?: "sm" | "md" | "lg";
 };
@@ -15,9 +17,11 @@ export function Wordmark({ size = "md" }: WordmarkProps) {
     <div className={`flex items-center ${s.gap}`}>
       <span
         aria-hidden="true"
-        className="flex items-center justify-center rounded-[14px] border-2 border-ink bg-grass shadow-[var(--shadow-stamp-sm)]"
+        className="relative isolate flex items-center justify-center rounded-[14px]"
         style={{ width: s.badge, height: s.badge }}
       >
+        <ChalkFill color={chalk.grassLight} radius={12} />
+        <ChalkOutline radius={12} width={2} />
         <LeafIcon size={s.icon} />
       </span>
       <span className={`font-serif tracking-tight ${s.text}`}>LifePark</span>
