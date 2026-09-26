@@ -10,7 +10,9 @@ import { buildInstructions } from "@/lib/chat/instructions";
 import { assistantModelId, getLanguageModel, ModelsUnavailableError } from "@/lib/chat/model";
 import { saveMessage, textOf, titleFromText, touchConversation } from "@/lib/chat/store";
 import { getRules } from "@/lib/rules";
+import { isOwner } from "@/lib/owner";
 import { getSession } from "@/lib/session";
+import { getSettings } from "@/lib/settings";
 
 const bodySchema = z.object({
   conversationId: z.string().min(8).max(64),
@@ -24,7 +26,10 @@ export async function POST(req: Request) {
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Bad request." }, { status: 400 });
   const { conversationId, messages } = parsed.data;
-  const modelId = assistantModelId();
+  // Everyone gets the one assistant model. The owner can switch their own
+  // account for the model trial; the override is ignored for anyone else.
+  const settings = isOwner(session.user.email) ? await getSettings(session.user.id) : null;
+  const modelId = settings?.assistantModel || assistantModelId();
 
   let model;
   try {

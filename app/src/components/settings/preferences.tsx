@@ -7,10 +7,7 @@ import { Chip } from "@/components/ui/chip";
 type Props = {
   navigation: "list" | "park";
   voice: "speechify" | "device";
-  monthlyLimitCents: number;
 };
-
-const limits = [1000, 2500, 5000, 10000];
 
 export function Preferences(initial: Props) {
   const [prefs, setPrefs] = useState(initial);
@@ -41,17 +38,6 @@ export function Preferences(initial: Props) {
         <Toggle on={prefs.voice === "device"} onClick={() => apply({ voice: "device" })}>
           This device
         </Toggle>
-      </Group>
-      <Group label="Monthly heads-up">
-        {limits.map((cents) => (
-          <Toggle
-            key={cents}
-            on={prefs.monthlyLimitCents === cents}
-            onClick={() => apply({ monthlyLimitCents: cents })}
-          >
-            ${cents / 100}
-          </Toggle>
-        ))}
       </Group>
     </div>
   );

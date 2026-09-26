@@ -39,7 +39,7 @@ vi.mock("@/lib/chat/model", () => ({
 const { db } = await import("@/lib/db");
 const { runMigrations } = await import("@/lib/db/migrate");
 const { auth } = await import("@/lib/auth");
-const { saveSettings, defaultSettings } = await import("@/lib/settings");
+const { saveSettings, defaultSettings, setAssistantModel } = await import("@/lib/settings");
 const { getMessages, listConversations } = await import("@/lib/chat/store");
 const { POST } = await import("./route");
 const { defaultAssistantModel } = await import("@/lib/chat/model");
@@ -95,6 +95,26 @@ describe("POST /api/chat", () => {
     const reply = stored[1];
     expect((reply.parts[0] as { text: string }).text).toBe("Hello Anthony.");
     expect(reply.metadata).toMatchObject({ modelId: defaultAssistantModel, costMicros: 420 });
+  });
+
+  it("uses the owner's trial model for the owner only", async () => {
+    await setAssistantModel(userId, "qwen/qwen3.8-flash");
+    const send = async (id: string) => {
+      const res = await POST(
+        request({ conversationId, messages: [{ id, role: "user", parts: [{ type: "text", text: "hi" }] }] }),
+      );
+      await res.text();
+      const stored = await getMessages(conversationId);
+      return stored[stored.length - 1].metadata as { modelId: string };
+    };
+
+    process.env.OWNER_EMAILS = "chat@example.com";
+    expect((await send("m-owner")).modelId).toBe("qwen/qwen3.8-flash");
+
+    // The same stored override does nothing for someone who is not an owner.
+    process.env.OWNER_EMAILS = "";
+    expect((await send("m-guest")).modelId).toBe(defaultAssistantModel);
+    await setAssistantModel(userId, null);
   });
 
   it("requires a session", async () => {

@@ -1,5 +1,5 @@
-// Signs up, skips onboarding, chats once against the mock, then checks Settings:
-// the spend shows, a rules edit saves, and restore brings the repository text back.
+// Signs up as a regular user and checks Settings: no spending, no owner link,
+// the owner page is hidden, a rules edit saves, restore works, preferences persist.
 // Usage: node e2e/settings-flow.mjs <baseUrl> <screenshotDir>
 import { chromium } from "playwright";
 import { submitAndWaitFor } from "./helpers.mjs";
@@ -17,21 +17,14 @@ await submitAndWaitFor(page, "Create account", "**/onboarding");
 await page.getByRole("button", { name: "Skip for now" }).click();
 await page.waitForURL("**/chats");
 
-await page.getByRole("link", { name: "New chat" }).click();
-await page.waitForURL(/\/chats\/[0-9a-f-]{36}$/);
-await page.getByLabel("Message").fill("Cost me something");
-await page.getByRole("button", { name: "Send" }).click();
-await page.getByText("Hello from the mock. You asked: Cost me something").waitFor({ timeout: 20000 });
-
-// The reply's cost is written just after the stream closes; give it a moment.
-for (let attempt = 0; attempt < 10; attempt++) {
-  await page.goto(base + "/settings", { waitUntil: "networkidle" });
-  if (await page.getByText("$0.0003").count()) break;
-  await page.waitForTimeout(500);
-}
-await page.getByText("$0.0003").first().waitFor();
-await page.getByText("1 reply").waitFor();
+// Spending is not a user concern any more, and the owner dashboard is hidden.
+await page.goto(base + "/settings", { waitUntil: "networkidle" });
+if (await page.getByText(/Spending in/).count()) throw new Error("Settings still shows spending.");
+if (await page.getByRole("link", { name: "Owner dashboard" }).count()) throw new Error("Owner link shown to a regular user.");
 await page.screenshot({ path: `${dir}/settings-phone.png`, fullPage: true });
+const ownerPage = await page.goto(base + "/owner", { waitUntil: "networkidle" });
+if (ownerPage?.status() !== 404) throw new Error(`Owner page answered ${ownerPage?.status()} for a regular user.`);
+await page.goto(base + "/settings", { waitUntil: "networkidle" });
 
 const rules = page.getByLabel("Rules");
 const original = await rules.inputValue();
