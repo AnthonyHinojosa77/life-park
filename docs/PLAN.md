@@ -41,10 +41,10 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 - [ ] 2.3 Photos. Snap a recipe card or an invite and it gets filed.
 - [ ] 2.4 Google Calendar and Google Contacts import, with birthdays pulled from contacts.
 - [ ] 2.5 Your calendar. Month, week, and day views of events, birthdays, and habits.
-- [ ] 2.6 Make the calendar yours. Add a cover photo for each month, add photos to days and events, show people's photos on their birthdays, and pick an accent color.
+- [ ] 2.6 Make the calendar yours. Add a cover photo for each month, like a wall calendar.
 - [ ] 2.7 Ask about your own life: "When is Sam's birthday?" or "What did I cook last week?"
 
-**Design check-in 1 (before Milestone 3):** the personal calendar and the detailed park. Claude sends mockups of a cuter, more detailed, interactive park, with neighbors' houses, garden plots, the orchard, festival flags, and growth stages. The calendar mockups show month covers and photo days. Anthony reacts to the look only.
+**Design check-in 1 (before Milestone 3):** the personal calendar and the detailed park. Claude sends mockups of a cuter, more detailed, interactive park, with neighbors' houses, garden plots, the orchard, festival flags, and growth stages. The calendar mockups show month cover photos. Anthony reacts to the look only.
 
 ---
 
@@ -95,6 +95,6 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 
 ## Decisions log
 
-- 2026-09-26: Customizable calendar with pictures added (Anthony).
+- 2026-09-26: Customizable calendar added. Customizing means a cover photo for each month (Q16).
 - 2026-09-26: The product pivots from Work Park (AI model harness) to LifePark (personal database). All answers are in SPEC.md.
 - 2026-09-05: "Paper stamp" design direction, kept for LifePark.

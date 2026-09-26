@@ -39,6 +39,7 @@ It fails if a normal person cannot get value in the first few minutes without le
 ### Calendar
 
 - A calendar view that people can make their own, with pictures added so it feels personal.
+- Customizing means a cover photo for each month, like a wall calendar (Q16).
 
 ### What the AI does on its own
 
@@ -96,7 +97,6 @@ These are Claude's defaults. Any of them can be overturned by saying so.
 - **Kinds of things at launch:** people, events, habits, recipes, notes, and lists. More kinds are added later without a redesign.
 - **Park mapping for the rest:** events are flags on a festival board, notes are benches with a small plaque, and lists are picnic blankets. Final shapes are settled at the park design check-in.
 - **Growth rules:** a thing grows when it is added, used, or completed. A habit plot blooms on a streak and wilts gently when skipped, never harshly. Nothing ever disappears on its own.
-- **Calendar pictures:** a cover photo for each month, like a wall calendar, plus photos on individual days and events. A birthday shows that person's photo, pulled from Google Contacts when it exists. People can also pick an accent color. Stickers and themes wait until after launch so the look stays tasteful. Pending Anthony's answer to Q16.
 - **Chat is the front door.** The park is the second tab. A plain list of everything exists for people who want it.
 - **The AI confirms before filing** anything it is not sure about, in one short line, the same pattern as confirm-before-save memory.
 - **Model access stays on OpenRouter** behind the scenes, so the one model can be swapped without code changes. The model is chosen by testing candidates on LifePark's real tasks: filing, reminders, and recaps.
