@@ -30,6 +30,7 @@ export const trialModels = [
   { id: "openai/gpt-6-luna", name: "GPT-6 Luna" },
   { id: "qwen/qwen3.8-flash", name: "Qwen 3.8 Flash" },
   { id: "google/gemini-3.8-flash", name: "Gemini 3.8 Flash" },
+  { id: "z-ai/glm-5.3-flash", name: "GLM 5.3 Flash" },
 ] as const;
 
 export function isTrialModel(id: string) {
