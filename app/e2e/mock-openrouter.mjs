@@ -5,7 +5,14 @@ import http from "node:http";
 
 const port = Number(process.argv[2] ?? 3124);
 
+let lastModel = "";
+
 const server = http.createServer((req, res) => {
+  // Lets a test ask which model the app requested most recently.
+  if (req.method === "GET" && req.url === "/last-model") {
+    res.writeHead(200, { "content-type": "text/plain" }).end(lastModel);
+    return;
+  }
   if (req.method !== "POST" || !req.url?.endsWith("/chat/completions")) {
     res.writeHead(404).end();
     return;
@@ -14,6 +21,7 @@ const server = http.createServer((req, res) => {
   req.on("data", (c) => (body += c));
   req.on("end", () => {
     const parsed = JSON.parse(body);
+    lastModel = parsed.model;
     const lastUser = [...parsed.messages].reverse().find((m) => m.role === "user");
     const asked = typeof lastUser?.content === "string" ? lastUser.content : "that";
     const words = `Hello from the mock. You asked: ${asked}`.split(" ");

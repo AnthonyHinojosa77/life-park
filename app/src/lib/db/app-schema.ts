@@ -14,6 +14,8 @@ export const userSettings = pgTable("user_settings", {
   voice: text("voice").$type<"speechify" | "device">().notNull(),
   /** Spending alert threshold per month, in US cents. */
   monthlyLimitCents: integer("monthly_limit_cents").notNull(),
+  /** Owner-only model override for the model trial. Ignored for everyone else. */
+  assistantModel: text("assistant_model"),
   onboardedAt: timestamp("onboarded_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")

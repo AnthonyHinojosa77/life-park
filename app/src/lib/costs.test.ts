@@ -36,6 +36,21 @@ describe("monthlyCosts", () => {
     expect(c.byDay[0].micros).toBe(2250);
   });
 
+  it("totals everyone when no user is given", async () => {
+    const other = await auth.api.signUpEmail({
+      body: { name: "Sam", email: "costs-2@example.com", password: "a-long-enough-password" },
+    });
+    await touchConversation({ id: "c-2", userId: other.user.id, modelId: "a/two", title: "Two" });
+    await saveMessage({ id: "b1", conversationId: "c-2", role: "assistant", parts: [], modelId: "a/two", costMicros: 750 });
+
+    const everyone = await monthlyCosts(null);
+    expect(everyone.monthMicros).toBe(3000);
+    expect(everyone.activePeople).toBe(2);
+    const mine = await monthlyCosts(userId);
+    expect(mine.monthMicros).toBe(2250);
+    expect(mine.activePeople).toBe(1);
+  });
+
   it("formats dollars readably", () => {
     expect(formatDollars(0)).toBe("$0.00");
     expect(formatDollars(2300)).toBe("$0.0023");

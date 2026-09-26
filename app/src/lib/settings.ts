@@ -47,6 +47,11 @@ export async function saveSettings(userId: string, input: SettingsInput) {
     });
 }
 
+/** Owner-only: which model answers this person's chats. Null means the default. */
+export async function setAssistantModel(userId: string, modelId: string | null) {
+  await db.update(userSettings).set({ assistantModel: modelId }).where(eq(userSettings.userId, userId));
+}
+
 /** Turns untrusted form data into a valid SettingsInput, or throws. */
 export function parseSettings(raw: unknown): SettingsInput {
   const o = (raw ?? {}) as Record<string, unknown>;

@@ -1,4 +1,4 @@
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, countDistinct, eq, gte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { conversations, messages } from "@/lib/db/app-schema";
 
@@ -7,13 +7,18 @@ export type CostSummary = {
   monthMicros: number;
   byModel: { modelId: string; micros: number; replies: number }[];
   byDay: { day: string; micros: number }[];
+  /** People with at least one reply this month. */
+  activePeople: number;
 };
 
-/** Spend for the current calendar month, from OpenRouter's reported cost per reply. */
-export async function monthlyCosts(userId: string, now = new Date()): Promise<CostSummary> {
+/**
+ * Spend for the current calendar month, from OpenRouter's reported cost per
+ * reply. Pass a user id for one person, or null for everyone (owner dashboard).
+ */
+export async function monthlyCosts(userId: string | null, now = new Date()): Promise<CostSummary> {
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const scope = and(
-    eq(conversations.userId, userId),
+    userId ? eq(conversations.userId, userId) : undefined,
     eq(messages.role, "assistant"),
     gte(messages.createdAt, monthStart),
   );
@@ -41,8 +46,15 @@ export async function monthlyCosts(userId: string, now = new Date()): Promise<Co
     .groupBy(sql`to_char(${messages.createdAt}, 'YYYY-MM-DD')`)
     .orderBy(sql`to_char(${messages.createdAt}, 'YYYY-MM-DD')`);
 
+  const [people] = await db
+    .select({ n: countDistinct(conversations.userId) })
+    .from(messages)
+    .innerJoin(conversations, eq(messages.conversationId, conversations.id))
+    .where(scope);
+
   return {
     monthStart,
+    activePeople: Number(people?.n ?? 0),
     monthMicros: byModel.reduce((sum, r) => sum + r.micros, 0),
     byModel: byModel.map((r) => ({ modelId: r.modelId ?? "unknown", micros: r.micros, replies: r.replies })),
     byDay,
