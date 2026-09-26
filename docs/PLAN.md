@@ -27,7 +27,7 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 - [x] 1.1 Rename to LifePark everywhere users can see it.
 - [~] 1.2 One AI behind the scenes. Remove the model picker and favorites from users' view. Choose the model by testing candidates on filing, reminders, and recaps. Built: one assistant model set in one place, with no model picker, model names, or favorites anywhere users look, and onboarding trimmed to navigation and voice. The provisional model is Google Gemini 3.8 Flash. The final choice comes from Anthony's personal trial in step 5.1.
 - [x] 1.3 Owner dashboard. Cost tracking moves out of Settings into a page only Anthony can open. It includes a model switch that changes the AI for Anthony's account only, ready for the trial in 5.1. Built at /owner: AI spend across everyone, active people, cost per person, spend by model, a monthly heads-up, and the trial switch. Everyone else gets a "not found" page. On the live site it turns on once OWNER_EMAILS holds Anthony's sign-in email in Vercel.
-- [ ] 1.4 Sign-in screen for normal people: Google, Apple, passkey, email and password.
+- [x] 1.4 Sign-in screen for normal people: Google, Apple, passkey, email and password. Google and Apple buttons sit on top in each company's required look, with email below and passkey on sign-in. GitHub and Microsoft are gone. The Google and Apple buttons appear once their credentials exist; tested with stand-in credentials, including Google's real sign-in redirect.
 - [ ] 1.5 New onboarding: connect Google, see birthdays and events arrive, then a short chat.
 
 ---

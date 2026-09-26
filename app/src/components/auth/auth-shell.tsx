@@ -13,7 +13,10 @@ type Props = {
 export function AuthShell({ title, footer, children }: Props) {
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 px-5 py-12">
-      <Wordmark size="md" />
+      <div className="flex flex-col items-center gap-2 text-center">
+        <Wordmark size="md" />
+        <p className="font-serif text-lg italic text-ink-soft">Your life, filed by AI and grown into a park.</p>
+      </div>
       {isPreview() && (
         <p className="max-w-sm rounded-chip border-2 border-tan bg-sun/40 px-3 py-2 text-center text-xs font-bold">
           Preview: accounts and chats last until the server restarts.
