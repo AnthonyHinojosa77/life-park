@@ -8,7 +8,7 @@ const sizes = {
   lg: { badge: 56, icon: 30, text: "text-[40px]", gap: "gap-3.5" },
 } as const;
 
-/** The Work Park wordmark: a stamped leaf badge next to the serif name. */
+/** The LifePark wordmark: a stamped leaf badge next to the serif name. */
 export function Wordmark({ size = "md" }: WordmarkProps) {
   const s = sizes[size];
   return (
@@ -20,7 +20,7 @@ export function Wordmark({ size = "md" }: WordmarkProps) {
       >
         <LeafIcon size={s.icon} />
       </span>
-      <span className={`font-serif tracking-tight ${s.text}`}>Work Park</span>
+      <span className={`font-serif tracking-tight ${s.text}`}>LifePark</span>
     </div>
   );
 }

@@ -16,7 +16,7 @@ function environment() {
 }
 
 /**
- * A one-line nudge to put Work Park on the home screen. Hidden once installed,
+ * A one-line nudge to put LifePark on the home screen. Hidden once installed,
  * once dismissed, and on laptops. Android gets a real Install button once the
  * browser offers one; iOS gets the two taps Safari requires.
  */
@@ -41,7 +41,7 @@ export function InstallHint() {
     <div className="mx-4 mb-2 flex items-center gap-3 rounded-chip border-2 border-tan bg-card px-3 py-2 text-xs font-bold md:hidden">
       <span className="flex-1">
         {env === "android"
-          ? "Put Work Park on your home screen."
+          ? "Put LifePark on your home screen."
           : "Add to your home screen: tap Share, then “Add to Home Screen”."}
       </span>
       {env === "android" && promptEvent && (

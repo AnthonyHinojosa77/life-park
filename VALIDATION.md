@@ -45,4 +45,4 @@ The repository at `AnthonyHinojosa77/tony-harness` was checked against the packa
 
 Runtime installation on the MacBook (`~/.codex`, `~/.claude`) was not re-verified from the repository; run `python3 scripts/manage.py verify` locally for that.
 
-The integrity list covers the toolkit only. The `app/` directory (the Work Park web app) is excluded from `artifacts.sha256`; its own checks are `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build` inside `app/`.
+The integrity list covers the toolkit only. The `app/` directory (the LifePark web app) is excluded from `artifacts.sha256`; its own checks are `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build` inside `app/`.

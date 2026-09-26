@@ -10,7 +10,7 @@ export default function OfflinePage() {
       <Wordmark size="md" />
       <h1 className="font-serif text-3xl">The park is closed for now.</h1>
       <p className="max-w-xs text-sm font-semibold text-muted">
-        You&apos;re offline. Work Park needs a connection to reach your models. Your chats are safe
+        You&apos;re offline. LifePark needs a connection to reach your assistant. Everything you saved is safe
         and will be here when you&apos;re back.
       </p>
     </main>

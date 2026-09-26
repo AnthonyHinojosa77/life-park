@@ -18,14 +18,14 @@ const instrumentSerif = Instrument_Serif({
 
 export const metadata: Metadata = {
   title: {
-    default: "Work Park",
-    template: "%s · Work Park",
+    default: "LifePark",
+    template: "%s · LifePark",
   },
-  description: "Anthony's personal AI workspace. Every model, your rules.",
-  applicationName: "Work Park",
+  description: "Your life, filed by AI and grown into a park.",
+  applicationName: "LifePark",
   appleWebApp: {
     capable: true,
-    title: "Work Park",
+    title: "LifePark",
     statusBarStyle: "default",
   },
 };

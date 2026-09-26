@@ -160,7 +160,7 @@ export function OnboardingFlow({ name, models, initial }: Props) {
         <section className="flex flex-col gap-4">
           <h1 className="font-serif text-3xl">Set a monthly heads-up.</h1>
           <p className="text-sm font-semibold text-muted">
-            You pay per message through your own OpenRouter key. Work Park warns you when the month nears this amount. It never blocks you.
+            You pay per message through your own OpenRouter key. LifePark warns you when the month nears this amount. It never blocks you.
           </p>
           <div className="flex flex-wrap gap-2">
             {limitPresets.map((cents) => (
@@ -204,7 +204,7 @@ export function OnboardingFlow({ name, models, initial }: Props) {
         </Button>
         {last ? (
           <Button size="lg" onClick={finish} disabled={pending}>
-            {pending ? "Saving" : "Open Work Park"}
+            {pending ? "Saving" : "Open LifePark"}
           </Button>
         ) : (
           <Button size="lg" onClick={() => setStep((s) => s + 1)} disabled={pending}>

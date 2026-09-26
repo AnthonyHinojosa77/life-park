@@ -1,4 +1,4 @@
-/* Work Park service worker: keeps the app installable and shows a friendly
+/* LifePark service worker: keeps the app installable and shows a friendly
    page when the network is gone. It never caches API calls or signed-in pages. */
 const CACHE = "work-park-v1";
 const OFFLINE = "/offline";
