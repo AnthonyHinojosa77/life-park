@@ -157,9 +157,9 @@ function MessageBubble({
   if (message.role === "user") {
     return (
       <div className="flex justify-end">
-        {/* What you said: colored in with pale crayon, dark text for easy reading. */}
-        <div className="relative isolate max-w-[85%] whitespace-pre-wrap px-4 py-3 text-[15px] font-semibold leading-relaxed text-ink md:max-w-[70%]">
-          <ChalkFill color={chalk.paper} radius={8} />
+        {/* What you said: dark crayon with light text, so it stands out from the page. */}
+        <div className="relative isolate max-w-[85%] whitespace-pre-wrap px-4 py-3 text-[15px] font-semibold leading-relaxed text-paper md:max-w-[70%]">
+          <ChalkFill color={chalk.ink} texture="#3d5446" radius={8} solid />
           {text}
         </div>
       </div>
