@@ -23,7 +23,7 @@ export function TextField({
         id={inputId}
         aria-invalid={error ? true : undefined}
         aria-describedby={error || hint ? `${inputId}-note` : undefined}
-        className={`h-12 rounded-pill border-2 bg-card px-4 text-[15px] font-semibold text-ink outline-none placeholder:text-placeholder ${edge}`}
+        className={`h-12 rounded-pill border-2 bg-card px-4 text-base font-semibold text-ink outline-none placeholder:text-placeholder ${edge}`}
         {...rest}
       />
       {(error || hint) && (

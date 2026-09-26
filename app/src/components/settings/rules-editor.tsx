@@ -59,7 +59,7 @@ export function RulesEditor({ content, edited, updatedAt }: Props) {
         onChange={(e) => setText(e.target.value)}
         spellCheck={false}
         rows={22}
-        className="w-full rounded-card border-2 border-tan bg-card p-4 font-mono text-[13px] leading-relaxed outline-none focus:border-ink"
+        className="w-full rounded-card border-2 border-tan bg-card p-4 font-mono text-base leading-relaxed md:text-[13px] outline-none focus:border-ink"
       />
       {note && (
         <p role="status" className="rounded-chip bg-grass-light px-3 py-2 text-xs font-bold text-grass-deep">

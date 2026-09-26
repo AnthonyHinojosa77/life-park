@@ -22,6 +22,13 @@ export function ChalkDefs() {
           <feComposite in="rough" in2="streakMask" operator="in" result="streaked" />
           <feComposite in="streaked" in2="fineMask" operator="in" />
         </filter>
+        {/* Crayon edge only: same wobbly, jagged outline as the fill, but fully opaque. */}
+        <filter id="chalk-edge" x="-8%" y="-35%" width="116%" height="170%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="3" seed="4" result="wobble" />
+          <feDisplacementMap in="SourceGraphic" in2="wobble" scale="10" xChannelSelector="R" yChannelSelector="G" result="bent" />
+          <feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="2" seed="9" result="grain" />
+          <feDisplacementMap in="bent" in2="grain" scale="6" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
         {/* Chalk line: a wobbly, grainy outline. */}
         <filter id="chalk-line" x="-5%" y="-20%" width="110%" height="140%">
           <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" seed="7" result="grain" />
@@ -123,16 +130,31 @@ export const chalk = {
   charcoal: "#2e2e2e",
 } as const;
 
-type SurfaceProps = { color: string; radius?: number | string; opacity?: number };
+type SurfaceProps = {
+  color: string;
+  radius?: number | string;
+  opacity?: number;
+  /** Opaque underneath so light text on a dark fill always stays readable. */
+  solid?: boolean;
+  /** Crayon streak color drawn over a solid fill. */
+  texture?: string;
+};
 
 /**
  * A crayon-colored background that fills its parent. The parent needs
  * `relative isolate`. Sizes in percent so the texture never stretches.
  */
-export function ChalkFill({ color, radius = 12, opacity = 1 }: SurfaceProps) {
+export function ChalkFill({ color, radius = 12, opacity = 1, solid = false, texture }: SurfaceProps) {
   return (
     <svg className="pointer-events-none absolute inset-0 -z-10 h-full w-full overflow-visible" aria-hidden="true">
-      <rect width="100%" height="100%" rx={radius} fill={color} opacity={opacity} filter="url(#chalk-fill)" />
+      {solid ? (
+        <>
+          <rect width="100%" height="100%" rx={radius} fill={color} opacity={opacity} filter="url(#chalk-edge)" />
+          {texture && <rect width="100%" height="100%" rx={radius} fill={texture} opacity={0.55} filter="url(#chalk-fill)" />}
+        </>
+      ) : (
+        <rect width="100%" height="100%" rx={radius} fill={color} opacity={opacity} filter="url(#chalk-fill)" />
+      )}
     </svg>
   );
 }
