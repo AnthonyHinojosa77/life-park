@@ -23,6 +23,7 @@ It fails if a normal person cannot get value in the first few minutes without le
 
 - One AI model, chosen and tuned to work well inside LifePark. Users never see or pick a model. The model can be swapped later without users noticing.
 - No model training. Tuning happens through instructions, tools, and the structure of the data.
+- The model is chosen by Anthony's own trial once the app is ready. He uses it with each of GPT-6 Luna, Qwen 3.8 Flash, and Gemini 3.8 Flash in turn, alongside a 50-task test on all three. The shortlist comes from a cost-versus-quality check. Gemini 3.8 Flash is the default until then.
 
 ### Getting information in
 
@@ -99,7 +100,7 @@ These are Claude's defaults. Any of them can be overturned by saying so.
 - **Growth rules:** a thing grows when it is added, used, or completed. A habit plot blooms on a streak and wilts gently when skipped, never harshly. Nothing ever disappears on its own.
 - **Chat is the front door.** The park is the second tab. A plain list of everything exists for people who want it.
 - **The AI confirms before filing** anything it is not sure about, in one short line, the same pattern as confirm-before-save memory.
-- **Model access stays on OpenRouter** behind the scenes, so the one model can be swapped without code changes. The model is chosen by testing candidates on LifePark's real tasks: filing, reminders, and recaps.
+- **Model access stays on OpenRouter** behind the scenes, so the one model can be swapped without code changes.
 - **Reminders arrive as phone notifications** through the home-screen app, plus an optional morning summary.
 - **Voice** keeps Speechify with the device voice as fallback, and hands-free mode stays.
 - **Accounts** keep Google, Apple, passkey, and email with password. GitHub and Microsoft sign-in are dropped from the sign-in screen, since normal people rarely use them.

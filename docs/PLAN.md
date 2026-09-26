@@ -25,8 +25,8 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 **What you get:** The live app becomes LifePark. It is one AI, no model picking, and an onboarding that starts with your calendar.
 
 - [x] 1.1 Rename to LifePark everywhere users can see it.
-- [~] 1.2 One AI behind the scenes. Remove the model picker and favorites from users' view. Choose the model by testing candidates on filing, reminders, and recaps. Built: one assistant model set in one place, with no model picker, model names, or favorites anywhere users look, and onboarding trimmed to navigation and voice. The provisional model is Google Gemini 3.8 Flash, the lowest-cost strong option that reads images and uses tools. The head-to-head test needs the OpenRouter key.
-- [ ] 1.3 Owner dashboard. Cost tracking moves out of Settings into a page only Anthony can open.
+- [~] 1.2 One AI behind the scenes. Remove the model picker and favorites from users' view. Choose the model by testing candidates on filing, reminders, and recaps. Built: one assistant model set in one place, with no model picker, model names, or favorites anywhere users look, and onboarding trimmed to navigation and voice. The provisional model is Google Gemini 3.8 Flash. The final choice comes from Anthony's personal trial in step 5.1.
+- [ ] 1.3 Owner dashboard. Cost tracking moves out of Settings into a page only Anthony can open. It includes a model switch that changes the AI for Anthony's account only, ready for the trial in 5.1.
 - [ ] 1.4 Sign-in screen for normal people: Google, Apple, passkey, email and password.
 - [ ] 1.5 New onboarding: connect Google, see birthdays and events arrive, then a short chat.
 
@@ -73,14 +73,15 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 
 **What you get:** Safe and ready for invite-only testers, then the public.
 
-- [ ] 5.1 Export everything and delete everything, from Settings.
-- [ ] 5.2 Share one thing by link, like a recipe or a gift list.
-- [ ] 5.3 Free tier limits and the monthly subscription, with price set from research.
-- [ ] 5.4 Google's review for calendar and contacts access.
-- [ ] 5.5 Trademark check and the lifepark.app domain.
-- [ ] 5.6 Invite-only testers, then public sign-ups.
+- [ ] 5.1 Model trial for Anthony. Once the app works end to end, Anthony uses it himself with each of the three candidates in turn: GPT-6 Luna, Qwen 3.8 Flash, and Gemini 3.8 Flash. Each gets its own test period, so he never has to set anything up. Claude also runs the same 50 real LifePark tasks on all three. The results are shown side by side: did it file things right, read photos right, write good recaps, and what did it cost. Anthony picks the winner, and it becomes the one AI for everyone.
+- [ ] 5.2 Export everything and delete everything, from Settings.
+- [ ] 5.3 Share one thing by link, like a recipe or a gift list.
+- [ ] 5.4 Free tier limits and the monthly subscription, with price set from research and the trial's real cost per user.
+- [ ] 5.5 Google's review for calendar and contacts access.
+- [ ] 5.6 Trademark check and the lifepark.app domain.
+- [ ] 5.7 Invite-only testers, then public sign-ups.
 
-**Design check-in 2 (before 5.6):** the whole app on Anthony's phone, from first open to a full park.
+**Design check-in 2 (before 5.7):** the whole app on Anthony's phone, from first open to a full park.
 
 ---
 
@@ -95,6 +96,7 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 
 ## Decisions log
 
+- 2026-09-26: The final AI is chosen by Anthony's personal trial of GPT-6 Luna, Qwen 3.8 Flash, and Gemini 3.8 Flash once the app is ready. The shortlist came from a cost-versus-quality check against Artificial Analysis scores.
 - 2026-09-26: Customizable calendar added. Customizing means a cover photo for each month (Q16).
 - 2026-09-26: The product pivots from Work Park (AI model harness) to LifePark (personal database). All answers are in SPEC.md.
 - 2026-09-05: "Paper stamp" design direction, kept for LifePark.
