@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Instrument_Serif, Nunito } from "next/font/google";
+import { Instrument_Serif, Nunito, Patrick_Hand } from "next/font/google";
 import { RegisterServiceWorker } from "@/components/register-sw";
 import "./globals.css";
 
@@ -7,6 +7,13 @@ const nunito = Nunito({
   variable: "--font-nunito",
   subsets: ["latin"],
   weight: ["500", "600", "700", "800"],
+});
+
+// Hand-lettered labels for the chalk-drawn controls.
+const patrickHand = Patrick_Hand({
+  variable: "--font-patrick-hand",
+  subsets: ["latin"],
+  weight: "400",
 });
 
 const instrumentSerif = Instrument_Serif({
@@ -41,7 +48,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${nunito.variable} ${instrumentSerif.variable} h-full`}
+      className={`${nunito.variable} ${instrumentSerif.variable} ${patrickHand.variable} h-full`}
     >
       <body className="min-h-full flex flex-col">
         {children}

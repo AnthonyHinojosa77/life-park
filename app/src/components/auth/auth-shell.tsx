@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Card } from "@/components/ui/card";
+import { ChalkDefs, ChalkDust } from "@/components/ui/chalk";
 import { Wordmark } from "@/components/wordmark";
 import { isPreview } from "@/lib/preview";
 
@@ -22,10 +22,12 @@ export function AuthShell({ title, footer, children }: Props) {
           Preview: accounts and chats last until the server restarts.
         </p>
       )}
-      <Card variant="stamp" className="flex w-full max-w-sm flex-col gap-5 p-6">
-        <h1 className="font-serif text-3xl">{title}</h1>
-        {children}
-      </Card>
+      <ChalkDefs />
+      <div className="relative flex w-full max-w-sm flex-col gap-5 overflow-hidden rounded-card border-2 border-ink bg-card p-6">
+        <ChalkDust />
+        <h1 className="relative font-serif text-3xl">{title}</h1>
+        <div className="relative">{children}</div>
+      </div>
       <p className="text-sm font-semibold text-muted">
         {footer.text}{" "}
         <Link href={footer.href} className="font-extrabold text-ink underline">
