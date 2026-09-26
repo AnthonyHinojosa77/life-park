@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card";
 import { MicIcon, PaperclipIcon, SendIcon } from "@/components/ui/icons";
 import { useReadAloud, type VoiceSource } from "@/lib/speech/use-read-aloud";
 import { HandsFreeToggle, ListenButton } from "./read-aloud-controls";
-import { ChalkOutline } from "@/components/ui/chalk";
+import { ChalkFill, ChalkOutline, chalk } from "@/components/ui/chalk";
 
 type Props = {
   conversationId: string;
@@ -157,7 +157,9 @@ function MessageBubble({
   if (message.role === "user") {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] whitespace-pre-wrap rounded-[22px_22px_6px_22px] bg-ink px-4 py-3 text-[15px] font-semibold leading-relaxed text-paper md:max-w-[70%]">
+        {/* What you said: colored in with pale crayon, dark text for easy reading. */}
+        <div className="relative isolate max-w-[85%] whitespace-pre-wrap px-4 py-3 text-[15px] font-semibold leading-relaxed text-ink md:max-w-[70%]">
+          <ChalkFill color={chalk.paper} radius={8} />
           {text}
         </div>
       </div>
