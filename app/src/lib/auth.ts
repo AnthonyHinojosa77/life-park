@@ -50,20 +50,6 @@ function socialProviders() {
       prompt: "select_account",
     };
   }
-  if (enabled.includes("github")) {
-    providers.github = {
-      clientId: process.env.GITHUB_CLIENT_ID!,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
-    };
-  }
-  if (enabled.includes("microsoft")) {
-    providers.microsoft = {
-      clientId: process.env.MICROSOFT_CLIENT_ID!,
-      clientSecret: process.env.MICROSOFT_CLIENT_SECRET!,
-      tenantId: "common",
-      prompt: "select_account",
-    };
-  }
   if (enabled.includes("apple")) {
     providers.apple = async () => ({
       clientId: process.env.APPLE_CLIENT_ID!,

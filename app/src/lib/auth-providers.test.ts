@@ -10,7 +10,18 @@ describe("configuredProviders", () => {
     expect(
       configuredProviders({ GOOGLE_CLIENT_ID: "id", GOOGLE_CLIENT_SECRET: "s" }),
     ).toEqual(["google"]);
-    expect(configuredProviders({ GITHUB_CLIENT_ID: "id" })).toEqual([]);
+    expect(configuredProviders({ GOOGLE_CLIENT_ID: "id" })).toEqual([]);
+  });
+
+  it("no longer offers GitHub or Microsoft", () => {
+    expect(
+      configuredProviders({
+        GITHUB_CLIENT_ID: "id",
+        GITHUB_CLIENT_SECRET: "s",
+        MICROSOFT_CLIENT_ID: "id",
+        MICROSOFT_CLIENT_SECRET: "s",
+      }),
+    ).toEqual([]);
   });
 
   it("needs all four Apple values", () => {
