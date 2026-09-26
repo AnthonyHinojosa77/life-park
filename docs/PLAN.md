@@ -1,113 +1,97 @@
-# Build Plan: Work Park
+# Build Plan: LifePark
 
 The shared plan for building the app described in [SPEC.md](./SPEC.md). Anthony and Claude both read this file. Claude updates it in the same pull request as the work, so the checkboxes always match what has actually shipped.
 
-**Goal:** A personal AI workspace on Anthony's phones and laptop that replaces his daily use of the Claude and ChatGPT apps and of coding agents, with every model available through one app and every model following his rules.
+**Goal:** A personal database for everyday people. You talk to an AI about your life, it files and remembers everything, reminds you, makes useful things from it, and shows it all as a park that grows.
 
-**Who does what:** Claude builds everything: code, design, hosting, testing, and fixes. Claude verifies each step itself before merging it, with automated tests and by using the preview the way a user would. Anthony does not check features one at a time. He evaluates the finished product once, as a whole, against his current ChatGPT and Claude use, because a feature-by-feature review cannot show whether the app is worth adopting.
+**Who does what:** Claude builds, verifies, and merges everything. Anthony reviews design at the check-ins below and evaluates the finished product once, as a whole. The few things only Anthony can do are listed at the end of SPEC.md.
 
-**Design check-ins:** The one thing Anthony reviews during the build is how it looks. At the three design check-ins below, Claude sends visual mockups or a preview link and Anthony reacts to the look and feel only. Nothing else needs his attention until the final evaluation.
-
-**Final evaluation:** When every milestone is checked, Anthony installs the app, uses it as his only AI tool for as long as he needs, and reports what would stop him from adopting it. Claude fixes that list and the cycle repeats until Anthony calls it adopted.
-
-**Design direction:** Light, rounded, consumer-grade, in the family of Airbnb, Duolingo, and Notion, with the Work Park name carried into the interface as quiet motifs rather than a theme park. The visual network view is the main expression: projects, conversations, and files laid out like a park map, with paths between related conversations, clusters as lawns or groves, and the shape of the park growing from how Anthony organizes his work. See the "Design direction" section of SPEC.md.
+**Live site:** https://work-park.vercel.app. The address moves to lifepark.app once the domain is bought.
 
 Status key: `[ ]` not started, `[~]` in progress, `[x]` built and verified by Claude.
 
----
-
-## Milestone 1: A chat app you can use every day
-
-**What you get:** Sign in, pick a model, talk to it, hear it read aloud, see what it cost, and install it on your home screen. This alone replaces the basic chat apps.
-
-- [x] 1.1 Project skeleton on Vercel. Live at https://work-park.vercel.app, deploying automatically from every merge. Runs in preview mode (accounts and chats reset when the server restarts) until the permanent database and sign-in secret are added, which needs a Vercel token from Anthony.
-- [x] 1.2 Design foundation. Colors, type, spacing, buttons, and inputs in the light, rounded, friendly style. A style page shows every element. Live at `/style` once the app is deployed.
-- [~] 1.3 Accounts. Sign in with Google, Apple, GitHub, Microsoft, passkey, or email and password. Only signed-in users can open the app. Built: email and password, passkeys, sign-out, protected pages, and the four social buttons, which appear automatically once each provider's credentials are added. Waiting on Anthony for Google, Apple, GitHub, and Microsoft credentials.
-- [x] 1.4 Onboarding. First-run flow that sets a starter list of favorite models, list or network navigation, voice preference, and a monthly spending limit. Skippable, re-openable from Settings. (Re-opening from Settings lands with step 1.7.)
-- [~] 1.5 Chat through OpenRouter. Send a message, choose a model from favorites, watch the answer stream in. Conversations save and appear on every device. Built and verified against a local stand-in for OpenRouter; the real connection needs Anthony's OpenRouter key.
-- [x] 1.6 Rules as system prompt. `AGENTS.md` is imported as the live rules, editable in Settings, applied to every request, and exportable back to the repository. (Export is a download for now; automatic sync to GitHub comes with the GitHub connection in 4.5.)
-- [x] 1.7 Cost tracking in Settings. Per-message cost recorded, totals by day and model, alert when the monthly limit is near.
-- [~] 1.8 Read-aloud. Play button on every response and a hands-free toggle that reads each response automatically. Speechify voice with the device voice as fallback. Built and verified with the device voice; the Speechify voice switches on the moment Anthony's Speechify key is added.
-- [x] 1.9 Home-screen install. Works as an installed app on iPhone and Android with an icon and splash screen. A one-line hint shows phone visitors how to install, and an offline page appears when there is no connection.
-
-**Design check-in 1 (done 2026-09-05):** Anthony chose the "Paper stamp" direction from three rounds of options. Phone chat, laptop chat, and the park map exist as mockups in that style.
-
-**Design check-in 2 (after 1.9):** Anthony reacts to the full chat experience on his phone: onboarding, chat, Settings, read-aloud controls, installed-app icon and splash.
+The earlier Work Park plan is kept in [archive/work-park-plan.md](./archive/work-park-plan.md).
 
 ---
 
-## Milestone 2: The app decides how to work
+## Milestone 0: Carried over from Work Park (done)
 
-**What you get:** Type naturally and the app picks the right approach, searches the web, reads your attachments, compares models with an impartial judge, and runs deeper research.
-
-- [ ] 2.1 Capability router. A message is classified as Ask, Compare, Research, Code, or Pipeline without a picker. The chosen capability shows as a small label on the response that can be tapped to switch.
-- [ ] 2.2 Web search. Models can search and cite sources inside any conversation.
-- [ ] 2.3 Attachments. Files and images can be added to a message and read by the model.
-- [ ] 2.4 Compare. Two or more models answer side by side. A judge model, chosen by Anthony, checks evidence and flags incorrect claims without picking a winner. The judge can search the web.
-- [ ] 2.5 Research. One lead model with up to two supporting lanes, producing a cited answer.
-- [ ] 2.6 Full model catalog in Settings. Search every OpenRouter model with prices, star any to add it to favorites.
-
+Accounts with email, password, and passkeys. Chat that saves across devices. Read-aloud and hands-free. Home-screen install with an offline page. The Paper stamp design system. Live on Vercel with automatic deploys.
 
 ---
 
-## Milestone 3: It remembers and stays organized
+## Milestone 1: The pivot
 
-**What you get:** Projects that hold related conversations and files, and a memory that asks before it saves.
+**What you get:** The live app becomes LifePark. It is one AI, no model picking, and an onboarding that starts with your calendar.
 
-- [ ] 3.1 Projects. Create a project, move conversations into it, attach files, add project-specific instructions.
-- [ ] 3.2 Sidebar navigation. Projects and conversations in a clean list, searchable, works on the phone.
-- [ ] 3.3 Memory with confirmation. The model proposes a memory in plain text, Anthony confirms or adjusts, then it saves. A "remembered" note appears on the response.
-- [ ] 3.4 Memory management. Every saved memory listed in Settings, editable and deletable.
-
-
----
-
-## Milestone 4: It can build software
-
-**What you get:** Give it a coding task and it works in a cloud container, runs tests, and saves the result to your workspace or GitHub.
-
-- [ ] 4.1 Cloud workspace. Each project has a file area in the app. Files can be uploaded, viewed, and downloaded.
-- [ ] 4.2 Coding agent. A task starts a Vercel Sandbox container with the project's files, the agent edits and runs code, and results save back to the workspace.
-- [ ] 4.3 Permissions. Per-project setting from "ask before anything irreversible" (default) to full autonomy.
-- [ ] 4.4 Developer portal. Task list, live progress, change review, and approve or reject, all usable on the phone. Code editor on the laptop.
-- [ ] 4.5 GitHub connection. Optional GitHub App install per project. The agent can open pull requests or push directly when permitted.
-
+- [x] 1.1 Rename to LifePark everywhere users can see it.
+- [ ] 1.2 One AI behind the scenes. Remove the model picker and favorites from users' view. Choose the model by testing candidates on filing, reminders, and recaps.
+- [ ] 1.3 Owner dashboard. Cost tracking moves out of Settings into a page only Anthony can open.
+- [ ] 1.4 Sign-in screen for normal people: Google, Apple, passkey, email and password.
+- [ ] 1.5 New onboarding: connect Google, see birthdays and events arrive, then a short chat.
 
 ---
 
-## Milestone 5: Deliberate workflows
+## Milestone 2: Your life goes in
 
-**What you get:** A Workflows area, separate from chat, where strategies are chosen on purpose and multi-step plans are saved and reused.
+**What you get:** Tell it anything and it lands in the right place.
 
-- [ ] 5.1 Single-strategy runs. Pick Compare, Research, Code, or Pipeline, set models and judge by hand, run it.
-- [ ] 5.2 Saved plans. Name a multi-step sequence once, reuse it with new inputs.
-- [ ] 5.3 Skills in chat. Slash commands from the repository's skills folder plus automatic skills, each labeled in chat, managed in Settings.
+- [ ] 2.1 The kinds of things: people, events, habits, recipes, notes, lists. Each has its own page and a plain list view.
+- [ ] 2.2 Filing from chat. The AI turns what you say into saved things and confirms in one short line when unsure.
+- [ ] 2.3 Photos. Snap a recipe card or an invite and it gets filed.
+- [ ] 2.4 Google Calendar and Google Contacts import, with birthdays pulled from contacts.
+- [ ] 2.5 Ask about your own life: "When is Sam's birthday?" or "What did I cook last week?"
 
-
----
-
-## Milestone 6: Connected to everything
-
-**What you get:** Your cloud drives inside the app and a visual map of your work.
-
-- [ ] 6.1 Google Drive. Read any file Anthony points at, write only into a dedicated app folder.
-- [ ] 6.2 OneDrive. Same rules as Google Drive.
-- [ ] 6.3 Visual network view. Projects, conversations, and files as a connected map, chosen as primary navigation in onboarding or opened as a secondary view.
-
-**Design check-in 3 (after 6.3):** Anthony reacts to the park map view, the one place the name is most visible.
-
-**Final evaluation:** Anthony uses Work Park as his only AI tool and reports what would stop him from adopting it.
+**Design check-in 1 (before Milestone 3):** the detailed park. Claude sends mockups of a cuter, more detailed, interactive park, with neighbors' houses, garden plots, the orchard, festival flags, and growth stages. Anthony reacts to the look only.
 
 ---
 
-## Decisions that come up during the build
+## Milestone 3: The park
 
-Recorded here when Anthony makes them, so no one has to search the conversation.
+**What you get:** Your life as a park that grows.
 
-- Design direction: "Paper stamp" (option G), chosen 2026-09-05 after three rounds. Details in the Design direction section of SPEC.md. Design check-in 1 is complete.
-- Product name: Work Park (chosen 2026-09-05). workpark.ai and workpark.so were unregistered on that date; workpark.com expires 2026-10-06 with no site on it.
-- Custom domain: Anthony to register workpark.ai and workpark.so, and try for workpark.com after it expires. Claude will give the exact steps when he is ready.
+- [ ] 3.1 The park drawn from your real data. Every person, habit, recipe, event, note, and list has its place.
+- [ ] 3.2 Growth and animation. Things sprout when added, bloom with use, and the park gently comes alive: wind, small critters, and time of day.
+- [ ] 3.3 Tap anything in the park to open it. Long-press to move it.
+- [ ] 3.4 A small moment each time something is added, so progress always feels visible.
 
-## Not in this plan
+---
 
-Multi-user features, native app store builds, direct provider keys, phone code editor, Mac Mini hosting. See the "Out of scope" section of SPEC.md.
+## Milestone 4: The assistant acts on its own
+
+**What you get:** It helps before you ask.
+
+- [ ] 4.1 Reminders as phone notifications: birthdays, habits, events.
+- [ ] 4.2 Morning summary, optional.
+- [ ] 4.3 Things it makes for you: weekly recap, gift ideas, meal plan from your recipes. You approve before anything is saved.
+
+---
+
+## Milestone 5: Ready for other people
+
+**What you get:** Safe and ready for invite-only testers, then the public.
+
+- [ ] 5.1 Export everything and delete everything, from Settings.
+- [ ] 5.2 Share one thing by link, like a recipe or a gift list.
+- [ ] 5.3 Free tier limits and the monthly subscription, with price set from research.
+- [ ] 5.4 Google's review for calendar and contacts access.
+- [ ] 5.5 Trademark check and the lifepark.app domain.
+- [ ] 5.6 Invite-only testers, then public sign-ups.
+
+**Design check-in 2 (before 5.6):** the whole app on Anthony's phone, from first open to a full park.
+
+---
+
+## Later
+
+- Real iPhone and Android apps for full phone import.
+- Visiting friends' parks.
+
+**Final evaluation:** Anthony uses LifePark in daily life and reports what would stop him or other people from adopting it.
+
+---
+
+## Decisions log
+
+- 2026-09-26: The product pivots from Work Park (AI model harness) to LifePark (personal database). All answers are in SPEC.md.
+- 2026-09-05: "Paper stamp" design direction, kept for LifePark.

@@ -47,7 +47,7 @@ export function RulesEditor({ content, edited, updatedAt }: Props) {
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <Chip variant={edited ? "sun" : "grass"}>
-          {edited ? "Edited in Work Park" : "Same as the repository"}
+          {edited ? "Edited in LifePark" : "Same as the repository"}
         </Chip>
         {updatedAt && (
           <span className="text-xs font-semibold text-muted">Last saved {updatedAt}</span>

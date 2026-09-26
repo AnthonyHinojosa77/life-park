@@ -17,7 +17,7 @@ export function getLanguageModel(modelId: string) {
     baseURL: process.env.OPENROUTER_BASE_URL || undefined,
     headers: {
       "HTTP-Referer": process.env.BETTER_AUTH_URL ?? "https://workpark.app",
-      "X-Title": "Work Park",
+      "X-Title": "LifePark",
     },
   });
   return openrouter.chat(modelId);

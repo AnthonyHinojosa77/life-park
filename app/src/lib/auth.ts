@@ -76,7 +76,7 @@ function socialProviders() {
 }
 
 export const auth = betterAuth({
-  appName: "Work Park",
+  appName: "LifePark",
   baseURL,
   secret: secret(),
   database: drizzleAdapter(db, { provider: "pg" }),
@@ -84,7 +84,7 @@ export const auth = betterAuth({
   socialProviders: socialProviders(),
   trustedOrigins: ["https://appleid.apple.com"],
   plugins: [
-    passkey({ rpID: host, rpName: "Work Park", origin: baseURL }),
+    passkey({ rpID: host, rpName: "LifePark", origin: baseURL }),
     nextCookies(),
   ],
 });

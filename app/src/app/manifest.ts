@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Work Park",
-    short_name: "Work Park",
-    description: "Anthony's personal AI workspace. Every model, your rules.",
+    name: "LifePark",
+    short_name: "LifePark",
+    description: "Your life, filed by AI and grown into a park.",
     id: "/",
     start_url: "/",
     scope: "/",

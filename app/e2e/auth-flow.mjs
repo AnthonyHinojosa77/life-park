@@ -46,7 +46,7 @@ await page.getByRole("radio", { name: /^This device/ }).click();
 await page.getByRole("button", { name: "Next" }).click();
 await page.getByRole("button", { name: "$50" }).click();
 await page.screenshot({ path: `${dir}/onboarding-4-spending.png` });
-await page.getByRole("button", { name: "Open Work Park" }).click();
+await page.getByRole("button", { name: "Open LifePark" }).click();
 await page.waitForURL("**/chats");
 await page.getByRole("heading", { name: "Chats" }).waitFor();
 await page.screenshot({ path: `${dir}/auth-chats.png` });

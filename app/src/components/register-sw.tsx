@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-/** Registers the service worker that makes Work Park installable and offline-aware. */
+/** Registers the service worker that makes LifePark installable and offline-aware. */
 export function RegisterServiceWorker() {
   useEffect(() => {
     if (process.env.NODE_ENV !== "production" || !("serviceWorker" in navigator)) return;

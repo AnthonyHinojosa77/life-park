@@ -5,6 +5,6 @@ import { Wordmark } from "./wordmark";
 describe("Wordmark", () => {
   it("shows the app name", () => {
     render(<Wordmark />);
-    expect(screen.getByText("Work Park")).toBeDefined();
+    expect(screen.getByText("LifePark")).toBeDefined();
   });
 });

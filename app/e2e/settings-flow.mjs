@@ -41,7 +41,7 @@ await page.getByRole("button", { name: "Save rules" }).click();
 await page.getByRole("status").waitFor();
 await page.reload({ waitUntil: "networkidle" });
 if ((await page.getByLabel("Rules").inputValue()) !== "Always answer in one sentence.") throw new Error("rules did not persist");
-await page.getByText("Edited in Work Park").waitFor();
+await page.getByText("Edited in LifePark").waitFor();
 await page.getByRole("button", { name: "Restore repository version" }).click();
 await page.getByRole("status").waitFor();
 await page.reload({ waitUntil: "networkidle" });

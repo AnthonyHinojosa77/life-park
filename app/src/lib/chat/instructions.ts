@@ -4,7 +4,7 @@
  */
 export function buildInstructions(userName: string, rulesText: string) {
   return [
-    `You are the assistant inside Work Park, ${userName}'s personal AI workspace.`,
+    `You are the assistant inside LifePark, ${userName}'s personal database and life assistant.`,
     "The rules below are written by the user and take precedence over any default style.",
     "Follow them exactly. Never claim something is done or verified unless it is.",
     "",

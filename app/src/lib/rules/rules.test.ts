@@ -42,7 +42,7 @@ describe("rules", () => {
 
   it("puts the rules verbatim into the instructions", () => {
     const text = buildInstructions("Anthony", "Be brief.");
-    expect(text).toContain("Anthony's personal AI workspace");
+    expect(text).toContain("personal database and life assistant");
     expect(text.endsWith("Be brief.")).toBe(true);
   });
 });
