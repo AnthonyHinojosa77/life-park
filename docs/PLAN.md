@@ -25,7 +25,7 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 **What you get:** The live app becomes LifePark. It is one AI, no model picking, and an onboarding that starts with your calendar.
 
 - [x] 1.1 Rename to LifePark everywhere users can see it.
-- [ ] 1.2 One AI behind the scenes. Remove the model picker and favorites from users' view. Choose the model by testing candidates on filing, reminders, and recaps.
+- [~] 1.2 One AI behind the scenes. Remove the model picker and favorites from users' view. Choose the model by testing candidates on filing, reminders, and recaps. Built: one assistant model set in one place, with no model picker, model names, or favorites anywhere users look, and onboarding trimmed to navigation and voice. The provisional model is Google Gemini 3.8 Flash, the lowest-cost strong option that reads images and uses tools. The head-to-head test needs the OpenRouter key.
 - [ ] 1.3 Owner dashboard. Cost tracking moves out of Settings into a page only Anthony can open.
 - [ ] 1.4 Sign-in screen for normal people: Google, Apple, passkey, email and password.
 - [ ] 1.5 New onboarding: connect Google, see birthdays and events arrive, then a short chat.

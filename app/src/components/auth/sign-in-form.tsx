@@ -35,7 +35,11 @@ export function SignInForm({ mode, providers }: Props) {
 
     setBusy(null);
     if (result.error) {
-      setError(result.error.message ?? "That did not work. Try again.");
+      setError(
+        result.error.status === 429
+          ? "Too many tries in a row. Wait a few seconds and try again."
+          : (result.error.message ?? "That did not work. Try again."),
+      );
       return;
     }
     router.push("/chats");

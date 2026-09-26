@@ -2,6 +2,7 @@
 // offline page, and the hands-free / listen controls in a chat.
 // Usage: node e2e/install-flow.mjs <baseUrl> <screenshotDir>
 import { chromium } from "playwright";
+import { submitAndWaitFor } from "./helpers.mjs";
 
 const [base = "http://localhost:3123", dir = "."] = process.argv.slice(2);
 const email = `install+${Date.now()}@example.com`;
@@ -37,8 +38,7 @@ await page.goto(base + "/sign-up", { waitUntil: "networkidle" });
 await page.getByLabel("Name").fill("Anthony");
 await page.getByLabel("Email").fill(email);
 await page.getByLabel("Password").fill(password);
-await page.getByRole("button", { name: "Create account" }).click();
-await page.waitForURL("**/onboarding");
+await submitAndWaitFor(page, "Create account", "**/onboarding");
 await page.getByRole("button", { name: "Skip for now" }).click();
 await page.waitForURL("**/chats");
 

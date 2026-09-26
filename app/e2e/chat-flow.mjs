@@ -2,6 +2,7 @@
 // persists across a reload, and appears in the chat list.
 // Usage: node e2e/chat-flow.mjs <baseUrl> <screenshotDir>
 import { chromium } from "playwright";
+import { submitAndWaitFor } from "./helpers.mjs";
 
 const [base = "http://localhost:3123", dir = "."] = process.argv.slice(2);
 const email = `chat+${Date.now()}@example.com`;
@@ -14,8 +15,7 @@ async function signUp(page) {
   await page.getByLabel("Name").fill("Anthony");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: "Create account" }).click();
-  await page.waitForURL("**/onboarding");
+  await submitAndWaitFor(page, "Create account", "**/onboarding");
   await page.getByRole("button", { name: "Skip for now" }).click();
   await page.waitForURL("**/chats");
 }
@@ -31,6 +31,8 @@ await phone.getByLabel("Message").fill("Say hello");
 await phone.getByRole("button", { name: "Send" }).click();
 await phone.getByText("Hello from the mock. You asked: Say hello").waitFor({ timeout: 20000 });
 await phone.screenshot({ path: `${dir}/chat-thread-phone.png` });
+if (await phone.getByLabel("Model").count()) throw new Error("A model picker is still visible.");
+if (await phone.getByText(/Claude|Gemini|GPT|Grok|DeepSeek/).count()) throw new Error("A model name is visible to the user.");
 
 // Reload: both messages come back from the database and the list shows the title.
 await phone.goto(threadUrl, { waitUntil: "networkidle" });

@@ -3,38 +3,23 @@
 import { useState, useTransition } from "react";
 import { completeOnboarding, skipOnboarding } from "@/app/onboarding/actions";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Chip } from "@/components/ui/chip";
-import { CheckIcon } from "@/components/ui/icons";
 import { Wordmark } from "@/components/wordmark";
-import { formatPerMillion, type CatalogModel } from "@/lib/models/catalog";
 import type { SettingsInput } from "@/lib/settings";
 
 type Props = {
   name: string;
-  models: CatalogModel[];
   initial: SettingsInput;
 };
 
-const steps = ["Models", "Navigation", "Voice", "Spending"] as const;
-const limitPresets = [1000, 2500, 5000, 10000];
+const steps = ["Navigation", "Voice"] as const;
 
-export function OnboardingFlow({ name, models, initial }: Props) {
+export function OnboardingFlow({ name, initial }: Props) {
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<SettingsInput>(initial);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
   const last = step === steps.length - 1;
-
-  function toggleModel(id: string) {
-    setDraft((d) => ({
-      ...d,
-      favoriteModels: d.favoriteModels.includes(id)
-        ? d.favoriteModels.filter((m) => m !== id)
-        : [...d.favoriteModels, id],
-    }));
-  }
 
   function finish() {
     setError(null);
@@ -72,53 +57,7 @@ export function OnboardingFlow({ name, models, initial }: Props) {
 
       {step === 0 && (
         <section className="flex flex-col gap-4">
-          <h1 className="font-serif text-3xl">Hi {name.split(" ")[0]}. Which models do you want close at hand?</h1>
-          <p className="text-sm font-semibold text-muted">
-            A balanced set is already chosen. Tap to add or remove. Every other model stays one search away in Settings.
-          </p>
-          {models.length === 0 && (
-            <Card variant="soft" className="p-4 text-sm font-semibold">
-              The model list could not load right now. Your balanced set is saved anyway.
-            </Card>
-          )}
-          <ul className="flex flex-col gap-2">
-            {models.map((m) => {
-              const on = draft.favoriteModels.includes(m.id);
-              return (
-                <li key={m.id}>
-                  <button
-                    type="button"
-                    role="checkbox"
-                    aria-checked={on}
-                    onClick={() => toggleModel(m.id)}
-                    className={`flex w-full items-center gap-3 rounded-chip border-2 px-3 py-2.5 text-left ${
-                      on ? "border-ink bg-card shadow-[var(--shadow-stamp-sm)]" : "border-tan bg-card"
-                    }`}
-                  >
-                    <span
-                      className={`flex size-6 shrink-0 items-center justify-center rounded-lg border-2 ${
-                        on ? "border-ink bg-grass text-white" : "border-tan"
-                      }`}
-                    >
-                      {on && <CheckIcon size={14} />}
-                    </span>
-                    <span className="flex min-w-0 flex-1 flex-col">
-                      <span className="truncate text-sm font-extrabold">{m.name}</span>
-                      <span className="text-[11px] font-semibold text-muted">
-                        {m.provider} · {formatPerMillion(m.promptPerMillion)} in · {formatPerMillion(m.completionPerMillion)} out
-                      </span>
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
-
-      {step === 1 && (
-        <section className="flex flex-col gap-4">
-          <h1 className="font-serif text-3xl">How do you want to get around?</h1>
+          <h1 className="font-serif text-3xl">Hi {name.split(" ")[0]}. How do you want to get around?</h1>
           <div className="grid gap-3 sm:grid-cols-2">
             <ChoiceCard
               on={draft.navigation === "list"}
@@ -136,7 +75,7 @@ export function OnboardingFlow({ name, models, initial }: Props) {
         </section>
       )}
 
-      {step === 2 && (
+      {step === 1 && (
         <section className="flex flex-col gap-4">
           <h1 className="font-serif text-3xl">Which voice should read to you?</h1>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -153,42 +92,6 @@ export function OnboardingFlow({ name, models, initial }: Props) {
               body="The built-in voice of your phone or laptop. Always free, sounds different per device."
             />
           </div>
-        </section>
-      )}
-
-      {step === 3 && (
-        <section className="flex flex-col gap-4">
-          <h1 className="font-serif text-3xl">Set a monthly heads-up.</h1>
-          <p className="text-sm font-semibold text-muted">
-            You pay per message through your own OpenRouter key. LifePark warns you when the month nears this amount. It never blocks you.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {limitPresets.map((cents) => (
-              <button
-                key={cents}
-                type="button"
-                onClick={() => setDraft({ ...draft, monthlyLimitCents: cents })}
-                aria-pressed={draft.monthlyLimitCents === cents}
-              >
-                <Chip variant={draft.monthlyLimitCents === cents ? "sun" : "soft"} className="h-10 px-4 text-sm">
-                  ${cents / 100}
-                </Chip>
-              </button>
-            ))}
-          </div>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[13px] font-extrabold">Or a custom amount in dollars</span>
-            <input
-              type="number"
-              min={1}
-              max={10000}
-              value={draft.monthlyLimitCents / 100}
-              onChange={(e) =>
-                setDraft({ ...draft, monthlyLimitCents: Math.round(Number(e.target.value) * 100) })
-              }
-              className="h-12 w-40 rounded-pill border-2 border-tan bg-card px-4 text-[15px] font-semibold outline-none focus:border-ink"
-            />
-          </label>
         </section>
       )}
 

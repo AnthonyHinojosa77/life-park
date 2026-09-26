@@ -1,6 +1,7 @@
 // Drives sign-up, onboarding, sign-out, and sign-in through the real pages.
 // Usage: node e2e/auth-flow.mjs <baseUrl> <screenshotDir>
 import { chromium } from "playwright";
+import { submitAndWaitFor } from "./helpers.mjs";
 
 const [base = "http://localhost:3123", dir = "."] = process.argv.slice(2);
 const email = `anthony+${Date.now()}@example.com`;
@@ -26,26 +27,19 @@ await page.screenshot({ path: `${dir}/auth-sign-up.png` });
 await page.getByLabel("Name").fill("Anthony");
 await page.getByLabel("Email").fill(email);
 await page.getByLabel("Password").fill(password);
-await page.getByRole("button", { name: "Create account" }).click();
-await page.waitForURL("**/onboarding");
+await submitAndWaitFor(page, "Create account", "**/onboarding");
 await page.getByRole("heading", { level: 1 }).waitFor();
-await page.screenshot({ path: `${dir}/onboarding-1-models.png` });
+await page.screenshot({ path: `${dir}/onboarding-1-navigation.png` });
 
 // Chats is not reachable until onboarding is done.
 await page.goto(base + "/chats", { waitUntil: "networkidle" });
 check(page.url().endsWith("/onboarding"), "chats opened before onboarding finished");
 
-// Walk the four steps, changing one choice on each.
-const firstModel = page.getByRole("checkbox").first();
-await firstModel.click();
-await page.getByRole("button", { name: "Next" }).click();
+// Walk both steps, changing one choice on each.
 await page.getByRole("radio", { name: /^The park/ }).click();
-await page.screenshot({ path: `${dir}/onboarding-2-navigation.png` });
 await page.getByRole("button", { name: "Next" }).click();
 await page.getByRole("radio", { name: /^This device/ }).click();
-await page.getByRole("button", { name: "Next" }).click();
-await page.getByRole("button", { name: "$50" }).click();
-await page.screenshot({ path: `${dir}/onboarding-4-spending.png` });
+await page.screenshot({ path: `${dir}/onboarding-2-voice.png` });
 await page.getByRole("button", { name: "Open LifePark" }).click();
 await page.waitForURL("**/chats");
 await page.getByRole("heading", { name: "Chats" }).waitFor();

@@ -8,14 +8,11 @@ import { IconButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { MicIcon, PaperclipIcon, SendIcon } from "@/components/ui/icons";
 import { useReadAloud, type VoiceSource } from "@/lib/speech/use-read-aloud";
-import { ModelPicker } from "./model-picker";
 import { HandsFreeToggle, ListenButton } from "./read-aloud-controls";
 
 type Props = {
   conversationId: string;
   initialMessages: UIMessage[];
-  initialModelId: string;
-  models: { id: string; name: string }[];
   isNew: boolean;
   voice: VoiceSource;
   speechifyAvailable: boolean;
@@ -24,14 +21,11 @@ type Props = {
 export function ChatView({
   conversationId,
   initialMessages,
-  initialModelId,
-  models,
   isNew,
   voice,
   speechifyAvailable,
 }: Props) {
   const router = useRouter();
-  const [modelId, setModelId] = useState(initialModelId);
   const [input, setInput] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
   const startedNew = useRef(false);
@@ -68,24 +62,21 @@ export function ChatView({
     const text = input.trim();
     if (!text || busy) return;
     setInput("");
-    void sendMessage({ text }, { body: { conversationId, modelId } });
+    void sendMessage({ text }, { body: { conversationId } });
   }
-
-  const modelName = (id: string) => models.find((m) => m.id === id)?.name ?? id;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-center justify-between px-5 pb-2 md:pt-6">
-        <ModelPicker value={modelId} options={models} onChange={setModelId} disabled={busy} />
+      <div className="flex items-center justify-end px-5 pb-2 md:pt-6">
         <HandsFreeToggle on={reader.handsFree} onChange={reader.setHandsFree} />
       </div>
 
       <div ref={listRef} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-3">
         {messages.length === 0 && (
           <div className="flex flex-1 flex-col items-center justify-center gap-1 text-center">
-            <p className="font-serif text-2xl">What are we working on?</p>
+            <p className="font-serif text-2xl">What&apos;s on your mind?</p>
             <p className="text-sm font-semibold text-muted">
-              Talking to {modelName(modelId)}. Switch models any time above.
+              Tell me about a birthday, a plan, a recipe, or anything you want to remember.
             </p>
           </div>
         )}
@@ -93,7 +84,6 @@ export function ChatView({
           <MessageBubble
             key={m.id}
             message={m}
-            modelName={modelName}
             playing={reader.playingId === m.id}
             onListen={() =>
               reader.playingId === m.id ? reader.stop() : reader.play(m.id, textOfParts(m.parts))
@@ -101,7 +91,7 @@ export function ChatView({
           />
         ))}
         {status === "submitted" && (
-          <p className="font-serif text-sm italic text-muted">{modelName(modelId)} is thinking</p>
+          <p className="font-serif text-sm italic text-muted">Thinking</p>
         )}
         {error && (
           <p role="alert" className="rounded-chip bg-sun px-3 py-2 text-xs font-bold">
@@ -155,12 +145,10 @@ function textOfParts(parts: UIMessage["parts"]) {
 
 function MessageBubble({
   message,
-  modelName,
   playing,
   onListen,
 }: {
   message: UIMessage;
-  modelName: (id: string) => string;
   playing: boolean;
   onListen: () => void;
 }) {
@@ -174,12 +162,8 @@ function MessageBubble({
       </div>
     );
   }
-  const meta = message.metadata as { modelId?: string } | undefined;
   return (
     <div className="flex flex-col gap-1.5">
-      {meta?.modelId && (
-        <span className="px-1 text-[11px] font-extrabold text-grass-deep">{modelName(meta.modelId)}</span>
-      )}
       <Card variant="stamp" className="flex max-w-[92%] flex-col gap-3 px-4 py-3.5 text-[15px] font-semibold leading-relaxed md:max-w-[80%]">
         <div className="whitespace-pre-wrap">{text || <span className="text-muted">…</span>}</div>
         {text && (
