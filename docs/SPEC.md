@@ -36,6 +36,7 @@ It fails if a normal person cannot get value in the first few minutes without le
 ### The park
 
 - Each kind of information is its own thing in the park. People are neighbors with houses, habits are garden plots, and recipes are an orchard. Things grow as they are added and used.
+- The park map follows the Work Park park design (restored 2026-09-27): organic grass lawns joined by path ribbons, a pond, a compass, zoom, and a card when a single thing is tapped. Each kind of thing has its own lawn, which grows as things are planted on it. A plain list view sits beside the map.
 - The park builds itself as soon as accounts are connected, so people see their park right away. Empty areas show a sign that starts a chat to fill them, and the park always suggests the next area to grow (2026-09-27).
 - Flat, top-down, drawn in the chosen "Paper stamp" style. The current park mockup is a good starting point. It gets more detailed, cuter, and more interactive, without losing taste or turning into slop.
 - Nothing copies Animal Crossing's art. The feeling is the reference, not the look.

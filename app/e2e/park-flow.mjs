@@ -120,7 +120,7 @@ try {
   // Coming back without allowing access still lands on the park, now empty with signs.
   await page.goto(base + "/park?connect=failed", { waitUntil: "networkidle" });
   await page.getByText("Google didn't connect").waitFor();
-  await page.getByText("0 of 8 areas growing").waitFor();
+  await page.getByText(/^0 of 8 lawns growing/).waitFor();
   await page.getByRole("button", { name: /Neighborhood: Who's in your life/ }).waitFor();
   await page.getByRole("button", { name: "Connect Google" }).waitFor();
   await page.screenshot({ path: `${dir}/park-3-empty.png`, fullPage: true });
@@ -138,7 +138,7 @@ try {
   await page.screenshot({ path: `${dir}/park-4-chat-saved.png` });
   await page.getByRole("link", { name: "Added to your park: Grandma's chili" }).click();
   await page.waitForURL("**/park");
-  await page.getByText("1 of 8 areas growing").waitFor();
+  await page.getByText(/^1 of 8 lawns growing/).waitFor();
   await page.getByRole("button", { name: /Orchard: 1 recipe/ }).click();
   await page.getByRole("region", { name: "Orchard" }).getByText("Grandma's chili").waitFor();
 
@@ -179,7 +179,7 @@ try {
   ]) {
     await page.getByText(line).waitFor();
   }
-  await page.getByText("6 of 8 areas growing").waitFor();
+  await page.getByText(/^6 of 8 lawns growing/).waitFor();
   await page.waitForTimeout(1500); // let the sprouting finish before the picture
   await page.screenshot({ path: `${dir}/park-5-filled.png`, fullPage: true });
 
@@ -190,7 +190,26 @@ try {
   await hood.getByText("Birthday Nov 3").waitFor();
   await page.getByRole("button", { name: /Post office: 2 letters/ }).click();
   await page.getByRole("region", { name: "Post office" }).getByText("From Sam Rivera").waitFor();
-  await page.screenshot({ path: `${dir}/park-6-list.png`, fullPage: true });
+  await page.screenshot({ path: `${dir}/park-6-lawn.png`, fullPage: true });
+
+  // Tapping one thing opens its card on the map.
+  await page.getByRole("button", { name: "Sam Rivera, neighbor" }).click();
+  const card = page.getByRole("region", { name: "Sam Rivera" });
+  await card.getByText("Birthday Nov 3").waitFor();
+  await card.getByText("Planted from Google Contacts").waitFor();
+  await page.screenshot({ path: `${dir}/park-6b-card.png` });
+  await card.getByRole("button", { name: "Close" }).click();
+
+  // The plain list shows everything, lawn by lawn.
+  await page.getByRole("radio", { name: "List" }).click();
+  const all = page.getByRole("region", { name: "Everything in your park" });
+  await all.getByText("Budget 2026").waitFor();
+  await all.getByText("Grandma's chili").waitFor();
+  await page.getByRole("radio", { name: "Map" }).click();
+
+  // Zooming in and out works.
+  await page.getByRole("button", { name: "Zoom in" }).click();
+  await page.getByRole("button", { name: "Zoom out" }).click();
 
   // Reopening does not import again, and nothing is duplicated.
   await page.goto(base + "/park", { waitUntil: "networkidle" });

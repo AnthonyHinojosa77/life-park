@@ -1,36 +1,66 @@
 "use client";
 
-import type { KeyboardEvent, ReactNode } from "react";
+import { useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import type { ThingKind } from "@/lib/kinds";
-import { PARK_HEIGHT, PARK_WIDTH, countLabel, fit, hash, stageOf, zones, type Zone } from "@/lib/park/layout";
+import {
+  blobPath,
+  countLabel,
+  fit,
+  hash,
+  landmarks,
+  lawnRadius,
+  paths,
+  stageOf,
+  worlds,
+  zones,
+  type WorldShape,
+  type Zone,
+} from "@/lib/park/layout";
 import type { ParkThing } from "@/lib/things";
 
 type Props = {
   things: ParkThing[];
   /** The current time, from the parent, so drawing stays predictable. */
   now: number;
-  onSelect: (kind: ThingKind) => void;
-  /** Where an empty area's sign leads: a chat link, or a button such as "connect Google". */
-  emptyAction: (zone: Zone) => { href: string } | { onClick: () => void } | null;
+  shape: WorldShape;
+  selectedLawn: ThingKind | null;
+  selectedThing: string | null;
+  onSelectLawn: (kind: ThingKind) => void;
+  onSelectThing: (thing: ParkThing) => void;
+  /** What an empty lawn's sign does: start a chat, or connect Google. Null means it is just a sign. */
+  emptyAction: (zone: Zone) => (() => void) | null;
 };
 
+const INK = "#22332a";
+const GRASS = "#cfe7d6";
+const EDGE = "#8fc9a4";
+const PATH = "#ece1c6";
 const roofs = ["#e8594a", "#4a82de", "#f2c230", "#3e9e50", "#b36bd4", "#f08a3c"];
 const walls = ["#fffdf8", "#f7e7c6", "#e9f1f7", "#fbe3dc"];
 const brights = ["#e8594a", "#f2c230", "#4a82de", "#58c26a", "#b36bd4", "#f08a3c"];
-const grounds: Record<ThingKind, string> = {
-  person: "#d6ecd6",
-  event: "#f4e8c8",
-  habit: "#dccaa6",
-  recipe: "#c9e4c0",
-  list: "#d9eedd",
-  note: "#ecdfbd",
-  file: "#e9e1d1",
-  mail: "#e1e7f0",
-};
-const LABEL = 24;
 
-type DrawProps = { z: Zone; items: ParkThing[]; now: number };
-const INK = "#22332a";
+const capacity: Record<ThingKind, number> = {
+  person: 16,
+  event: 16,
+  habit: 6,
+  recipe: 12,
+  list: 8,
+  note: 10,
+  file: 20,
+  mail: 16,
+};
+
+/** Each item's size at scale 1, used to fit a lawn's items inside it. */
+const units: Record<ThingKind, { w: number; h: number }> = {
+  person: { w: 34, h: 38 },
+  event: { w: 24, h: 40 },
+  habit: { w: 50, h: 38 },
+  recipe: { w: 34, h: 42 },
+  list: { w: 44, h: 44 },
+  note: { w: 40, h: 30 },
+  file: { w: 30, h: 34 },
+  mail: { w: 30, h: 24 },
+};
 
 /** Newest first, except events: soonest upcoming first, then the most recent past ones. */
 function ordered(kind: ThingKind, list: ParkThing[], now: number) {
@@ -39,19 +69,6 @@ function ordered(kind: ThingKind, list: ParkThing[], now: number) {
   const upcoming = list.filter((t) => time(t) >= now).sort((a, b) => time(a) - time(b));
   const past = list.filter((t) => time(t) < now).sort((a, b) => time(b) - time(a));
   return [...upcoming, ...past];
-}
-
-function content(z: Zone) {
-  return { x: z.x + 8, y: z.y + LABEL, w: z.w - 16, h: z.h - LABEL - 6 };
-}
-
-/** A new item pops up from the ground; the delay makes a batch arrive one by one. */
-function Item({ i, children }: { i: number; children: ReactNode }) {
-  return (
-    <g className="park-item" style={{ animationDelay: `${Math.min(i * 28, 1100)}ms` }}>
-      {children}
-    </g>
-  );
 }
 
 function soonBirthday(t: ParkThing, now: number) {
@@ -63,121 +80,52 @@ function soonBirthday(t: ParkThing, now: number) {
   return next.getTime() - now < 14 * 86400000;
 }
 
-/** Places each item at its spot, scaled so a handful fill the area and a crowd still fits. */
-function Placed({
-  z,
-  items,
-  max,
-  unit,
-  maxScale = 2.2,
-  box,
-  draw,
-}: {
-  z: Zone;
-  items: ParkThing[];
-  max: number;
-  unit: { w: number; h: number };
-  maxScale?: number;
-  box?: { x: number; y: number; w: number; h: number };
-  draw: (t: ParkThing, i: number) => ReactNode;
-}) {
-  const { cells, scale } = fit(box ?? content(z), items.length, max, unit, maxScale);
-  return (
-    <>
-      {cells.map((c, i) => (
-        <g key={items[i].id} transform={`translate(${c.x} ${c.y}) scale(${scale})`}>
-          <Item i={i}>{draw(items[i], i)}</Item>
-        </g>
-      ))}
-    </>
-  );
-}
+const short = (s: string, n = 16) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
-/** One house, about 30 wide and 34 tall, centered on 0,0. */
-function House({ t, now }: { t: ParkThing; now: number }) {
+/** One item's drawing, centered on 0,0 at scale 1. */
+function Figure({ t, now, i }: { t: ParkThing; now: number; i: number }): ReactNode {
   const h = hash(t.id);
-  const roof = roofs[h % roofs.length];
-  const wall = walls[(h >>> 3) % walls.length];
-  return (
-    <>
-      <rect x={-11} y={-4} width={22} height={17} fill={wall} stroke={INK} strokeWidth={1.3} />
-      <path d="M-14 -3 L0 -16 L14 -3 Z" fill={roof} stroke={INK} strokeWidth={1.3} strokeLinejoin="round" />
-      <rect x={-3} y={4} width={6} height={9} fill={roof} opacity={0.8} />
-      <rect x={-8.5} y={0} width={4} height={4} fill="#d7e9f2" stroke={INK} strokeWidth={0.6} />
-      <rect x={4.5} y={0} width={4} height={4} fill="#d7e9f2" stroke={INK} strokeWidth={0.6} />
-      <ellipse cx={-14} cy={12} rx={3.5} ry={2.5} fill="#58c26a" />
-      <ellipse cx={14} cy={12} rx={3.5} ry={2.5} fill="#58c26a" />
-      {soonBirthday(t, now) && (
-        <g className="park-sway">
-          <line x1={10} y1={-4} x2={13} y2={-17} stroke={INK} strokeWidth={0.7} />
-          <circle cx={13} cy={-20} r={3.5} fill="#e8594a" stroke={INK} strokeWidth={0.8} />
-        </g>
-      )}
-    </>
-  );
-}
-
-function Houses({ z, items, now }: DrawProps) {
-  return <Placed z={z} items={items} max={24} unit={{ w: 34, h: 36 }} draw={(t) => <House t={t} now={now} />} />;
-}
-
-function Bunting({ z, items, now }: DrawProps) {
-  const b = content(z);
-  const left = b.x + 8;
-  const right = b.x + b.w - 8;
-  const perString = 8;
-  const shown = items.slice(0, 3 * perString);
-  const used = Math.max(1, Math.ceil(shown.length / perString));
-  const tentTop = b.y + b.h - 44;
-  const gap = (tentTop - b.y - 14) / used;
-  const strings = Array.from({ length: used }, (_, s) => b.y + 12 + s * gap);
-  const onString = (s: number) => Math.min(perString, shown.length - s * perString);
-  const sag = 14;
-  const cx = (left + right) / 2;
-  return (
-    <>
-      <line x1={left} y1={b.y + 6} x2={left} y2={b.y + b.h} stroke="#8a5a2b" strokeWidth={3} strokeLinecap="round" />
-      <line x1={right} y1={b.y + 6} x2={right} y2={b.y + b.h} stroke="#8a5a2b" strokeWidth={3} strokeLinecap="round" />
-      {strings.map((sy) => (
-        <path key={sy} d={`M${left} ${sy} Q${cx} ${sy + sag * 2} ${right} ${sy}`} fill="none" stroke={INK} strokeWidth={1.1} />
-      ))}
-      {/* A little festival tent. */}
-      <rect x={cx - 26} y={tentTop + 14} width={52} height={b.y + b.h - tentTop - 14} fill="#fffdf8" stroke={INK} strokeWidth={1.3} />
-      {[-26, -10, 6].map((dx) => (
-        <rect key={dx} x={cx + dx + 2} y={tentTop + 15} width={7} height={b.y + b.h - tentTop - 16} fill="#e8594a" opacity={0.8} />
-      ))}
-      <path d={`M${cx - 31} ${tentTop + 16} L${cx} ${tentTop} L${cx + 31} ${tentTop + 16} Z`} fill="#e8594a" stroke={INK} strokeWidth={1.3} strokeLinejoin="round" />
-      <path d={`M${cx - 6} ${b.y + b.h} L${cx} ${tentTop + 22} L${cx + 6} ${b.y + b.h} Z`} fill={INK} opacity={0.75} />
-      <line x1={cx} y1={tentTop} x2={cx} y2={tentTop - 11} stroke={INK} strokeWidth={1} />
-      <path d={`M${cx} ${tentTop - 11} L${cx + 9} ${tentTop - 8} L${cx} ${tentTop - 5} Z`} fill="#f2c230" />
-      {shown.map((t, i) => {
-        const s = Math.floor(i / perString);
-        const k = i % perString;
-        const u = (k + 0.5) / onString(s);
-        const x = left + (right - left) * u;
-        const y = strings[s] + 2 * u * (1 - u) * sag * 2;
-        const upcoming = t.date ? Date.parse(t.date) >= now : false;
-        return (
-          <g key={t.id} transform={`translate(${x} ${y})`}>
-            <Item i={i}>
-              <path d="M-7 0 L7 0 L0 17 Z" fill={brights[hash(t.id) % brights.length]} opacity={upcoming ? 1 : 0.45} stroke={INK} strokeWidth={1} strokeLinejoin="round" />
-            </Item>
-          </g>
-        );
-      })}
-    </>
-  );
-}
-
-function Plots({ z, items }: DrawProps) {
-  return (
-    <Placed
-      z={z}
-      items={items}
-      max={6}
-      unit={{ w: 50, h: 38 }}
-      maxScale={1.6}
-      draw={(t) => (
+  switch (t.kind) {
+    case "person": {
+      const roof = roofs[h % roofs.length];
+      const wall = walls[(h >>> 3) % walls.length];
+      return (
+        <>
+          <ellipse cx={0} cy={14} rx={15} ry={3} fill={INK} opacity={0.1} />
+          <rect x={-11} y={-4} width={22} height={17} fill={wall} stroke={INK} strokeWidth={1.3} />
+          <path d="M-14 -3 L0 -16 L14 -3 Z" fill={roof} stroke={INK} strokeWidth={1.3} strokeLinejoin="round" />
+          <rect x={-3} y={4} width={6} height={9} fill={roof} opacity={0.8} />
+          <rect x={-8.5} y={0} width={4} height={4} fill="#d7e9f2" stroke={INK} strokeWidth={0.6} />
+          <rect x={4.5} y={0} width={4} height={4} fill="#d7e9f2" stroke={INK} strokeWidth={0.6} />
+          {soonBirthday(t, now) && (
+            <g className="park-sway">
+              <line x1={10} y1={-4} x2={13} y2={-17} stroke={INK} strokeWidth={0.7} />
+              <circle cx={13} cy={-20} r={3.5} fill="#e8594a" stroke={INK} strokeWidth={0.8} />
+            </g>
+          )}
+        </>
+      );
+    }
+    case "event": {
+      const upcoming = t.date ? Date.parse(t.date) >= now : false;
+      return (
+        <>
+          <ellipse cx={0} cy={17} rx={6} ry={2} fill={INK} opacity={0.12} />
+          <line x1={-5} y1={17} x2={-5} y2={-17} stroke="#8a5a2b" strokeWidth={2} strokeLinecap="round" />
+          <path
+            d="M-4 -17 L12 -11 L-4 -5 Z"
+            fill={brights[h % brights.length]}
+            opacity={upcoming ? 1 : 0.45}
+            stroke={INK}
+            strokeWidth={1}
+            strokeLinejoin="round"
+            className={upcoming ? "park-sway" : undefined}
+          />
+        </>
+      );
+    }
+    case "habit":
+      return (
         <>
           <rect x={-22} y={-14} width={44} height={30} rx={6} fill="#a4744a" stroke={INK} strokeWidth={1.3} />
           {[-12, 0, 12].map((dx, k) => (
@@ -185,82 +133,49 @@ function Plots({ z, items }: DrawProps) {
               <line x1={dx} y1={10} x2={dx} y2={-6} stroke="#3e9e50" strokeWidth={2} strokeLinecap="round" />
               <ellipse cx={dx - 4} cy={-3} rx={4} ry={2.4} fill="#58c26a" />
               <ellipse cx={dx + 4} cy={-7} rx={4} ry={2.4} fill="#58c26a" />
-              {(hash(t.id) >>> k) % 2 === 0 && <circle cx={dx} cy={-9} r={2.4} fill="#f2c230" />}
+              {(h >>> k) % 2 === 0 && <circle cx={dx} cy={-9} r={2.4} fill="#f2c230" />}
             </g>
           ))}
         </>
-      )}
-    />
-  );
-}
-
-function Trees({ z, items }: DrawProps) {
-  return (
-    <Placed
-      z={z}
-      items={items}
-      max={12}
-      unit={{ w: 34, h: 40 }}
-      maxScale={1.8}
-      draw={(t) => (
+      );
+    case "recipe":
+      // The mockup's three-lobed tree, with fruit.
+      return (
         <>
-          <ellipse cx={0} cy={17} rx={12} ry={3} fill={INK} opacity={0.12} />
-          <rect x={-2.5} y={2} width={5} height={15} fill="#8a5a2b" />
-          <circle cx={0} cy={-5} r={13} fill="#58c26a" stroke={INK} strokeWidth={1.3} />
-          <circle cx={-5} cy={-10} r={4} fill="#7fd48d" />
+          <ellipse cx={0} cy={18} rx={12} ry={3} fill={INK} opacity={0.12} />
+          <rect x={-2.5} y={2} width={5} height={16} fill="#8a5a2b" />
+          <circle cx={-7} cy={-2} r={9} fill="#58c26a" stroke={INK} strokeWidth={1.1} />
+          <circle cx={7} cy={-2} r={9} fill="#58c26a" stroke={INK} strokeWidth={1.1} />
+          <circle cx={0} cy={-11} r={10} fill="#58c26a" stroke={INK} strokeWidth={1.1} />
+          <circle cx={-3} cy={-14} r={3.5} fill="#7fd48d" />
           {[0, 1, 2].map((k) => {
             const a = (hash(t.id + k) % 360) * (Math.PI / 180);
-            return <circle key={k} cx={Math.cos(a) * 7} cy={-5 + Math.sin(a) * 7} r={2.6} fill="#e8594a" />;
+            return <circle key={k} cx={Math.cos(a) * 8} cy={-5 + Math.sin(a) * 6} r={2.4} fill="#e8594a" />;
           })}
         </>
-      )}
-    />
-  );
-}
-
-function Blankets({ z, items }: DrawProps) {
-  return (
-    <Placed
-      z={z}
-      items={items}
-      max={8}
-      unit={{ w: 44, h: 44 }}
-      maxScale={1.6}
-      draw={(t) => {
-        const color = brights[hash(t.id) % brights.length];
-        const tilt = (hash(t.id) % 14) - 7;
-        const count = Array.isArray(t.detail.items) ? Math.min((t.detail.items as unknown[]).length, 5) : 0;
-        return (
-          <>
-            <g transform={`rotate(${tilt})`}>
-              <rect x={-16} y={-16} width={32} height={32} fill="#fffdf8" stroke={INK} strokeWidth={1.3} />
-              <g fill={color} opacity={0.8}>
-                <rect x={-16} y={-16} width={16} height={16} />
-                <rect x={0} y={0} width={16} height={16} />
-              </g>
+      );
+    case "list": {
+      const color = brights[h % brights.length];
+      const count = Array.isArray(t.detail.items) ? Math.min((t.detail.items as unknown[]).length, 5) : 0;
+      return (
+        <>
+          <g transform={`rotate(${(h % 14) - 7})`}>
+            <rect x={-16} y={-16} width={32} height={32} fill="#fffdf8" stroke={INK} strokeWidth={1.3} />
+            <g fill={color} opacity={0.8}>
+              <rect x={-16} y={-16} width={16} height={16} />
+              <rect x={0} y={0} width={16} height={16} />
             </g>
-            {/* A picnic basket, with one apple per list item. */}
-            <rect x={6} y={6} width={14} height={9} rx={2} fill="#c88a4a" stroke={INK} strokeWidth={1} />
-            <path d="M8 6 Q13 -1 18 6" fill="none" stroke={INK} strokeWidth={1} />
-            {Array.from({ length: count }, (_, k) => (
-              <circle key={k} cx={-14 + k * 5} cy={20} r={2} fill="#e8594a" />
-            ))}
-          </>
-        );
-      }}
-    />
-  );
-}
-
-function Benches({ z, items }: DrawProps) {
-  return (
-    <Placed
-      z={z}
-      items={items}
-      max={8}
-      unit={{ w: 40, h: 30 }}
-      maxScale={1.2}
-      draw={() => (
+          </g>
+          <rect x={6} y={6} width={14} height={9} rx={2} fill="#c88a4a" stroke={INK} strokeWidth={1} />
+          <path d="M8 6 Q13 -1 18 6" fill="none" stroke={INK} strokeWidth={1} />
+          {Array.from({ length: count }, (_, k) => (
+            <circle key={k} cx={-14 + k * 5} cy={20} r={2} fill="#e8594a" />
+          ))}
+        </>
+      );
+    }
+    case "note":
+      return (
         <>
           <rect x={-15} y={-2} width={30} height={5} rx={1.5} fill="#b07a45" stroke={INK} strokeWidth={1.1} />
           <rect x={-15} y={-9} width={30} height={4} rx={1.5} fill="#b07a45" stroke={INK} strokeWidth={1.1} />
@@ -268,268 +183,362 @@ function Benches({ z, items }: DrawProps) {
           <line x1={12} y1={3} x2={12} y2={10} stroke={INK} strokeWidth={1.6} />
           <rect x={-5} y={-15} width={10} height={6} fill="#fffdf8" stroke={INK} strokeWidth={0.9} />
         </>
-      )}
-    />
-  );
-}
-
-function Library({ z, items }: DrawProps) {
-  const b = content(z);
-  const bw = 70;
-  const bx = b.x + 2;
-  const by = b.y + 34;
-  const bh = b.h - 40;
-  const shelf = { x: bx + bw + 8, y: b.y + 6, w: b.w - bw - 12, h: b.h - 10 };
-  const bookColor = (t: ParkThing) =>
-    t.detail.type === "doc" ? "#4a82de" : t.detail.type === "sheet" ? "#3e9e50" : brights[hash(t.id) % brights.length];
-  return (
-    <>
-      <path d={`M${bx - 5} ${by} L${bx + bw / 2} ${by - 26} L${bx + bw + 5} ${by} Z`} fill="#c7593f" stroke={INK} strokeWidth={1.4} strokeLinejoin="round" />
-      <circle cx={bx + bw / 2} cy={by - 10} r={5} fill="#fffdf8" stroke={INK} strokeWidth={1} />
-      <rect x={bx} y={by} width={bw} height={bh} fill="#fffdf8" stroke={INK} strokeWidth={1.4} />
-      {[0, 1, 2, 3].map((k) => (
-        <rect key={k} x={bx + 7 + k * 16} y={by + 6} width={7} height={bh - 30} fill="#e9e1d1" stroke={INK} strokeWidth={0.8} />
-      ))}
-      <rect x={bx - 4} y={by + bh - 6} width={bw + 8} height={6} fill="#e9e1d1" stroke={INK} strokeWidth={1} />
-      <rect x={bx + bw / 2 - 8} y={by + bh - 24} width={16} height={18} rx={7} fill="#8a5a2b" />
-      <Placed z={z} items={items} max={40} unit={{ w: 10, h: 26 }} maxScale={1.4} box={shelf} draw={(t) => (
+      );
+    case "file": {
+      // The mockup's pavilion: every file is a small building of its own.
+      const roof = t.detail.type === "doc" ? "#4a82de" : t.detail.type === "sheet" ? "#3e9e50" : "#f2c230";
+      return (
         <>
-          <rect x={-4} y={-11} width={8} height={22} fill={bookColor(t)} stroke={INK} strokeWidth={0.8} />
-          <line x1={-2} y1={-6} x2={2} y2={-6} stroke="#fffdf8" strokeWidth={1} />
-          <rect x={-6} y={11} width={12} height={3} fill="#8a5a2b" />
+          <ellipse cx={0} cy={13} rx={13} ry={2.5} fill={INK} opacity={0.1} />
+          <rect x={-10} y={-3} width={20} height={16} fill="#fffdf8" stroke={INK} strokeWidth={1.3} />
+          <path d="M-13 -2 L0 -14 L13 -2 Z" fill={roof} stroke={INK} strokeWidth={1.3} strokeLinejoin="round" />
+          <rect x={-3} y={4} width={6} height={9} fill={INK} opacity={0.8} />
         </>
-      )} />
-    </>
-  );
-}
-
-function PostOffice({ z, items }: DrawProps) {
-  const b = content(z);
-  const bw = 70;
-  const bx = b.x + 2;
-  const by = b.y + 24;
-  const bh = b.h - 30;
-  const tray = { x: bx + bw + 8, y: b.y + 6, w: b.w - bw - 12, h: b.h - 10 };
-  return (
-    <>
-      <rect x={bx} y={by} width={bw} height={bh} fill="#fffdf8" stroke={INK} strokeWidth={1.4} />
-      <rect x={bx - 5} y={by - 16} width={bw + 10} height={16} rx={3} fill="#4a82de" stroke={INK} strokeWidth={1.4} />
-      <text x={bx + bw / 2} y={by - 4} textAnchor="middle" className="font-hand" fontSize={12} fill="#fffdf8">
-        POST
-      </text>
-      <rect x={bx + 9} y={by + 12} width={16} height={14} fill="#d7e9f2" stroke={INK} strokeWidth={0.8} />
-      <rect x={bx + bw - 25} y={by + 12} width={16} height={14} fill="#d7e9f2" stroke={INK} strokeWidth={0.8} />
-      <rect x={bx + bw / 2 - 8} y={by + bh - 26} width={16} height={26} rx={7} fill="#8a5a2b" />
-      {/* The mailbox out front. */}
-      <line x1={bx + bw - 4} y1={by + bh} x2={bx + bw - 4} y2={by + bh - 16} stroke={INK} strokeWidth={2} />
-      <rect x={bx + bw - 12} y={by + bh - 26} width={16} height={11} rx={5} fill="#e8594a" stroke={INK} strokeWidth={1} />
-      <Placed z={z} items={items} max={18} unit={{ w: 28, h: 22 }} maxScale={1.5} box={tray} draw={(_, i) => (
-        <g transform={`rotate(${(i % 3) * 4 - 4})`}>
+      );
+    }
+    case "mail":
+      return (
+        <g transform={`rotate(${(i % 3) * 5 - 5})`}>
           <rect x={-12} y={-8} width={24} height={16} fill="#fffdf8" stroke={INK} strokeWidth={1} />
           <path d="M-12 -8 L0 1 L12 -8" fill="none" stroke={INK} strokeWidth={1} />
           <rect x={6} y={-6} width={4} height={4} fill="#e8594a" />
         </g>
-      )} />
-    </>
-  );
+      );
+  }
 }
 
-const drawers: Record<ThingKind, (p: DrawProps) => ReactNode> = {
-  person: Houses,
-  event: Bunting,
-  habit: Plots,
-  recipe: Trees,
-  list: Blankets,
-  note: Benches,
-  file: Library,
-  mail: PostOffice,
+const activate = (fn: () => void) => (e: KeyboardEvent) => {
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    fn();
+  }
 };
 
-const capacity: Record<ThingKind, number> = {
-  person: 24,
-  event: 24,
-  habit: 6,
-  recipe: 12,
-  list: 8,
-  note: 8,
-  file: 40,
-  mail: 18,
-};
+/** A lawn and everything planted on it. */
+function Lawn({
+  z,
+  items,
+  shape,
+  now,
+  selected,
+  selectedThing,
+  onSelect,
+  onSelectThing,
+  emptyAction,
+}: {
+  z: Zone;
+  items: ParkThing[];
+  shape: WorldShape;
+  now: number;
+  selected: boolean;
+  selectedThing: string | null;
+  onSelect: () => void;
+  onSelectThing: (t: ParkThing) => void;
+  emptyAction: (() => void) | null;
+}) {
+  const { x: cx, y: cy } = z[shape];
+  const n = items.length;
+  const r = lawnRadius(n);
+  const outline = blobPath(cx, cy, r, hash(z.kind));
+  const labelY = cy - r * 0.94 - 14;
+  const labelX = cx - r * 0.7;
 
-/** Flowers and bushes that fill in along an area's bottom edge as it grows. */
-function Flourish({ z, stage }: { z: Zone; stage: ReturnType<typeof stageOf> }) {
-  const n = { empty: 0, sprout: 2, growing: 5, bloom: 9 }[stage];
-  return (
-    <g aria-hidden="true" pointerEvents="none">
-      {Array.from({ length: n }, (_, k) => {
-        const x = z.x + 12 + ((k * 37 + (hash(z.kind) % 23)) % (z.w - 24));
-        const y = z.y + z.h - 6;
-        const color = brights[(k + hash(z.kind)) % brights.length];
-        return k % 3 === 2 ? (
-          <ellipse key={k} cx={x} cy={y - 2} rx={6} ry={4} fill="#58c26a" stroke={INK} strokeWidth={0.8} />
-        ) : (
-          <g key={k}>
-            <line x1={x} y1={y} x2={x} y2={y - 6} stroke="#3e9e50" strokeWidth={1.2} />
-            <circle cx={x} cy={y - 7} r={2.4} fill={color} />
-          </g>
-        );
-      })}
-    </g>
-  );
-}
-
-/** Trees, a pond, and a duck along the paths, so the park feels like a park from day one. */
-function Scenery() {
-  const trees: [number, number, number][] = [
-    [200, 226, 1],
-    [8, 416, 0.9],
-    [392, 416, 0.9],
-    [200, 560, 1],
-    [8, 738, 0.8],
-    [392, 738, 0.8],
-    [250, 10, 0.8],
-  ];
-  return (
-    <g aria-hidden="true" pointerEvents="none">
-      {trees.map(([x, y, s], k) => (
-        <g key={k} transform={`translate(${x} ${y}) scale(${s})`}>
-          <rect x={-2} y={-2} width={4} height={8} fill="#8a5a2b" />
-          <circle cx={0} cy={-8} r={9} fill="#3e9e50" stroke={INK} strokeWidth={1.1} />
-          <circle cx={-3} cy={-11} r={3} fill="#58c26a" />
-        </g>
-      ))}
-      {/* A small pond where the middle paths meet, with a duck. */}
-      <ellipse cx={200} cy={416} rx={22} ry={9} fill="#d7e9f2" stroke="#9dc3d8" strokeWidth={2} />
-      <g className="park-duck">
-        <ellipse cx={196} cy={416} rx={5} ry={3.2} fill="#fffdf8" stroke={INK} strokeWidth={0.8} />
-        <circle cx={200} cy={412.5} r={2.3} fill="#fffdf8" stroke={INK} strokeWidth={0.8} />
-        <path d="M202 412.5 L205 413.3 L202 414" fill="#f2c230" />
+  if (n === 0) {
+    const words = z.sign.split(" ");
+    const half = Math.ceil(words.length / 2);
+    const lines = z.sign.length > 14 ? [words.slice(0, half).join(" "), words.slice(half).join(" ")] : [z.sign];
+    const bh = lines.length === 2 ? 34 : 22;
+    const sign = (
+      <g className="park-sign">
+        <path d={outline} fill={GRASS} opacity={0.45} stroke={EDGE} strokeWidth={2} strokeDasharray="7 6" />
+        <line x1={cx} y1={cy} x2={cx} y2={cy + 30} stroke="#8a5a2b" strokeWidth={3} strokeLinecap="round" />
+        <rect x={cx - 52} y={cy - bh / 2 - 8} width={104} height={bh} rx={4} fill="#f3e2b8" stroke={INK} strokeWidth={1.3} />
+        {lines.map((line, k) => (
+          <text key={k} x={cx} y={cy - bh / 2 + 5 + k * 13} textAnchor="middle" className="font-hand" fontSize={12} fill={INK}>
+            {line}
+          </text>
+        ))}
       </g>
-    </g>
-  );
-}
-
-/** An unbuilt lot with a hand-painted sign. */
-function EmptyLot({ z, action }: { z: Zone; action: ReturnType<Props["emptyAction"]> }) {
-  const b = content(z);
-  const cx = b.x + b.w / 2;
-  const cy = b.y + b.h / 2;
-  const words = z.sign.split(" ");
-  const half = Math.ceil(words.length / 2);
-  const lines = z.sign.length > 16 ? [words.slice(0, half).join(" "), words.slice(half).join(" ")] : [z.sign];
-  const bw = Math.min(b.w - 12, 118);
-  const bh = lines.length === 2 ? 36 : 24;
-  const sign = (
-    <g className="park-sign">
-      <rect x={b.x + 2} y={b.y + 2} width={b.w - 4} height={b.h - 4} rx={10} fill="none" stroke="#8fc9a4" strokeWidth={2} strokeDasharray="6 6" />
-      {b.h > 60 && <line x1={cx} y1={cy - 4} x2={cx} y2={cy + bh / 2 + 18} stroke="#8a5a2b" strokeWidth={3} strokeLinecap="round" />}
-      <rect x={cx - bw / 2} y={cy - bh / 2 - (b.h > 60 ? 6 : 0)} width={bw} height={bh} rx={4} fill="#f3e2b8" stroke={INK} strokeWidth={1.3} />
-      {lines.map((line, k) => (
-        <text key={k} x={cx} y={cy - bh / 2 + (b.h > 60 ? 9 : 15) + k * 13} textAnchor="middle" className="font-hand" fontSize={12} fill={INK}>
-          {line}
-        </text>
-      ))}
-    </g>
-  );
-  if (!action) return sign;
-  if ("href" in action) {
+    );
     return (
-      <a href={action.href} aria-label={`${z.name}: ${z.sign}`}>
-        {sign}
-      </a>
+      <g data-zone={z.kind} data-stage="empty">
+        <text x={labelX} y={labelY} className="font-serif" fontSize={17} fill="#7a7362">
+          {z.name}
+        </text>
+        {emptyAction ? (
+          <g
+            role="button"
+            tabIndex={0}
+            aria-label={`${z.name}: ${z.sign}`}
+            onClick={emptyAction}
+            onKeyDown={activate(emptyAction)}
+            className="cursor-pointer outline-none"
+          >
+            {sign}
+          </g>
+        ) : (
+          sign
+        )}
+      </g>
     );
   }
-  return (
-    <g
-      role="button"
-      tabIndex={0}
-      aria-label={`${z.name}: ${z.sign}`}
-      onClick={action.onClick}
-      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && action.onClick()}
-      className="cursor-pointer"
-    >
-      {sign}
-    </g>
-  );
-}
 
-/** Someone's life drawn as a park. Every thing they have has a spot; empty areas invite the next one. */
-export function ParkMap({ things, now, onSelect, emptyAction }: Props) {
-  const byKind = new Map<ThingKind, ParkThing[]>();
-  for (const t of things) byKind.set(t.kind, [...(byKind.get(t.kind) ?? []), t]);
-  const summary = zones
-    .map((z) => countLabel(z, byKind.get(z.kind)?.length ?? 0))
-    .join(", ");
+  const list = ordered(z.kind, items, now);
+  // Items sit in the box inside the lawn's outline.
+  const box = { x: cx - r * 0.72, y: cy - r * 0.58, w: r * 1.44, h: r * 1.16 };
+  const { cells, scale } = fit(box, n, capacity[z.kind], units[z.kind], 1.5);
+  const labelled = n <= 4 && scale >= 0.8;
+  // Names get the room between neighboring items, so they never run into each other.
+  const sideBySide = cells.slice(1).flatMap((c, i) => (Math.abs(c.y - cells[i].y) < 1 ? [Math.abs(c.x - cells[i].x)] : []));
+  const gap = sideBySide.length ? Math.min(...sideBySide) : box.w;
+  const nameChars = Math.max(6, Math.floor(gap / 5.6));
+  const chip = countLabel(z, n);
+  const chipW = chip.length * 6.2 + 16;
+  const nameW = z.name.length * 8.4;
 
   return (
-    <svg
-      viewBox={`0 0 ${PARK_WIDTH} ${PARK_HEIGHT}`}
-      className="h-auto w-full select-none"
-      role="group"
-      aria-label={`Your park: ${summary}.`}
-    >
-      <rect width={PARK_WIDTH} height={PARK_HEIGHT} rx={24} fill="#cfe7d6" />
-      {/* Paths between the areas. */}
-      <g stroke="#eadcb6" strokeWidth={12} strokeLinecap="round" fill="none" filter="url(#chalk-edge)">
-        <path d={`M8 228 H${PARK_WIDTH - 8}`} />
-        <path d={`M8 416 H${PARK_WIDTH - 8}`} />
-        <path d={`M8 560 H${PARK_WIDTH - 8}`} />
-        <path d={`M8 738 H${PARK_WIDTH - 8}`} />
-        <path d={`M200 228 V416 M200 560 V738 M250 12 V228`} />
+    <g data-zone={z.kind} data-stage={stageOf(n)}>
+      {/* Tapping open grass also opens the lawn; the name tag below is the labelled control. */}
+      <g onClick={onSelect} className="cursor-pointer">
+        <path d={outline} fill={GRASS} filter="url(#chalk-edge)" />
+        <path d={outline} fill="url(#grass)" />
+        <path d={outline} fill="none" stroke={EDGE} strokeWidth={2.5} />
+        {selected && <path d={outline} fill="none" stroke={INK} strokeWidth={3.5} filter="url(#chalk-line)" />}
       </g>
-
-      {zones.map((z) => {
-        const list = ordered(z.kind, byKind.get(z.kind) ?? [], now);
-        const n = list.length;
-        const stage = stageOf(n);
-        const Draw = drawers[z.kind];
-        const extra = n - capacity[z.kind];
-        const open = () => onSelect(z.kind);
+      <g
+        role="button"
+        tabIndex={0}
+        aria-label={`${z.name}: ${chip}. Open the list.`}
+        aria-pressed={selected}
+        onClick={onSelect}
+        onKeyDown={activate(onSelect)}
+        className="cursor-pointer outline-none"
+      >
+        <rect x={labelX - 4} y={labelY - 18} width={nameW + chipW + 16} height={24} fill="transparent" />
+        <text x={labelX} y={labelY} className="font-serif" fontSize={18} fill={INK}>
+          {z.name}
+        </text>
+        <g transform={`translate(${labelX + nameW + 8} ${labelY - 13})`}>
+          <rect width={chipW} height={17} rx={8.5} fill="#ffe27a" stroke={INK} strokeWidth={1.1} />
+          <text x={chipW / 2} y={12} textAnchor="middle" fontSize={10} fontWeight={800} fill="#6b4e00">
+            {chip}
+          </text>
+        </g>
+      </g>
+      {cells.map((c, i) => {
+        const t = list[i];
+        const open = () => onSelectThing(t);
         return (
-          <g key={z.kind} data-zone={z.kind} data-stage={stage}>
-            <rect x={z.x} y={z.y} width={z.w} height={z.h} rx={14} fill={grounds[z.kind]} filter="url(#chalk-edge)" />
-            <Flourish z={z} stage={stage} />
-            <text x={z.x + 10} y={z.y + 17} className="font-hand" fontSize={14} fill={INK}>
-              {z.name}
-              {n > 0 && <tspan fill="#4b5550">{`  ${n}`}</tspan>}
-            </text>
-            {n === 0 ? (
-              <EmptyLot z={z} action={emptyAction(z)} />
-            ) : (
-              <g
-                role="button"
-                tabIndex={0}
-                aria-label={`${z.name}: ${countLabel(z, n)}. Open the list.`}
-                onClick={open}
-                onKeyDown={(e: KeyboardEvent) => (e.key === "Enter" || e.key === " ") && open()}
-                className="cursor-pointer outline-none"
-              >
-                <rect x={z.x} y={z.y + LABEL} width={z.w} height={z.h - LABEL} fill="transparent" />
-                <Draw z={z} items={list} now={now} />
-                {extra > 0 && (
-                  <text x={z.x + z.w - 10} y={z.y + 17} textAnchor="end" className="font-hand" fontSize={12} fill="#4b5550">
-                    {`+${extra} more`}
-                  </text>
-                )}
+          <g
+            key={t.id}
+            transform={`translate(${c.x} ${c.y})`}
+            role="button"
+            tabIndex={0}
+            aria-label={`${t.title}, ${z.one}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              open();
+            }}
+            onKeyDown={activate(open)}
+            className="cursor-pointer outline-none"
+          >
+            <g transform={`scale(${scale})`}>
+              <g className="park-item" style={{ animationDelay: `${Math.min(i * 40, 1100)}ms` }}>
+                <circle r={22} fill="transparent" />
+                {selectedThing === t.id && <circle r={24} fill="none" stroke={INK} strokeWidth={1.4} strokeDasharray="4 3" />}
+                <Figure t={t} now={now} i={i} />
               </g>
+            </g>
+            {labelled && (
+              <text y={units[z.kind].h * scale * 0.5 + 12} textAnchor="middle" fontSize={10} fontWeight={700} fill={INK}>
+                {short(t.title, nameChars)}
+              </text>
             )}
           </g>
         );
       })}
+      {n > capacity[z.kind] && (
+        <text x={cx} y={cy + r * 0.9} textAnchor="middle" className="font-hand" fontSize={13} fill="#4b5550">
+          {`+${n - capacity[z.kind]} more`}
+        </text>
+      )}
+    </g>
+  );
+}
 
-      <Scenery />
+const MAX_ZOOM = 3;
 
-      {/* Clouds drift over the park. Decorative only. */}
-      <g aria-hidden="true" opacity={0.85} pointerEvents="none">
-        <g className="park-cloud">
-          <ellipse cx={0} cy={250} rx={26} ry={9} fill="#fffdf8" />
-          <ellipse cx={14} cy={244} rx={16} ry={9} fill="#fffdf8" />
+/**
+ * Someone's life drawn as a park map, after the Work Park design: organic lawns
+ * joined by paths, a pond, a compass, and zoom. Each kind of thing has its lawn,
+ * and a lawn grows as things are planted on it.
+ */
+export function ParkMap({ things, now, shape, selectedLawn, selectedThing, onSelectLawn, onSelectThing, emptyAction }: Props) {
+  const world = worlds[shape];
+  const [view, setView] = useState({ k: 1, x: 0, y: 0 });
+  const drag = useRef<{ px: number; py: number; x: number; y: number; moved: boolean } | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  const byKind = new Map<ThingKind, ParkThing[]>();
+  for (const t of things) byKind.set(t.kind, [...(byKind.get(t.kind) ?? []), t]);
+  const summary = zones.map((z) => countLabel(z, byKind.get(z.kind)?.length ?? 0)).join(", ");
+  const center = (kind: ThingKind) => zones.find((z) => z.kind === kind)![shape];
+  const { pond, compass } = landmarks[shape];
+
+  function clamp(k: number, x: number, y: number) {
+    return {
+      k,
+      x: Math.min(0, Math.max(world.width * (1 - k), x)),
+      y: Math.min(0, Math.max(world.height * (1 - k), y)),
+    };
+  }
+  function zoom(factor: number) {
+    setView((v) => {
+      const k = Math.min(MAX_ZOOM, Math.max(1, v.k * factor));
+      // Keep the middle of the view in the middle.
+      const mx = (world.width / 2 - v.x) / v.k;
+      const my = (world.height / 2 - v.y) / v.k;
+      return clamp(k, world.width / 2 - mx * k, world.height / 2 - my * k);
+    });
+  }
+  function toWorld(d: number) {
+    const w = svgRef.current?.getBoundingClientRect().width || world.width;
+    return (d * world.width) / w;
+  }
+  function down(e: PointerEvent) {
+    if (view.k === 1) return;
+    drag.current = { px: e.clientX, py: e.clientY, x: view.x, y: view.y, moved: false };
+  }
+  function move(e: PointerEvent) {
+    const d = drag.current;
+    if (!d) return;
+    const dx = e.clientX - d.px;
+    const dy = e.clientY - d.py;
+    if (!d.moved && Math.hypot(dx, dy) < 5) return;
+    d.moved = true;
+    setView((v) => clamp(v.k, d.x + toWorld(dx), d.y + toWorld(dy)));
+  }
+  function up() {
+    const moved = drag.current?.moved;
+    drag.current = null;
+    if (moved) {
+      // Swallow the click that ends a drag, so dragging never opens anything.
+      const stop = (ev: Event) => ev.stopPropagation();
+      window.addEventListener("click", stop, { capture: true, once: true });
+      setTimeout(() => window.removeEventListener("click", stop, { capture: true }), 0);
+    }
+  }
+
+  return (
+    <div className="relative overflow-hidden rounded-card bg-[#f3eedf]">
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${world.width} ${world.height}`}
+        className="block h-auto w-full select-none"
+        style={{ touchAction: view.k > 1 ? "none" : "pan-y" }}
+        role="group"
+        aria-label={`Your park: ${summary}.`}
+        onPointerDown={down}
+        onPointerMove={move}
+        onPointerUp={up}
+        onPointerLeave={up}
+      >
+        <defs>
+          <pattern id="grass" width="9" height="9" patternUnits="userSpaceOnUse">
+            <path d="M2 7 l1 -3 M6 4 l1 -3" stroke={EDGE} strokeWidth={1} strokeLinecap="round" opacity={0.7} />
+          </pattern>
+          <pattern id="paper-dots" width="16" height="16" patternUnits="userSpaceOnUse">
+            <circle cx="2" cy="2" r="1" fill="#d9cbaa" opacity={0.55} />
+          </pattern>
+        </defs>
+        <g transform={`translate(${view.x} ${view.y}) scale(${view.k})`}>
+          <rect width={world.width} height={world.height} fill="url(#paper-dots)" />
+
+          {/* Paths between neighboring lawns, drawn first so lawns cover their ends. */}
+          <g fill="none" stroke={PATH} strokeWidth={13} strokeLinecap="round" filter="url(#chalk-edge)">
+            {paths[shape].map(([a, b]) => {
+              const p = center(a);
+              const q = center(b);
+              const bend = ((hash(a + b) % 60) - 30) / 300;
+              const mx = (p.x + q.x) / 2 + (q.y - p.y) * bend;
+              const my = (p.y + q.y) / 2 - (q.x - p.x) * bend;
+              return <path key={a + b} d={`M${p.x} ${p.y} Q${mx} ${my} ${q.x} ${q.y}`} />;
+            })}
+          </g>
+
+          {/* The pond, with its duck. */}
+          <g aria-hidden="true">
+            <ellipse cx={pond.x} cy={pond.y} rx={54} ry={28} fill="#d7e9f2" stroke="#9dc3d8" strokeWidth={2.5} filter="url(#chalk-edge)" />
+            <path
+              d={`M${pond.x - 30} ${pond.y - 5} q6 -4 12 0 t12 0 M${pond.x + 6} ${pond.y + 10} q6 -4 12 0 t12 0`}
+              fill="none"
+              stroke="#9dc3d8"
+              strokeWidth={1.5}
+            />
+            <g className="park-duck">
+              <ellipse cx={pond.x - 4} cy={pond.y} rx={6} ry={3.8} fill="#fffdf8" stroke={INK} strokeWidth={0.9} />
+              <circle cx={pond.x + 1} cy={pond.y - 4} r={2.8} fill="#fffdf8" stroke={INK} strokeWidth={0.9} />
+              <path d={`M${pond.x + 3.5} ${pond.y - 4.8} l3.5 0.8 l-3.5 0.8`} fill="#f2c230" />
+            </g>
+          </g>
+
+          {zones.map((z) => (
+            <Lawn
+              key={z.kind}
+              z={z}
+              items={byKind.get(z.kind) ?? []}
+              shape={shape}
+              now={now}
+              selected={selectedLawn === z.kind}
+              selectedThing={selectedThing}
+              onSelect={() => onSelectLawn(z.kind)}
+              onSelectThing={onSelectThing}
+              emptyAction={emptyAction(z)}
+            />
+          ))}
+
+          {/* Clouds drift over the park. Decorative only. */}
+          <g aria-hidden="true" opacity={0.85} pointerEvents="none">
+            <g className="park-cloud">
+              <ellipse cx={0} cy={world.height * 0.3} rx={30} ry={10} fill="#fffdf8" />
+              <ellipse cx={16} cy={world.height * 0.3 - 6} rx={18} ry={10} fill="#fffdf8" />
+            </g>
+            <g className="park-cloud park-cloud-slow">
+              <ellipse cx={0} cy={world.height * 0.72} rx={26} ry={9} fill="#fffdf8" />
+              <ellipse cx={-14} cy={world.height * 0.72 - 5} rx={15} ry={9} fill="#fffdf8" />
+            </g>
+          </g>
         </g>
-        <g className="park-cloud park-cloud-slow">
-          <ellipse cx={0} cy={548} rx={22} ry={8} fill="#fffdf8" />
-          <ellipse cx={-12} cy={543} rx={13} ry={8} fill="#fffdf8" />
+
+        {/* The compass stays put while the map moves. */}
+        <g aria-hidden="true" transform={`translate(${compass.x} ${compass.y})`}>
+          <circle r={20} fill="#fffdf8" stroke={INK} strokeWidth={1.5} />
+          <path d="M0 -15 L5 0 L0 15 L-5 0 Z" fill="#3e9e50" stroke={INK} strokeWidth={1} />
+          <path d="M0 -15 L5 0 L-5 0 Z" fill={INK} />
         </g>
-      </g>
-    </svg>
+      </svg>
+
+      <div className="absolute right-3 bottom-3 flex flex-col overflow-hidden rounded-chip border-2 border-ink bg-card">
+        <button
+          type="button"
+          aria-label="Zoom in"
+          onClick={() => zoom(1.5)}
+          disabled={view.k >= MAX_ZOOM}
+          className="px-3 py-1 text-lg font-bold disabled:opacity-40"
+        >
+          +
+        </button>
+        <span className="h-0.5 bg-ink" />
+        <button
+          type="button"
+          aria-label="Zoom out"
+          onClick={() => zoom(1 / 1.5)}
+          disabled={view.k <= 1}
+          className="px-3 py-1 text-lg font-bold disabled:opacity-40"
+        >
+          −
+        </button>
+      </div>
+    </div>
   );
 }

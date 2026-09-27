@@ -52,9 +52,9 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 
 **What you get:** Your life as a park that grows.
 
-- [x] 3.1 The park drawn from your real data. Every person, habit, recipe, event, note, and list has its place. Built with eight areas, including the library for files and the post office for mail, drawn in the crayon look. Few things are drawn big and many are drawn small, so every area looks lived in.
+- [x] 3.1 The park drawn from your real data. Every person, habit, recipe, event, note, and list has its place. Built on the Work Park park design: eight organic lawns joined by paths, including the library for files and the post office for mail, plus a pond, a compass, and zoom. Lawns grow with what is on them; few things are drawn big and many small. A tall map on phones, a wide one on laptops, and a plain list view.
 - [~] 3.2 Growth and animation. Things sprout when added, bloom with use, and the park gently comes alive: wind, small critters, and time of day. Built: things pop up as they arrive, areas gain flowers as they grow, clouds drift, a duck swims, and a balloon marks birthdays in the next two weeks. Time of day is not built yet.
-- [~] 3.3 Tap anything in the park to open it. Long-press to move it. Built: tapping an area lists everything in it. Opening a single thing and long-press to move are not built yet.
+- [~] 3.3 Tap anything in the park to open it. Long-press to move it. Built: tapping a lawn lists everything on it, and tapping one thing opens its card with "Ask LifePark." Long-press to move is not built yet.
 - [~] 3.4 A small moment each time something is added, so progress always feels visible. Built: new things pop up, the park shows "N of 8 areas growing," suggests the next area to fill, and empty areas carry a sign that starts a chat.
 
 ---
@@ -99,6 +99,7 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 - 2026-09-27: Sign-in with Google or Apple leads to a short welcome, then a connect screen, then a park that builds itself (Anthony). Google connections: Calendar, Contacts, Tasks, Gmail, My Drive, Docs, Sheets. Keep is left out because Google does not offer it to personal accounts.
 - 2026-09-27: Apple sign-in users can connect Google or skip; Apple Reminders, Calendar, and Contacts wait for the iPhone app (Anthony). Apple Mail and Notes cannot be read by any other app.
 - 2026-09-27: The park is judged live in the app instead of through mockups (Anthony).
+- 2026-09-27: The park map goes back to the Work Park park design (organic lawns, paths, pond, compass, zoom, tap card) instead of the grid of boxes (Anthony).
 - 2026-09-27: Work goes straight to main, with no pull requests (Anthony, from the shared agent rules).
 - 2026-09-26: GLM 5.3 Flash joins the model trial as a fourth round (Anthony). It scored highest of the four on Artificial Analysis at about $0.09 per task.
 - 2026-09-26: The chalk and crayon look replaces every floating bubble across the app (Anthony).

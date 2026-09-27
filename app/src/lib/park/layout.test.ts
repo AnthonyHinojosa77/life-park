@@ -1,25 +1,47 @@
 import { describe, expect, it } from "vitest";
 import { thingKinds } from "../kinds";
-import { PARK_HEIGHT, PARK_WIDTH, countLabel, fit, grid, hash, nextZone, progress, stageOf, zones } from "./layout";
+import { LAWN_MAX, LAWN_MIN, blobPath, countLabel, fit, hash, lawnRadius, nextZone, paths, progress, stageOf, worlds, zones } from "./layout";
 
 const none = Object.fromEntries(thingKinds.map((k) => [k, 0])) as Record<(typeof thingKinds)[number], number>;
 
 describe("park layout", () => {
-  it("has exactly one area per kind, inside the park, without overlaps", () => {
+  it("has exactly one lawn per kind, inside both maps, never overlapping at full size", () => {
     expect(zones.map((z) => z.kind).sort()).toEqual([...thingKinds].sort());
-    for (const z of zones) {
-      expect(z.x).toBeGreaterThanOrEqual(0);
-      expect(z.y).toBeGreaterThanOrEqual(0);
-      expect(z.x + z.w).toBeLessThanOrEqual(PARK_WIDTH);
-      expect(z.y + z.h).toBeLessThanOrEqual(PARK_HEIGHT);
-    }
-    for (const a of zones) {
-      for (const b of zones) {
-        if (a === b) continue;
-        const apart = a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y;
-        expect(apart, `${a.name} overlaps ${b.name}`).toBe(true);
+    for (const shape of ["tall", "wide"] as const) {
+      const world = worlds[shape];
+      for (const z of zones) {
+        const { x, y } = z[shape];
+        expect(x - LAWN_MAX * 1.08).toBeGreaterThanOrEqual(0);
+        expect(x + LAWN_MAX * 1.08).toBeLessThanOrEqual(world.width);
+        // Room above for the lawn's name.
+        expect(y - LAWN_MAX - 30).toBeGreaterThanOrEqual(0);
+        expect(y + LAWN_MAX).toBeLessThanOrEqual(world.height);
+      }
+      for (const a of zones) {
+        for (const b of zones) {
+          if (a === b) continue;
+          const d = Math.hypot(a[shape].x - b[shape].x, a[shape].y - b[shape].y);
+          expect(d, `${shape}: ${a.name} overlaps ${b.name}`).toBeGreaterThanOrEqual(LAWN_MAX * 2);
+        }
+      }
+      for (const [a, b] of paths[shape]) {
+        expect(zones.some((z) => z.kind === a) && zones.some((z) => z.kind === b)).toBe(true);
       }
     }
+  });
+
+  it("grows lawns with what is planted, within limits", () => {
+    expect(lawnRadius(0)).toBe(LAWN_MIN);
+    expect(lawnRadius(1)).toBeGreaterThan(LAWN_MIN);
+    expect(lawnRadius(9)).toBeGreaterThan(lawnRadius(1));
+    expect(lawnRadius(10_000)).toBe(LAWN_MAX);
+  });
+
+  it("draws closed, smooth lawn outlines that differ per lawn", () => {
+    const a = blobPath(100, 100, 50, hash("person"));
+    expect(a.startsWith("M")).toBe(true);
+    expect(a.endsWith("Z")).toBe(true);
+    expect(a).not.toBe(blobPath(100, 100, 50, hash("event")));
   });
 
   it("grows in stages", () => {
@@ -32,17 +54,6 @@ describe("park layout", () => {
       "bloom",
       "bloom",
     ]);
-  });
-
-  it("lays items out in a capped grid inside the box", () => {
-    const box = { x: 10, y: 20, w: 100, h: 50 };
-    const cells = grid(box, 30, 5, 10);
-    expect(cells).toHaveLength(10);
-    expect(cells[0]).toMatchObject({ x: 20, y: 32.5 });
-    for (const c of cells) {
-      expect(c.x).toBeLessThan(box.x + box.w);
-      expect(c.y).toBeLessThan(box.y + box.h);
-    }
   });
 
   it("draws few items big and many items small, always inside the box", () => {
