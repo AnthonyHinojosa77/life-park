@@ -6,7 +6,7 @@ The shared plan for building the app described in [SPEC.md](./SPEC.md). Anthony 
 
 **Who does what:** Claude builds, verifies, and merges everything. Anthony reviews design at the check-ins below and evaluates the finished product once, as a whole. The few things only Anthony can do are listed at the end of SPEC.md.
 
-**Live site:** https://work-park.vercel.app. The address moves to lifepark.app once the domain is bought.
+**Live site:** https://work-park.vercel.app and https://life-park-app.vercel.app. The address moves to lifepark.app once the domain is bought.
 
 Status key: `[ ]` not started, `[~]` in progress, `[x]` built and verified by Claude.
 

@@ -2,6 +2,9 @@ type Env = Record<string, string | undefined>;
 
 const https = (host: string | undefined) => (host ? `https://${host}` : undefined);
 
+/** Every public address the live site answers on. Vercel reports only one of them. */
+export const publicAddresses = ["work-park.vercel.app", "life-park-app.vercel.app"];
+
 /**
  * The address sign-in cookies and passkeys belong to. On Vercel, production
  * uses the project's public address (work-park.vercel.app today), not the
@@ -25,6 +28,7 @@ export function trustedAppOrigins(env: Env = process.env) {
     https(env.VERCEL_PROJECT_PRODUCTION_URL),
     https(env.VERCEL_BRANCH_URL),
     https(env.VERCEL_URL),
+    ...(env.VERCEL_ENV === "production" ? publicAddresses.map(https) : []),
     "https://appleid.apple.com",
   ].filter((o): o is string => !!o);
   return [...new Set(origins)];

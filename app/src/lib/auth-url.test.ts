@@ -18,6 +18,7 @@ describe("auth addresses", () => {
     expect(origins).toContain("https://work-park.vercel.app");
     expect(origins).toContain("https://work-park-git-main-team.vercel.app");
     expect(origins).toContain("https://work-park-abc123-team.vercel.app");
+    expect(origins).toContain("https://life-park-app.vercel.app");
     expect(origins).toContain("https://appleid.apple.com");
     expect(new Set(origins).size).toBe(origins.length);
   });
