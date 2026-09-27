@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ChalkOutline } from "@/components/ui/chalk";
+import { ParkIcon } from "@/components/ui/icons";
 import { connectGoogle } from "@/lib/connect-google";
 import { googleServices, type GoogleServiceId } from "@/lib/google/services";
 import { countByKind, type ThingKind } from "@/lib/kinds";
-import { countLabel, nextZone, progress, zones, type WorldShape, type Zone } from "@/lib/park/layout";
+import { countLabel, nextZone, progress, zones, type Zone } from "@/lib/park/layout";
 import type { ParkThing } from "@/lib/things";
-import { ParkMap } from "./park-map";
+import { ParkMap, type ParkMapHandle } from "./park-map";
 
 type Props = {
   name: string;
@@ -28,24 +29,18 @@ type Status = { service: GoogleServiceId; state: "waiting" | "working" | "done" 
 
 const serviceName = (id: GoogleServiceId) => googleServices.find((s) => s.id === id)?.label ?? id;
 const zoneOf = (kind: ThingKind) => zones.find((z) => z.kind === kind)!;
+/** The lawn each Google service fills. */
+const lawnFor: Record<GoogleServiceId, ThingKind> = {
+  calendar: "event",
+  contacts: "person",
+  tasks: "list",
+  gmail: "mail",
+  drive: "file",
+  docs: "file",
+  sheets: "file",
+};
 // A new chat id is made at the moment of the tap, so server and phone always agree on the page.
 const chatWith = (starter: string) => `/chats/${crypto.randomUUID()}?prompt=${encodeURIComponent(starter)}`;
-
-/** Wide map on laptops, tall map on phones. The server always draws the tall one first. */
-const WIDE = "(min-width: 900px)";
-function subscribeWide(onChange: () => void) {
-  const mq = window.matchMedia(WIDE);
-  mq.addEventListener("change", onChange);
-  return () => mq.removeEventListener("change", onChange);
-}
-function useShape(): WorldShape {
-  const wide = useSyncExternalStore(
-    subscribeWide,
-    () => window.matchMedia(WIDE).matches,
-    () => false,
-  );
-  return wide ? "wide" : "tall";
-}
 
 function describe(t: ParkThing) {
   const bits: string[] = [];
@@ -80,28 +75,41 @@ const sourceNames: Record<string, string> = {
   sheets: "from Google Sheets",
 };
 
+/** A floating panel over the map, drawn in the crayon look. */
+function Float({ className = "", children, label }: { className?: string; children: React.ReactNode; label?: string }) {
+  return (
+    <section aria-label={label} className={`pointer-events-auto relative isolate rounded-card bg-card/95 ${className}`}>
+      <ChalkOutline radius={22} />
+      {children}
+    </section>
+  );
+}
+
 export function ParkView({ name, initialThings, pending, connected, googleAvailable, connectFailed }: Props) {
   const router = useRouter();
-  const shape = useShape();
+  const mapRef = useRef<ParkMapHandle>(null);
   const [things, setThings] = useState(initialThings);
   const [statuses, setStatuses] = useState<Status[]>([]);
+  const [showStatus, setShowStatus] = useState(true);
   const [mode, setMode] = useState<"map" | "list">("map");
   const [lawn, setLawn] = useState<ThingKind | null>(null);
   const [thing, setThing] = useState<ParkThing | null>(null);
+  const [here, setHere] = useState<ThingKind | null>(null);
   const [connectError, setConnectError] = useState<string | null>(
     connectFailed ? "Google didn't connect. You can try again any time." : null,
   );
   const [now] = useState(() => Date.now());
   const started = useRef(false);
-  const panelRef = useRef<HTMLElement>(null);
 
   const counts = useMemo(() => countByKind(things), [things]);
   const { grown, total } = progress(counts);
   const next = nextZone(counts);
   const importing = statuses.some((s) => s.state === "waiting" || s.state === "working");
-  const since = things.length ? new Date(things[0].createdAt) : null;
+  // Open on the first lawn with something on it, so there is always something to see.
+  const [startAt] = useState<ThingKind>(() => zones.find((z) => counts[z.kind] > 0)?.kind ?? "person");
 
   async function runImports(services: GoogleServiceId[]) {
+    setShowStatus(true);
     setStatuses(services.map((service) => ({ service, state: "waiting" })));
     for (const service of services) {
       setStatuses((all) => all.map((s) => (s.service === service ? { ...s, state: "working" } : s)));
@@ -121,9 +129,10 @@ export function ParkView({ name, initialThings, pending, connected, googleAvaila
             : s,
         ),
       );
-      // Redraw after each service so the park visibly fills in as things arrive.
+      // Redraw after each service, and fly to the lawn that just filled, so you watch things move in.
       const park = await fetch("/api/park").then((r) => (r.ok ? r.json() : null)).catch(() => null);
       if (park?.things) setThings(park.things);
+      if (!failed && (body?.count ?? 0) > 0) mapRef.current?.flyTo(lawnFor[service]);
     }
   }
 
@@ -144,10 +153,10 @@ export function ParkView({ name, initialThings, pending, connected, googleAvaila
     }
   }
 
-  function openLawn(kind: ThingKind) {
+  function go(kind: ThingKind) {
     setThing(null);
-    setLawn(kind);
-    requestAnimationFrame(() => panelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+    setLawn(null);
+    mapRef.current?.flyTo(kind);
   }
 
   function emptyAction(z: Zone) {
@@ -155,40 +164,42 @@ export function ParkView({ name, initialThings, pending, connected, googleAvaila
     return () => router.push(chatWith(z.starter));
   }
 
+  const onCenterLawn = useCallback((kind: ThingKind) => setHere(kind), []);
   const lawnList = lawn ? [...things.filter((t) => t.kind === lawn)].reverse() : [];
   const first = name.split(" ")[0] || "Your";
+  const title = first === "Your" ? "Your park" : `${first}'s park`;
 
-  return (
-    <main className="mx-auto flex w-full max-w-xl flex-col gap-4 px-4 pt-2 pb-8 min-[900px]:max-w-5xl md:py-8">
-      <header className="flex flex-wrap items-end justify-between gap-3 px-1">
-        <div className="flex flex-col">
-          <h1 className="font-serif text-3xl">{first === "Your" ? "Your park" : `${first}'s park`}</h1>
-          <p className="text-xs font-bold text-muted">
-            {grown} of {total} lawns growing · {things.length} {things.length === 1 ? "thing" : "things"}
-            {since && ` · growing since ${since.toLocaleDateString(undefined, { month: "long", day: "numeric" })}`}
-          </p>
-        </div>
-        <div role="radiogroup" aria-label="Show park as" className="flex rounded-pill border-2 border-tan bg-card p-0.5">
-          {(["map", "list"] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              role="radio"
-              aria-checked={mode === m}
-              onClick={() => setMode(m)}
-              className={`rounded-pill px-3.5 py-1 text-xs font-extrabold ${mode === m ? "bg-ink text-paper" : "text-ink-soft"}`}
-            >
-              {m === "map" ? "Map" : "List"}
-            </button>
-          ))}
-        </div>
-      </header>
+  const header = (
+    <div className="pointer-events-auto flex items-start justify-between gap-2">
+      <Float className="px-4 py-2.5">
+        <h1 className="font-serif text-2xl leading-none">{title}</h1>
+        <p className="mt-1 text-xs font-bold text-muted">
+          {grown} of {total} lawns growing · {things.length} {things.length === 1 ? "thing" : "things"}
+        </p>
+      </Float>
+      <div role="radiogroup" aria-label="Show park as" className="flex rounded-pill border-2 border-ink bg-card p-0.5">
+        {(["map", "list"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            role="radio"
+            aria-checked={mode === m}
+            onClick={() => setMode(m)}
+            className={`rounded-pill px-3.5 py-1.5 text-xs font-extrabold ${mode === m ? "bg-ink text-paper" : "text-ink-soft"}`}
+          >
+            {m === "map" ? "Map" : "List"}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 
-      {statuses.length > 0 && (
-        <section aria-live="polite" className="relative isolate flex flex-col gap-1 rounded-card px-4 py-3">
-          <ChalkOutline radius={22} />
+  const statusPanel = statuses.length > 0 && showStatus && (
+    <Float label="Park building" className="px-4 py-3">
+      <div aria-live="polite" className="flex items-start justify-between gap-3">
+        <div>
           <p className="font-hand text-lg">{importing ? "Building your park…" : "Your park is ready."}</p>
-          <ul className="flex flex-col gap-0.5 text-sm font-semibold text-ink-soft">
+          <ul className="flex flex-col gap-0.5 text-xs font-semibold text-ink-soft">
             {statuses.map((s) => (
               <li key={s.service}>
                 {s.state === "waiting" && `Waiting: ${serviceName(s.service)}`}
@@ -198,47 +209,21 @@ export function ParkView({ name, initialThings, pending, connected, googleAvaila
               </li>
             ))}
           </ul>
-        </section>
-      )}
-
-      {mode === "map" ? (
-        <div className="relative">
-          <ParkMap
-            things={things}
-            now={now}
-            shape={shape}
-            selectedLawn={lawn}
-            selectedThing={thing?.id ?? null}
-            onSelectLawn={openLawn}
-            onSelectThing={(t) => {
-              setThing(t);
-              setLawn(null);
-            }}
-            emptyAction={emptyAction}
-          />
-          {thing && (
-            <section
-              aria-label={thing.title}
-              className="absolute bottom-3 left-3 flex w-64 max-w-[calc(100%-5rem)] flex-col gap-1.5 rounded-card border-2 border-ink bg-card px-4 py-3"
-            >
-              <h2 className="font-serif text-xl leading-tight">{thing.title}</h2>
-              <span className="self-start rounded-chip bg-sun px-2 py-0.5 text-[10px] font-extrabold tracking-wide text-sun-ink uppercase">
-                {zoneOf(thing.kind).name}
-              </span>
-              {describe(thing) && <p className="text-xs font-semibold text-ink-soft">{describe(thing)}</p>}
-              <p className="text-xs font-semibold text-muted">Planted {sourceNames[thing.source] ?? ""}</p>
-              <div className="mt-1 flex gap-2">
-                <Button size="sm" onClick={() => router.push(chatWith(`Tell me about ${thing.title}: `))}>
-                  Ask LifePark
-                </Button>
-                <Button size="sm" variant="soft" onClick={() => setThing(null)}>
-                  Close
-                </Button>
-              </div>
-            </section>
-          )}
         </div>
-      ) : (
+        {!importing && (
+          <button type="button" onClick={() => setShowStatus(false)} aria-label="Dismiss" className="text-lg font-bold text-muted">
+            ×
+          </button>
+        )}
+      </div>
+    </Float>
+  );
+
+  if (mode === "list") {
+    return (
+      <main className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-4 pt-2 pb-8 md:py-8">
+        {header}
+        {statusPanel}
         <section aria-label="Everything in your park" className="flex flex-col gap-3">
           {zones
             .filter((z) => counts[z.kind] > 0)
@@ -260,74 +245,156 @@ export function ParkView({ name, initialThings, pending, connected, googleAvaila
             ))}
           {things.length === 0 && <p className="px-1 text-sm font-semibold text-muted">Nothing planted yet.</p>}
         </section>
-      )}
+      </main>
+    );
+  }
 
-      {connectError && (
-        <p role="alert" className="rounded-chip bg-sun px-3 py-2 text-sm font-bold">
-          {connectError}
-        </p>
-      )}
+  return (
+    <main className="relative min-h-[440px] flex-1 overflow-hidden">
+      <ParkMap
+        ref={mapRef}
+        things={things}
+        now={now}
+        startAt={startAt}
+        selectedLawn={lawn}
+        selectedThing={thing?.id ?? null}
+        onSelectLawn={(kind) => {
+          setThing(null);
+          setLawn(kind);
+        }}
+        onSelectThing={(t) => {
+          setLawn(null);
+          setThing(t);
+        }}
+        emptyAction={emptyAction}
+        onCenterLawn={onCenterLawn}
+      />
 
-      {lawn && mode === "map" && (
-        <section ref={panelRef} className="relative isolate flex flex-col gap-2 rounded-card px-4 py-4" aria-label={zoneOf(lawn).name}>
-          <ChalkOutline radius={22} />
-          <div className="flex items-center justify-between">
-            <h2 className="font-hand text-xl">
-              {zoneOf(lawn).name} · {countLabel(zoneOf(lawn), lawnList.length)}
-            </h2>
-            <Button variant="ghost" size="sm" onClick={() => setLawn(null)}>
-              Close
-            </Button>
-          </div>
-          <ul className="flex max-h-96 flex-col divide-y-2 divide-tan overflow-y-auto">
-            {lawnList.map((t) => (
-              <li key={t.id} className="flex flex-col py-2">
-                <span className="font-semibold">{t.title}</span>
-                {describe(t) && <span className="text-sm text-muted">{describe(t)}</span>}
-              </li>
-            ))}
-          </ul>
-          <Button variant="soft" size="sm" className="self-start" onClick={() => router.push(chatWith(zoneOf(lawn).starter))}>
-            Add another
-          </Button>
-        </section>
-      )}
-
-      <div className="flex flex-col gap-4 min-[900px]:flex-row">
-        {googleAvailable && connected.length === 0 && (
-          <section className="relative isolate flex flex-1 flex-col gap-2 rounded-card px-4 py-4">
-            <ChalkOutline radius={22} />
-            <h2 className="font-hand text-xl">Fill your park in seconds</h2>
-            <p className="text-sm font-semibold text-ink-soft">
-              Connect Google and your events, people, lists, mail, and files move in right away.
-            </p>
-            <Button onClick={() => void connect()} className="self-start">
-              Connect Google
-            </Button>
-          </section>
-        )}
-
-        {next && !importing && (
-          <section className="relative isolate flex flex-1 items-center justify-between gap-3 rounded-card px-4 py-4">
-            <ChalkOutline radius={22} />
-            <div className="flex flex-col">
-              <span className="text-xs font-extrabold tracking-wide text-muted uppercase">Next for your park</span>
-              <span className="font-hand text-xl">{next.sign}</span>
-            </div>
-            <Button onClick={() => router.push(chatWith(next.starter))}>Tell LifePark</Button>
-          </section>
+      {/* Everything floating over the map. Gaps between panels let touches reach the map. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col gap-2 p-3">
+        {header}
+        <nav aria-label="Lawns" className="pointer-events-auto -mx-3 flex gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none]">
+          {zones.map((z) => (
+            <button
+              key={z.kind}
+              type="button"
+              aria-label={`Go to ${z.name}`}
+              aria-current={here === z.kind ? "location" : undefined}
+              onClick={() => go(z.kind)}
+              className={`flex shrink-0 items-center gap-1.5 rounded-pill border-2 px-3 py-1.5 text-xs font-extrabold whitespace-nowrap ${
+                here === z.kind ? "border-ink bg-ink text-paper" : "border-ink/70 bg-card text-ink"
+              }`}
+            >
+              <span className="h-2.5 w-2.5 rounded-full border border-ink" style={{ background: z.accent }} aria-hidden="true" />
+              {z.name}
+              {counts[z.kind] > 0 && <span className={here === z.kind ? "text-paper/80" : "text-muted"}>{counts[z.kind]}</span>}
+            </button>
+          ))}
+        </nav>
+        {statusPanel && <div className="max-w-sm">{statusPanel}</div>}
+        {connectError && (
+          <p role="alert" className="pointer-events-auto max-w-sm rounded-chip border-2 border-ink bg-sun px-3 py-2 text-sm font-bold">
+            {connectError}
+          </p>
         )}
       </div>
 
-      {connected.length > 0 && !importing && (
+      <div className="absolute top-1/2 right-3 flex -translate-y-1/2 flex-col gap-2">
+        <div className="flex flex-col overflow-hidden rounded-chip border-2 border-ink bg-card">
+          <button type="button" aria-label="Zoom in" onClick={() => mapRef.current?.zoomBy(1.6)} className="px-3 py-1.5 text-xl leading-none font-bold">
+            +
+          </button>
+          <span className="h-0.5 bg-ink" />
+          <button type="button" aria-label="Zoom out" onClick={() => mapRef.current?.zoomBy(1 / 1.6)} className="px-3 py-1.5 text-xl leading-none font-bold">
+            −
+          </button>
+        </div>
         <button
           type="button"
-          onClick={() => void runImports(connected)}
-          className="self-center font-serif text-sm italic text-muted underline"
+          aria-label="Show the whole park"
+          onClick={() => mapRef.current?.overview()}
+          className="flex items-center justify-center rounded-chip border-2 border-ink bg-card p-2"
         >
-          Refresh from Google
+          <ParkIcon size={20} />
         </button>
-      )}
+      </div>
+
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-start gap-2 p-3">
+        {thing ? (
+          <Float label={thing.title} className="flex w-full max-w-sm flex-col gap-1.5 px-4 py-3">
+            <h2 className="font-serif text-2xl leading-tight">{thing.title}</h2>
+            <span className="self-start rounded-chip bg-sun px-2 py-0.5 text-[10px] font-extrabold tracking-wide text-sun-ink uppercase">
+              {zoneOf(thing.kind).name}
+            </span>
+            {describe(thing) && <p className="text-sm font-semibold text-ink-soft">{describe(thing)}</p>}
+            <p className="text-xs font-semibold text-muted">Planted {sourceNames[thing.source] ?? ""}</p>
+            <div className="mt-1 flex gap-2">
+              <Button size="sm" onClick={() => router.push(chatWith(`Tell me about ${thing.title}: `))}>
+                Ask LifePark
+              </Button>
+              <Button size="sm" variant="soft" onClick={() => setThing(null)}>
+                Close
+              </Button>
+            </div>
+          </Float>
+        ) : lawn ? (
+          <Float label={zoneOf(lawn).name} className="flex max-h-[45dvh] w-full max-w-sm flex-col gap-2 px-4 py-3">
+            <div className="flex items-center justify-between">
+              <h2 className="font-hand text-xl">
+                {zoneOf(lawn).name} · {countLabel(zoneOf(lawn), lawnList.length)}
+              </h2>
+              <Button variant="ghost" size="sm" onClick={() => setLawn(null)}>
+                Close
+              </Button>
+            </div>
+            <ul className="flex min-h-0 flex-col divide-y-2 divide-tan overflow-y-auto">
+              {lawnList.map((t) => (
+                <li key={t.id} className="flex flex-col py-2">
+                  <span className="font-semibold">{t.title}</span>
+                  {describe(t) && <span className="text-sm text-muted">{describe(t)}</span>}
+                </li>
+              ))}
+            </ul>
+            <Button variant="soft" size="sm" className="self-start" onClick={() => router.push(chatWith(zoneOf(lawn).starter))}>
+              Add another
+            </Button>
+          </Float>
+        ) : (
+          <>
+            {googleAvailable && connected.length === 0 && (
+              <Float className="flex w-full max-w-sm items-center justify-between gap-3 px-4 py-3">
+                <div className="flex flex-col">
+                  <span className="font-hand text-lg leading-tight">Fill your park in seconds</span>
+                  <span className="text-xs font-semibold text-ink-soft">Connect Google to move your life in.</span>
+                </div>
+                <Button size="sm" onClick={() => void connect()}>
+                  Connect Google
+                </Button>
+              </Float>
+            )}
+            {next && !importing && (
+              <Float className="flex w-full max-w-sm items-center justify-between gap-3 px-4 py-3">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-extrabold tracking-wide text-muted uppercase">Next for your park</span>
+                  <span className="font-hand text-lg leading-tight">{next.sign}</span>
+                </div>
+                <Button size="sm" onClick={() => router.push(chatWith(next.starter))}>
+                  Tell LifePark
+                </Button>
+              </Float>
+            )}
+            {connected.length > 0 && !importing && (
+              <button
+                type="button"
+                onClick={() => void runImports(connected)}
+                className="pointer-events-auto rounded-pill border-2 border-ink/60 bg-card px-3 py-1 font-serif text-xs italic text-ink-soft"
+              >
+                Refresh from Google
+              </button>
+            )}
+          </>
+        )}
+      </div>
     </main>
   );
 }

@@ -75,6 +75,12 @@ async function stopServer(server) {
 let server = await startServer();
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
 const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+async function flyTo(lawnName) {
+  await page.getByRole("button", { name: `Go to ${lawnName}` }).click();
+  await page.getByRole("button", { name: `Go to ${lawnName}` }).and(page.locator('[aria-current="location"]')).waitFor();
+  await page.waitForTimeout(900); // let the glide settle
+}
+
 // Any script error or server/phone mismatch on the page fails the test.
 const pageErrors = [];
 page.on("pageerror", (e) => pageErrors.push(`${page.url()}: ${e.message} ${(e.stack ?? "").split("\n").slice(1, 3).join(" ")}`));
@@ -126,6 +132,8 @@ try {
   await page.screenshot({ path: `${dir}/park-3-empty.png`, fullPage: true });
 
   // An empty area's sign opens a chat with a starter sentence typed in.
+  await page.getByRole("button", { name: "Go to Orchard" }).click();
+  await page.getByRole("button", { name: "Go to Orchard" }).and(page.locator('[aria-current="location"]')).waitFor();
   await page.getByRole("button", { name: /Orchard: Grow a recipe/ }).click();
   await page.waitForURL(/\/chats\/[0-9a-f-]{36}\?prompt=/);
   check((await page.getByLabel("Message").inputValue()) === "Here's a recipe I love: ", "starter sentence missing");
@@ -139,6 +147,8 @@ try {
   await page.getByRole("link", { name: "Added to your park: Grandma's chili" }).click();
   await page.waitForURL("**/park");
   await page.getByText(/^1 of 8 lawns growing/).waitFor();
+  // The park opens on the first lawn with something on it.
+  await page.getByRole("button", { name: "Go to Orchard" }).and(page.locator('[aria-current="location"]')).waitFor();
   await page.getByRole("button", { name: /Orchard: 1 recipe/ }).click();
   await page.getByRole("region", { name: "Orchard" }).getByText("Grandma's chili").waitFor();
 
@@ -180,19 +190,25 @@ try {
     await page.getByText(line).waitFor();
   }
   await page.getByText(/^6 of 8 lawns growing/).waitFor();
+  await page.getByRole("button", { name: "Dismiss" }).click();
   await page.waitForTimeout(1500); // let the sprouting finish before the picture
   await page.screenshot({ path: `${dir}/park-5-filled.png`, fullPage: true });
 
   // Tapping an area lists what is in it.
+  await flyTo("Neighborhood");
+  await page.screenshot({ path: `${dir}/park-5b-neighborhood.png` });
   await page.getByRole("button", { name: /Neighborhood: 3 neighbors/ }).click();
   const hood = page.getByRole("region", { name: "Neighborhood" });
   await hood.getByText("Sam Rivera").waitFor();
   await hood.getByText("Birthday Nov 3").waitFor();
+  await flyTo("Post office");
+  await page.screenshot({ path: `${dir}/park-5c-post-office.png` });
   await page.getByRole("button", { name: /Post office: 2 letters/ }).click();
   await page.getByRole("region", { name: "Post office" }).getByText("From Sam Rivera").waitFor();
   await page.screenshot({ path: `${dir}/park-6-lawn.png`, fullPage: true });
 
   // Tapping one thing opens its card on the map.
+  await flyTo("Neighborhood");
   await page.getByRole("button", { name: "Sam Rivera, neighbor" }).click();
   const card = page.getByRole("region", { name: "Sam Rivera" });
   await card.getByText("Birthday Nov 3").waitFor();
@@ -207,20 +223,34 @@ try {
   await all.getByText("Grandma's chili").waitFor();
   await page.getByRole("radio", { name: "Map" }).click();
 
-  // Zooming in and out works.
+  // Dragging moves around the park like a maps app: pull the map left to reach the lawn to the right.
+  await flyTo("Neighborhood");
+  const box = await page.locator("main svg").first().boundingBox();
+  await page.mouse.move(box.x + box.width * 0.8, box.y + box.height * 0.55);
+  await page.mouse.down();
+  for (let i = 1; i <= 12; i++) await page.mouse.move(box.x + box.width * (0.8 - i * 0.06), box.y + box.height * 0.55, { steps: 2 });
+  await page.mouse.up();
+  await page.getByRole("button", { name: "Go to Festival board" }).and(page.locator('[aria-current="location"]')).waitFor();
+  await page.screenshot({ path: `${dir}/park-5d-dragged.png` });
+
+  // Zoom buttons, and the whole park at once.
   await page.getByRole("button", { name: "Zoom in" }).click();
   await page.getByRole("button", { name: "Zoom out" }).click();
+  await page.getByRole("button", { name: "Show the whole park" }).click();
+  await page.waitForTimeout(900);
+  await page.screenshot({ path: `${dir}/park-5e-whole.png` });
 
   // Reopening does not import again, and nothing is duplicated.
   await page.goto(base + "/park", { waitUntil: "networkidle" });
   check((await page.getByText("Building your park").count()) === 0, "park re-imported on every visit");
   await page.getByRole("button", { name: /Neighborhood: 3 neighbors/ }).waitFor();
+  await page.getByRole("button", { name: "Go to Neighborhood" }).and(page.locator('[aria-current="location"]')).waitFor();
 
   // Laptop width.
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(base + "/park", { waitUntil: "networkidle" });
   await page.waitForTimeout(1500);
-  await page.screenshot({ path: `${dir}/park-7-laptop.png`, fullPage: true });
+  await page.screenshot({ path: `${dir}/park-7-laptop.png` });
 
   check(pageErrors.length === 0, `page errors: ${pageErrors.join(" | ")}`);
   console.log("park flow ok:", email);
