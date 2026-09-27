@@ -48,6 +48,8 @@ function socialProviders() {
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       prompt: "select_account",
+      // A long-lived key, so connected services can be re-read later without signing in again.
+      accessType: "offline",
     };
   }
   if (enabled.includes("apple")) {
@@ -67,6 +69,11 @@ export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "pg" }),
   emailAndPassword: { enabled: true, minPasswordLength: 10 },
   socialProviders: socialProviders(),
+  account: {
+    // People who sign in with Apple or email can still connect a Google account,
+    // even though its email address differs from theirs.
+    accountLinking: { enabled: true, trustedProviders: ["google", "apple"], allowDifferentEmails: true },
+  },
   trustedOrigins: trustedAppOrigins(),
   plugins: [
     passkey({ rpID: host, rpName: "LifePark", origin: baseURL }),

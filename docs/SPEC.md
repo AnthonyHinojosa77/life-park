@@ -30,10 +30,13 @@ It fails if a normal person cannot get value in the first few minutes without le
 - Chat and voice.
 - Photos, such as a recipe card or a screenshot of an invite.
 - Importing the calendar and contacts, so birthdays and events appear on day one. Google Calendar and Google Contacts come first, through the web app.
+- Google connections, all read-only: Calendar, Contacts, Tasks, Gmail, My Drive, Docs, and Sheets (2026-09-27). Google Keep is left out because Google offers it only to company Workspace accounts, not personal ones.
+- Apple: Sign in with Apple is on the web now. Websites cannot read Apple Mail, Notes, or Reminders, so people who sign in with Apple can connect a Google account or skip. Apple Calendar, Reminders, and Contacts come with the iPhone app; Apple Mail and Notes are closed even to iPhone apps.
 
 ### The park
 
 - Each kind of information is its own thing in the park. People are neighbors with houses, habits are garden plots, and recipes are an orchard. Things grow as they are added and used.
+- The park builds itself as soon as accounts are connected, so people see their park right away. Empty areas show a sign that starts a chat to fill them, and the park always suggests the next area to grow (2026-09-27).
 - Flat, top-down, drawn in the chosen "Paper stamp" style. The current park mockup is a good starting point. It gets more detailed, cuter, and more interactive, without losing taste or turning into slop.
 - Nothing copies Animal Crossing's art. The feeling is the reference, not the look.
 
@@ -55,7 +58,7 @@ It fails if a normal person cannot get value in the first few minutes without le
 
 ### First run
 
-- The user connects Google in the first minute. Birthdays and events fill the park right away. A short chat fills in the rest.
+- The user signs in with Google or Apple, reads a short welcome on how LifePark works, then is asked to connect the services that match the sign-in they chose. The park builds itself from what comes in. A short chat fills in the rest (2026-09-27).
 
 ### App form
 
@@ -100,7 +103,7 @@ It fails if a normal person cannot get value in the first few minutes without le
 These are Claude's defaults. Any of them can be overturned by saying so.
 
 - **Kinds of things at launch:** people, events, habits, recipes, notes, and lists. More kinds are added later without a redesign.
-- **Park mapping for the rest:** events are flags on a festival board, notes are benches with a small plaque, and lists are picnic blankets. Final shapes are settled at the park design check-in.
+- **Park mapping for the rest:** events are flags on a festival board, notes are benches with a small plaque, lists are picnic blankets, files are books in the library, and mail arrives at the post office.
 - **Growth rules:** a thing grows when it is added, used, or completed. A habit plot blooms on a streak and wilts gently when skipped, never harshly. Nothing ever disappears on its own.
 - **Chat is the front door.** The park is the second tab. A plain list of everything exists for people who want it.
 - **The AI confirms before filing** anything it is not sure about, in one short line, the same pattern as confirm-before-save memory.
@@ -113,7 +116,9 @@ These are Claude's defaults. Any of them can be overturned by saying so.
 
 - Visiting friends' parks.
 - Native iPhone and Android apps.
-- Importing Apple's calendar or contacts directly. Apple users can export a file instead.
+- Importing Apple's calendar, contacts, or reminders directly. Apple users can connect Google or export a file instead.
+- Apple Mail and Apple Notes. Apple offers no way for other apps to read them.
+- Google Keep. Google offers it only to company Workspace accounts.
 - Teams or shared databases.
 - Choosing a model.
 
@@ -122,7 +127,8 @@ These are Claude's defaults. Any of them can be overturned by saying so.
 Listed so nothing is a surprise. Claude handles everything else.
 
 - **OpenRouter key.** The AI does not answer without it.
-- **Google Cloud sign-in project.** Needed for Google sign-in and calendar and contacts import. Google must review any app that reads calendars or contacts before more than 100 people can use it. Claude prepares the review; the account must be Anthony's.
+- **Google Cloud sign-in project.** Needed for Google sign-in and every Google connection. Google must review any app that reads calendars or contacts before more than 100 people can use it. Gmail and Drive are "restricted" permissions that also need a paid outside security assessment before public launch (price not yet checked). Claude prepares the reviews; the account must be Anthony's.
+- **Apple Developer account.** $99 a year, needed for Sign in with Apple.
 - **Payments account (Stripe).** Needed before charging anyone. It has to be in Anthony's name.
 - **Domain purchase.** lifepark.app.
 - **Speechify key.** Optional. The device voice works without it.

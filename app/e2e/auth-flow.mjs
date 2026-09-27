@@ -29,21 +29,22 @@ await page.getByLabel("Email").fill(email);
 await page.getByLabel("Password").fill(password);
 await submitAndWaitFor(page, "Create account", "**/onboarding");
 await page.getByRole("heading", { level: 1 }).waitFor();
-await page.screenshot({ path: `${dir}/onboarding-1-navigation.png` });
+await page.screenshot({ path: `${dir}/onboarding-1-welcome.png` });
 
 // Chats is not reachable until onboarding is done.
 await page.goto(base + "/chats", { waitUntil: "networkidle" });
 check(page.url().endsWith("/onboarding"), "chats opened before onboarding finished");
 
-// Walk both steps, changing one choice on each.
-await page.getByRole("radio", { name: /^The park/ }).click();
-await page.getByRole("button", { name: "Next" }).click();
-await page.getByRole("radio", { name: /^This device/ }).click();
-await page.screenshot({ path: `${dir}/onboarding-2-voice.png` });
-await page.getByRole("button", { name: "Open LifePark" }).click();
-await page.waitForURL("**/chats");
-await page.getByRole("heading", { name: "Chats" }).waitFor();
-await page.screenshot({ path: `${dir}/auth-chats.png` });
+// The welcome explains how LifePark works, then offers to connect accounts.
+await page.getByText("It files everything").waitFor();
+await page.getByRole("button", { name: "Let's build your park" }).click();
+await page.getByRole("heading", { level: 1 }).waitFor();
+await page.screenshot({ path: `${dir}/onboarding-2-connect.png` });
+// This test server has no Google credentials, so the park opens straight away.
+await page.getByRole("button", { name: "See my park" }).click();
+await page.waitForURL("**/park");
+await page.getByRole("heading", { name: "Anthony's park" }).waitFor();
+await page.screenshot({ path: `${dir}/auth-park.png` });
 
 // Onboarding does not reappear once done.
 await page.goto(base + "/", { waitUntil: "networkidle" });

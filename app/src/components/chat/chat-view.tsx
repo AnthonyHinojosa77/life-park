@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
@@ -15,6 +16,8 @@ type Props = {
   conversationId: string;
   initialMessages: UIMessage[];
   isNew: boolean;
+  /** Text already typed into the message box when the chat opens. */
+  initialInput?: string;
   voice: VoiceSource;
   speechifyAvailable: boolean;
 };
@@ -23,11 +26,12 @@ export function ChatView({
   conversationId,
   initialMessages,
   isNew,
+  initialInput = "",
   voice,
   speechifyAvailable,
 }: Props) {
   const router = useRouter();
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(initialInput);
   const listRef = useRef<HTMLDivElement>(null);
   const startedNew = useRef(false);
   const reader = useReadAloud({ voice, speechifyAvailable });
@@ -137,6 +141,13 @@ export function ChatView({
   );
 }
 
+/** Titles the assistant saved to the park during this reply. */
+function savedToPark(parts: UIMessage["parts"]) {
+  return parts
+    .filter((p) => p.type === "tool-save_to_park" && "state" in p && p.state === "output-available")
+    .map((p) => String((p as { input?: { title?: string } }).input?.title ?? "something new"));
+}
+
 function textOfParts(parts: UIMessage["parts"]) {
   return parts
     .filter((p) => p.type === "text")
@@ -154,6 +165,7 @@ function MessageBubble({
   onListen: () => void;
 }) {
   const text = textOfParts(message.parts);
+  const saved = savedToPark(message.parts);
   if (message.role === "user") {
     return (
       <div className="flex justify-end">
@@ -169,6 +181,17 @@ function MessageBubble({
     <div className="flex flex-col gap-1.5">
       <Card variant="stamp" className="flex max-w-[92%] flex-col gap-3 px-4 py-3.5 text-[15px] font-semibold leading-relaxed md:max-w-[80%]">
         <div className="whitespace-pre-wrap">{text || <span className="text-muted">…</span>}</div>
+        {saved.length > 0 && (
+          <ul className="flex flex-wrap gap-1.5" aria-label="Added to your park">
+            {saved.map((title, i) => (
+              <li key={i}>
+                <Link href="/park" className="rounded-chip bg-grass-light px-2.5 py-1 text-xs font-extrabold text-grass-deep">
+                  Added to your park: {title}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
         {text && (
           <div>
             <ListenButton playing={playing} onClick={onListen} />

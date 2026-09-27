@@ -28,7 +28,7 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 - [~] 1.2 One AI behind the scenes. Remove the model picker and favorites from users' view. Choose the model by testing candidates on filing, reminders, and recaps. Built: one assistant model set in one place, with no model picker, model names, or favorites anywhere users look, and onboarding trimmed to navigation and voice. The provisional model is Google Gemini 3.8 Flash. The final choice comes from Anthony's personal trial in step 5.1.
 - [x] 1.3 Owner dashboard. Cost tracking moves out of Settings into a page only Anthony can open. It includes a model switch that changes the AI for Anthony's account only, ready for the trial in 5.1. Built at /owner: AI spend across everyone, active people, cost per person, spend by model, a monthly heads-up, and the trial switch. Everyone else gets a "not found" page. On the live site it turns on once OWNER_EMAILS holds Anthony's sign-in email in Vercel.
 - [x] 1.4 Sign-in screen for normal people: Google, Apple, passkey, email and password. Google and Apple buttons sit on top in each company's required look, with email below and passkey on sign-in. GitHub and Microsoft are gone. The Google and Apple buttons appear once their credentials exist; tested with stand-in credentials, including Google's real sign-in redirect.
-- [ ] 1.5 New onboarding: connect Google, see birthdays and events arrive, then a short chat.
+- [x] 1.5 New onboarding: sign in with Google or Apple, a short welcome on how LifePark works, then connect Google services (Calendar, Contacts, Tasks, Gmail, My Drive, Docs, Sheets). The park builds itself right after. Apple and email sign-ins can connect a Google account or skip. Tested end to end with a stand-in Google; it turns on for real once the Google Cloud project exists.
 
 ---
 
@@ -36,15 +36,15 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 
 **What you get:** Tell it anything and it lands in the right place.
 
-- [ ] 2.1 The kinds of things: people, events, habits, recipes, notes, lists. Each has its own page and a plain list view.
-- [ ] 2.2 Filing from chat. The AI turns what you say into saved things and confirms in one short line when unsure.
+- [~] 2.1 The kinds of things: people, events, habits, recipes, notes, lists. Each has its own page and a plain list view. Built: all six are stored, plus files and mail from Google, and tapping an area of the park lists what is in it. Separate pages are not built yet.
+- [~] 2.2 Filing from chat. The AI turns what you say into saved things and confirms in one short line when unsure. Built: the assistant saves people, events, habits, recipes, notes, and lists to the park and shows "Added to your park" under its reply. Tested with a stand-in model; not yet checked with the real one.
 - [ ] 2.3 Photos. Snap a recipe card or an invite and it gets filed.
-- [ ] 2.4 Google Calendar and Google Contacts import, with birthdays pulled from contacts.
+- [x] 2.4 Google Calendar and Google Contacts import, with birthdays pulled from contacts. Also Tasks, Gmail, My Drive, Docs, and Sheets, all read-only. Re-importing updates instead of duplicating.
 - [ ] 2.5 Your calendar. Month, week, and day views of events, birthdays, and habits.
 - [ ] 2.6 Make the calendar yours. Add a cover photo for each month, like a wall calendar.
-- [ ] 2.7 Ask about your own life: "When is Sam's birthday?" or "What did I cook last week?"
+- [~] 2.7 Ask about your own life: "When is Sam's birthday?" or "What did I cook last week?" Built: the assistant can look things up in the park. Not yet checked with the real model.
 
-**Design check-in 1 (before Milestone 3):** the personal calendar and the detailed park. Claude sends mockups of a cuter, more detailed, interactive park, with neighbors' houses, garden plots, the orchard, festival flags, and growth stages. The calendar mockups show month cover photos. Anthony reacts to the look only.
+**Design check-in 1 (before Milestone 3):** the personal calendar and the detailed park. For the park, Anthony chose to judge it live in the app instead of mockups (2026-09-27). The calendar check-in with month cover photos still happens before 2.5 and 2.6 are built.
 
 ---
 
@@ -52,10 +52,10 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 
 **What you get:** Your life as a park that grows.
 
-- [ ] 3.1 The park drawn from your real data. Every person, habit, recipe, event, note, and list has its place.
-- [ ] 3.2 Growth and animation. Things sprout when added, bloom with use, and the park gently comes alive: wind, small critters, and time of day.
-- [ ] 3.3 Tap anything in the park to open it. Long-press to move it.
-- [ ] 3.4 A small moment each time something is added, so progress always feels visible.
+- [x] 3.1 The park drawn from your real data. Every person, habit, recipe, event, note, and list has its place. Built with eight areas, including the library for files and the post office for mail, drawn in the crayon look. Few things are drawn big and many are drawn small, so every area looks lived in.
+- [~] 3.2 Growth and animation. Things sprout when added, bloom with use, and the park gently comes alive: wind, small critters, and time of day. Built: things pop up as they arrive, areas gain flowers as they grow, clouds drift, a duck swims, and a balloon marks birthdays in the next two weeks. Time of day is not built yet.
+- [~] 3.3 Tap anything in the park to open it. Long-press to move it. Built: tapping an area lists everything in it. Opening a single thing and long-press to move are not built yet.
+- [~] 3.4 A small moment each time something is added, so progress always feels visible. Built: new things pop up, the park shows "N of 8 areas growing," suggests the next area to fill, and empty areas carry a sign that starts a chat.
 
 ---
 
@@ -96,6 +96,10 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 
 ## Decisions log
 
+- 2026-09-27: Sign-in with Google or Apple leads to a short welcome, then a connect screen, then a park that builds itself (Anthony). Google connections: Calendar, Contacts, Tasks, Gmail, My Drive, Docs, Sheets. Keep is left out because Google does not offer it to personal accounts.
+- 2026-09-27: Apple sign-in users can connect Google or skip; Apple Reminders, Calendar, and Contacts wait for the iPhone app (Anthony). Apple Mail and Notes cannot be read by any other app.
+- 2026-09-27: The park is judged live in the app instead of through mockups (Anthony).
+- 2026-09-27: Work goes straight to main, with no pull requests (Anthony, from the shared agent rules).
 - 2026-09-26: GLM 5.3 Flash joins the model trial as a fourth round (Anthony). It scored highest of the four on Artificial Analysis at about $0.09 per task.
 - 2026-09-26: The chalk and crayon look replaces every floating bubble across the app (Anthony).
 - 2026-09-26: Sign-in and sign-up move to a hand-drawn chalk and crayon look, replacing the floating bubble buttons (Anthony, from a reference image).

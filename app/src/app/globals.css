@@ -64,3 +64,43 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
+
+/* The park: new things pop up from the ground, clouds drift, balloons sway. */
+@keyframes park-sprout {
+  from { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.15); opacity: 1; }
+  to { transform: scale(1); opacity: 1; }
+}
+.park-item {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: park-sprout 0.55s ease-out both;
+}
+@keyframes park-drift {
+  from { transform: translateX(-60px); }
+  to { transform: translateX(470px); }
+}
+.park-cloud { animation: park-drift 70s linear infinite; }
+.park-cloud-slow { animation-duration: 95s; animation-delay: -40s; }
+@keyframes park-sway {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(4deg); }
+}
+.park-sway {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: park-sway 3.2s ease-in-out infinite;
+}
+.park-sign { transition: transform 0.15s ease; transform-box: fill-box; transform-origin: center; }
+a:hover .park-sign, [role="button"]:hover .park-sign { transform: scale(1.03); }
+@media (prefers-reduced-motion: reduce) {
+  .park-item, .park-cloud, .park-sway { animation: none; }
+}
+@keyframes park-bob {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-6px, 0.8px); }
+}
+.park-duck { animation: park-bob 6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .park-duck { animation: none; }
+}

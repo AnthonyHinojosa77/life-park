@@ -1,12 +1,14 @@
 import {
   convertToModelMessages,
   createUIMessageStreamResponse,
+  stepCountIs,
   streamText,
   toUIMessageStream,
   type UIMessage,
 } from "ai";
 import { z } from "zod";
 import { buildInstructions } from "@/lib/chat/instructions";
+import { parkTools } from "@/lib/chat/park-tools";
 import { assistantModelId, getLanguageModel, ModelsUnavailableError } from "@/lib/chat/model";
 import { saveMessage, textOf, titleFromText, touchConversation } from "@/lib/chat/store";
 import { getRules } from "@/lib/rules";
@@ -58,6 +60,9 @@ export async function POST(req: Request) {
     model,
     instructions: buildInstructions(session.user.name, rulesText),
     messages: await convertToModelMessages(messages),
+    tools: parkTools(session.user.id),
+    // Room to save something, then reply about it.
+    stopWhen: stepCountIs(4),
     onEnd: async ({ text, usage, finalStep }) => {
       const openrouter = finalStep?.providerMetadata?.openrouter as
         | { usage?: { cost?: number } }

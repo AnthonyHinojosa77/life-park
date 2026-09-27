@@ -10,8 +10,9 @@ export const metadata: Metadata = { title: "Chat" };
 
 const idShape = /^[a-zA-Z0-9-]{8,64}$/;
 
-export default async function ChatPage({ params }: PageProps<"/chats/[id]">) {
+export default async function ChatPage({ params, searchParams }: PageProps<"/chats/[id]">) {
   const { id } = await params;
+  const { prompt } = await searchParams;
   if (!idShape.test(id)) notFound();
 
   const { session, settings } = await requireOnboarded();
@@ -20,7 +21,8 @@ export default async function ChatPage({ params }: PageProps<"/chats/[id]">) {
     listConversations(session.user.id),
   ]);
   const initialMessages = conversation ? await getMessages(id) : [];
-
+  // The park's signs open a new chat with a starter sentence already typed.
+  const initialInput = !conversation && typeof prompt === "string" ? prompt.slice(0, 300) : "";
 
   return (
     <AppShell active="chats" rail={<ConversationList conversations={threads} activeId={id} />}>
@@ -29,6 +31,7 @@ export default async function ChatPage({ params }: PageProps<"/chats/[id]">) {
         conversationId={id}
         initialMessages={initialMessages}
         isNew={!conversation}
+        initialInput={initialInput}
         voice={settings.voice}
         speechifyAvailable={Boolean(process.env.SPEECHIFY_API_KEY)}
       />

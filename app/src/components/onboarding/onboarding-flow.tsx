@@ -1,33 +1,60 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { completeOnboarding, skipOnboarding } from "@/app/onboarding/actions";
+import { useRouter } from "next/navigation";
+import { finishOnboarding } from "@/app/onboarding/actions";
 import { Button } from "@/components/ui/button";
-import { Wordmark } from "@/components/wordmark";
-import type { SettingsInput } from "@/lib/settings";
 import { ChalkOutline } from "@/components/ui/chalk";
+import { Wordmark } from "@/components/wordmark";
+import { connectGoogle } from "@/lib/connect-google";
+import { googleServices } from "@/lib/google/services";
 
 type Props = {
   name: string;
-  initial: SettingsInput;
+  /** Whether Google connections are set up on this site. */
+  googleAvailable: boolean;
+  /** Whether this person signed in with Google (or already linked it). */
+  hasGoogle: boolean;
 };
 
-const steps = ["Navigation", "Voice"] as const;
+const steps = ["Welcome", "Connect"] as const;
 
-export function OnboardingFlow({ name, initial }: Props) {
+const how = [
+  { title: "Tell it anything", body: "Birthdays, plans, workouts, recipes, people. Type or talk." },
+  { title: "It files everything", body: "LifePark sorts it all for you and reminds you when it matters." },
+  { title: "Watch your park grow", body: "Everything you add gets a spot in your own little park." },
+];
+
+export function OnboardingFlow({ name, googleAvailable, hasGoogle }: Props) {
+  const router = useRouter();
   const [step, setStep] = useState(0);
-  const [draft, setDraft] = useState<SettingsInput>(initial);
+  const [chosen, setChosen] = useState<string[]>(googleServices.map((s) => s.id));
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const first = name.split(" ")[0];
 
-  const last = step === steps.length - 1;
-
-  function finish() {
+  function toPark() {
     setError(null);
     start(async () => {
-      const result = await completeOnboarding(draft);
-      if (result?.error) setError(result.error);
+      await finishOnboarding();
+      router.push("/park");
     });
+  }
+
+  function connect() {
+    setError(null);
+    start(async () => {
+      try {
+        await finishOnboarding();
+        await connectGoogle(chosen, "/park");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Couldn't reach Google. Try again.");
+      }
+    });
+  }
+
+  function toggle(id: string) {
+    setChosen((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
   }
 
   return (
@@ -36,7 +63,7 @@ export function OnboardingFlow({ name, initial }: Props) {
         <Wordmark size="sm" />
         <button
           type="button"
-          onClick={() => start(() => skipOnboarding())}
+          onClick={toPark}
           className="font-serif text-sm italic text-muted underline"
           disabled={pending}
         >
@@ -57,42 +84,68 @@ export function OnboardingFlow({ name, initial }: Props) {
       </ol>
 
       {step === 0 && (
-        <section className="flex flex-col gap-4">
-          <h1 className="font-serif text-3xl">Hi {name.split(" ")[0]}. How do you want to get around?</h1>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <ChoiceCard
-              on={draft.navigation === "list"}
-              onClick={() => setDraft({ ...draft, navigation: "list" })}
-              title="A list"
-              body="Projects and chats in a clean sidebar. Fast and familiar. The park map is one tap away."
-            />
-            <ChoiceCard
-              on={draft.navigation === "park"}
-              onClick={() => setDraft({ ...draft, navigation: "park" })}
-              title="The park"
-              body="Your work as a map: projects as lawns, chats as trees, paths between related ideas."
-            />
-          </div>
+        <section className="flex flex-col gap-5">
+          <h1 className="font-serif text-3xl">Welcome to LifePark{first ? `, ${first}` : ""}.</h1>
+          <ol className="flex flex-col gap-3">
+            {how.map((h, i) => (
+              <li key={h.title} className="relative isolate flex gap-3 rounded-card px-4 py-3">
+                <ChalkOutline radius={22} />
+                <span className="font-hand text-2xl text-grass-deep">{i + 1}</span>
+                <span className="flex flex-col">
+                  <span className="font-hand text-xl">{h.title}</span>
+                  <span className="text-sm font-semibold text-ink-soft">{h.body}</span>
+                </span>
+              </li>
+            ))}
+          </ol>
         </section>
       )}
 
-      {step === 1 && (
+      {step === 1 && googleAvailable && (
         <section className="flex flex-col gap-4">
-          <h1 className="font-serif text-3xl">Which voice should read to you?</h1>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <ChoiceCard
-              on={draft.voice === "speechify"}
-              onClick={() => setDraft({ ...draft, voice: "speechify" })}
-              title="Speechify"
-              body="The same natural voice on every device. Free for a generous amount each month."
-            />
-            <ChoiceCard
-              on={draft.voice === "device"}
-              onClick={() => setDraft({ ...draft, voice: "device" })}
-              title="This device"
-              body="The built-in voice of your phone or laptop. Always free, sounds different per device."
-            />
-          </div>
+          <h1 className="font-serif text-3xl">
+            {hasGoogle ? "Bring in your Google stuff" : "Use Google too? Connect it"}
+          </h1>
+          <p className="text-sm font-semibold text-ink-soft">
+            {hasGoogle
+              ? "Pick what LifePark may read. Your park starts growing the moment you connect."
+              : "Connect a Google account to fill your park right away. Apple Calendar, Reminders, and Contacts come with the LifePark iPhone app."}{" "}
+            LifePark only reads; it never changes or sends anything.
+          </p>
+          <ul className="flex flex-col gap-2" aria-label="Google services">
+            {googleServices.map((s) => {
+              const on = chosen.includes(s.id);
+              return (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={on}
+                    onClick={() => toggle(s.id)}
+                    className={`relative isolate flex w-full items-start gap-3 rounded-card bg-card px-4 py-3 text-left ${on ? "" : "border-2 border-tan opacity-70"}`}
+                  >
+                    {on && <ChalkOutline radius={22} width={3} />}
+                    <span aria-hidden="true" className="mt-0.5 font-hand text-xl">
+                      {on ? "☑" : "☐"}
+                    </span>
+                    <span className="flex flex-col">
+                      <span className="font-hand text-xl">{s.label}</span>
+                      <span className="text-sm font-semibold text-ink-soft">{s.park}</span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      {step === 1 && !googleAvailable && (
+        <section className="flex flex-col gap-4">
+          <h1 className="font-serif text-3xl">Your park is ready to plant</h1>
+          <p className="text-sm font-semibold text-ink-soft">
+            Connecting Google is almost ready. Until then, tell LifePark about your life in chat and watch your park grow.
+          </p>
         </section>
       )}
 
@@ -103,47 +156,25 @@ export function OnboardingFlow({ name, initial }: Props) {
       )}
 
       <footer className="mt-auto flex items-center justify-between gap-3 pt-4">
-        <Button variant="ghost" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0 || pending}>
+        <Button variant="ghost" onClick={() => setStep(0)} disabled={step === 0 || pending}>
           Back
         </Button>
-        {last ? (
-          <Button size="lg" onClick={finish} disabled={pending}>
-            {pending ? "Saving" : "Open LifePark"}
+        {step === 0 && (
+          <Button size="lg" onClick={() => setStep(1)}>
+            Let&apos;s build your park
           </Button>
-        ) : (
-          <Button size="lg" onClick={() => setStep((s) => s + 1)} disabled={pending}>
-            Next
+        )}
+        {step === 1 && googleAvailable && (
+          <Button size="lg" onClick={connect} disabled={pending || chosen.length === 0}>
+            {pending ? "Opening Google" : "Connect Google"}
+          </Button>
+        )}
+        {step === 1 && !googleAvailable && (
+          <Button size="lg" onClick={toPark} disabled={pending}>
+            {pending ? "Opening" : "See my park"}
           </Button>
         )}
       </footer>
     </main>
-  );
-}
-
-function ChoiceCard({
-  on,
-  onClick,
-  title,
-  body,
-}: {
-  on: boolean;
-  onClick: () => void;
-  title: string;
-  body: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={on}
-      onClick={onClick}
-      className={`relative isolate flex flex-col gap-1.5 rounded-card bg-card p-4 text-left ${
-        on ? "" : "border-2 border-tan"
-      }`}
-    >
-      {on && <ChalkOutline radius={22} width={3} />}
-      <span className="font-serif text-xl">{title}</span>
-      <span className="text-sm font-semibold text-ink-soft">{body}</span>
-    </button>
   );
 }

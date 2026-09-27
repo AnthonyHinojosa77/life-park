@@ -36,6 +36,13 @@
       "when": 1790439044527,
       "tag": "0004_owner_model",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790523251036,
+      "tag": "0005_things",
+      "breakpoints": true
     }
   ]
 }

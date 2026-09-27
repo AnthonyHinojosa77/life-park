@@ -1,23 +1,20 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/session";
-import { defaultSettings, parseSettings, saveSettings } from "@/lib/settings";
+import { defaultSettings, getSettings, saveSettings } from "@/lib/settings";
 
-export async function completeOnboarding(raw: unknown) {
+/**
+ * Marks onboarding done, keeping any earlier choices. The park is where
+ * everyone lands afterwards, so it becomes the default way around.
+ */
+export async function finishOnboarding() {
   const session = await requireSession();
-  let input;
-  try {
-    input = parseSettings(raw);
-  } catch (error) {
-    return { error: error instanceof Error ? error.message : "Something was off." };
-  }
-  await saveSettings(session.user.id, input);
-  redirect("/chats");
-}
-
-export async function skipOnboarding() {
-  const session = await requireSession();
-  await saveSettings(session.user.id, defaultSettings);
-  redirect("/chats");
+  const existing = await getSettings(session.user.id);
+  await saveSettings(session.user.id, {
+    favoriteModels: existing?.favoriteModels ?? defaultSettings.favoriteModels,
+    navigation: existing?.navigation ?? "park",
+    voice: existing?.voice ?? defaultSettings.voice,
+    monthlyLimitCents: existing?.monthlyLimitCents ?? defaultSettings.monthlyLimitCents,
+  });
+  return { ok: true };
 }

@@ -1,5 +1,6 @@
-import { index, integer, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { user } from "./schema";
+import type { ThingKind } from "../kinds";
 
 /** Preferences chosen during onboarding and changed later in Settings. */
 export const userSettings = pgTable("user_settings", {
@@ -73,3 +74,55 @@ export const rules = pgTable("rules", {
     .$onUpdate(() => new Date())
     .notNull(),
 });
+
+export { thingKinds, type ThingKind } from "../kinds";
+
+/**
+ * One thing in someone's life: a person, an event, a recipe, a file.
+ * Filled from chat and from connected accounts. Each one has a spot in the park.
+ */
+export const things = pgTable(
+  "things",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    kind: text("kind").$type<ThingKind>().notNull(),
+    title: text("title").notNull(),
+    /** When it happens or happened: an event's start, a birthday, a file's last edit. */
+    date: timestamp("date"),
+    /** Kind-specific extras, like a birthday or a list's items. */
+    detail: jsonb("detail").$type<Record<string, unknown>>().notNull().default({}),
+    /** Where it came from: "chat", or a connected service such as "calendar". */
+    source: text("source").notNull(),
+    /** The item's id at its source, so a re-import updates instead of duplicating. */
+    sourceId: text("source_id").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("things_user_source_item").on(t.userId, t.source, t.sourceId),
+    index("things_user_kind").on(t.userId, t.kind),
+  ],
+);
+
+/** Which outside services someone chose to connect, and how the last import went. */
+export const connections = pgTable(
+  "connections",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    service: text("service").notNull(),
+    status: text("status").$type<"connected" | "error">().notNull(),
+    itemCount: integer("item_count").notNull().default(0),
+    lastError: text("last_error"),
+    lastImportedAt: timestamp("last_imported_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.service] })],
+);

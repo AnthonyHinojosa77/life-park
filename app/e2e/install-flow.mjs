@@ -40,7 +40,7 @@ await page.getByLabel("Email").fill(email);
 await page.getByLabel("Password").fill(password);
 await submitAndWaitFor(page, "Create account", "**/onboarding");
 await page.getByRole("button", { name: "Skip for now" }).click();
-await page.waitForURL("**/chats");
+await page.waitForURL("**/park");
 
 // The service worker registered and controls the page.
 await page.waitForFunction(() => navigator.serviceWorker?.controller !== null, null, {

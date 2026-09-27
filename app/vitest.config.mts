@@ -9,5 +9,8 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     include: ["src/**/*.test.{ts,tsx}"],
+    // Several files each start an in-memory Postgres and run every migration;
+    // side by side on a busy machine that setup can pass the 10-second default.
+    hookTimeout: 30000,
   },
 });

@@ -17,7 +17,7 @@ async function signUp(page) {
   await page.getByLabel("Password").fill(password);
   await submitAndWaitFor(page, "Create account", "**/onboarding");
   await page.getByRole("button", { name: "Skip for now" }).click();
-  await page.waitForURL("**/chats");
+  await page.waitForURL("**/park");
 }
 
 const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });

@@ -38,7 +38,7 @@ await signUpOrIn();
 await page.goto(base + "/chats", { waitUntil: "networkidle" });
 if (page.url().endsWith("/onboarding")) {
   await page.getByRole("button", { name: "Skip for now" }).click();
-  await page.waitForURL("**/chats");
+  await page.waitForURL("**/park");
 }
 
 async function chat(text) {

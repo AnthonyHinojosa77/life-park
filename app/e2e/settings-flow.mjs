@@ -15,7 +15,7 @@ await page.getByLabel("Email").fill(email);
 await page.getByLabel("Password").fill("a-long-enough-password");
 await submitAndWaitFor(page, "Create account", "**/onboarding");
 await page.getByRole("button", { name: "Skip for now" }).click();
-await page.waitForURL("**/chats");
+await page.waitForURL("**/park");
 
 // Spending is not a user concern any more, and the owner dashboard is hidden.
 await page.goto(base + "/settings", { waitUntil: "networkidle" });
