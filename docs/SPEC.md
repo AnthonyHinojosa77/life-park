@@ -1,6 +1,6 @@
 # Product Specification: LifePark
 
-Repository: `AnthonyHinojosa77/tony-harness`.
+Repository: `AnthonyHinojosa77/lifepark` (renamed from `tony-harness` on 2026-09-27).
 Written 2026-09-26 from a structured interview with Anthony (questions Q1 to Q15 of the LifePark round). Every line under **Locked** is something Anthony said. Every line under **Assumed** is a default Claude chose and Anthony has not confirmed.
 
 This replaces the Work Park spec (an AI model harness), kept in [archive/work-park-spec.md](./archive/work-park-spec.md). The design, accounts, chat, voice, and home-screen install built for Work Park carry over.
