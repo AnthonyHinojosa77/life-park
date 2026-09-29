@@ -74,7 +74,7 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 **What you get:** Safe and ready for invite-only testers, then the public.
 
 - [ ] 5.1 Model trial for Anthony. Anthony uses LifePark in his own daily life with each model in turn: GPT-6 Luna, Qwen 3.8 Flash, Gemini 3.8 Flash, then GLM 5.3 Flash. Claude switches the model on his account for each round and shows what each round cost. Anthony picks the one that worked best for him, and it becomes the one AI for everyone.
-- [ ] 5.2 Export everything and delete everything, from Settings.
+- [~] 5.2 Export everything and delete everything, from Settings. Built: "Delete my account" in Settings removes the account and everything in it after typing "delete"; the same email can sign up again from the start. Export is not built yet.
 - [ ] 5.3 Share one thing by link, like a recipe or a gift list.
 - [ ] 5.4 Free tier limits and the monthly subscription, with price set from research and the trial's real cost per user.
 - [ ] 5.5 Google's review for calendar and contacts access.
@@ -96,6 +96,7 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 
 ## Decisions log
 
+- 2026-09-29: Account deletion moves up so Anthony can delete his account and test the full sign-up flow from scratch (Anthony).
 - 2026-09-27: Sign-in with Google or Apple leads to a short welcome, then a connect screen, then a park that builds itself (Anthony). Google connections: Calendar, Contacts, Tasks, Gmail, My Drive, Docs, Sheets. Keep is left out because Google does not offer it to personal accounts.
 - 2026-09-27: Apple sign-in users can connect Google or skip; Apple Reminders, Calendar, and Contacts wait for the iPhone app (Anthony). Apple Mail and Notes cannot be read by any other app.
 - 2026-09-27: The park is judged live in the app instead of through mockups (Anthony).

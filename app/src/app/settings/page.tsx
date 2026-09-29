@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { DeleteAccount } from "@/components/settings/delete-account";
 import { Preferences } from "@/components/settings/preferences";
 import { RulesEditor } from "@/components/settings/rules-editor";
 import { isOwner } from "@/lib/owner";
@@ -54,6 +55,7 @@ export default async function SettingsPage() {
               </Link>
             )}
           </div>
+          <DeleteAccount />
         </section>
       </main>
     </AppShell>

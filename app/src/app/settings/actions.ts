@@ -1,6 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { deleteAccount } from "@/lib/account";
+import { auth } from "@/lib/auth";
 import { requireSession } from "@/lib/session";
 import { resetRules, saveRules } from "@/lib/rules";
 import { getSettings, parseSettings, saveSettings } from "@/lib/settings";
@@ -44,4 +48,15 @@ export async function updatePreferences(patch: {
   }
   revalidatePath("/settings");
   return { ok: true };
+}
+
+/** Deletes the signed-in person's account and everything in it, after they type "delete" to confirm. */
+export async function deleteMyAccount(confirmation: string) {
+  const session = await requireSession();
+  if (confirmation.trim().toLowerCase() !== "delete") return { error: 'Type "delete" to confirm.' };
+  const h = await headers();
+  // Sign out first so the browser's sign-in cookie is cleared, then remove everything.
+  await auth.api.signOut({ headers: h }).catch(() => null);
+  await deleteAccount(session.user.id);
+  redirect("/sign-up");
 }

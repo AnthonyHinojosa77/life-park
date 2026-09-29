@@ -46,5 +46,27 @@ await page.reload({ waitUntil: "networkidle" });
 const parkOn = await page.getByRole("button", { name: "Park map" }).getAttribute("aria-pressed");
 if (parkOn !== "true") throw new Error("preference did not persist");
 
+// Deleting the account removes it for good and starts sign-up over.
+await page.getByRole("button", { name: "Delete my account" }).click();
+const del = page.getByRole("button", { name: "Delete everything" });
+if (!(await del.isDisabled())) throw new Error("delete was allowed before typing the confirmation");
+await page.getByLabel('Type "delete" to confirm').fill("delete");
+await page.screenshot({ path: `${dir}/settings-delete.png`, fullPage: true });
+await del.click();
+await page.waitForURL("**/sign-up");
+await page.goto(base + "/park", { waitUntil: "networkidle" });
+if (!page.url().endsWith("/sign-in")) throw new Error("still signed in after deleting the account");
+await page.getByLabel("Email").fill(email);
+await page.getByLabel("Password").fill("a-long-enough-password");
+await page.getByRole("button", { name: "Sign in" }).click();
+await page.getByRole("alert").waitFor();
+// The same email signs up again and lands back at the very start.
+await page.goto(base + "/sign-up", { waitUntil: "networkidle" });
+await page.getByLabel("Name").fill("Anthony");
+await page.getByLabel("Email").fill(email);
+await page.getByLabel("Password").fill("a-long-enough-password");
+await submitAndWaitFor(page, "Create account", "**/onboarding");
+await page.getByText("Welcome to LifePark").waitFor();
+
 await browser.close();
 console.log("settings flow ok:", email);
