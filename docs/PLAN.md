@@ -44,6 +44,8 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 - [ ] 2.6 Make the calendar yours. Add a cover photo for each month, like a wall calendar.
 - [~] 2.7 Ask about your own life: "When is Sam's birthday?" or "What did I cook last week?" Built: the assistant can look things up in the park. Not yet checked with the real model.
 
+- [ ] 2.8 AI conversations lawn. A LifePark connector for ChatGPT and Claude that files conversation summaries into the park, with a one-time setup guide for each app's nightly scheduled task. Gemini through a scheduled Google Takeout export to Drive. No scraping and no stored AI-app logins, per OpenAI's and Anthropic's terms.
+
 **Design check-in 1 (before Milestone 3):** the personal calendar and the detailed park. For the park, Anthony chose to judge it live in the app instead of mockups (2026-09-27). The calendar check-in with month cover photos still happens before 2.5 and 2.6 are built.
 
 ---
@@ -63,6 +65,7 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 
 **What you get:** It helps before you ask.
 
+- [x] 4.0 Keep the park current on its own. Built: a nightly job refreshes every connected Google service that is more than 20 hours old, oldest first, within a time budget, and opening the park quietly refreshes anything more than 12 hours old. Tested with a stand-in Google.
 - [ ] 4.1 Reminders as phone notifications: birthdays, habits, events.
 - [ ] 4.2 Morning summary, optional.
 - [ ] 4.3 Things it makes for you: weekly recap, gift ideas, meal plan from your recipes. You approve before anything is saved.
@@ -96,6 +99,8 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 
 ## Decisions log
 
+- 2026-09-29: AI conversations get their own lawn, filled automatically through a LifePark connector plus each AI app's own scheduled task, and Google Takeout for Gemini (Anthony). Browser-extension scraping and stored logins are ruled out by OpenAI's and Anthropic's terms.
+- 2026-09-29: LifePark refreshes connected sources by itself nightly and when the park is opened (Anthony).
 - 2026-09-29: Account deletion moves up so Anthony can delete his account and test the full sign-up flow from scratch (Anthony).
 - 2026-09-27: Sign-in with Google or Apple leads to a short welcome, then a connect screen, then a park that builds itself (Anthony). Google connections: Calendar, Contacts, Tasks, Gmail, My Drive, Docs, Sheets. Keep is left out because Google does not offer it to personal accounts.
 - 2026-09-27: Apple sign-in users can connect Google or skip; Apple Reminders, Calendar, and Contacts wait for the iPhone app (Anthony). Apple Mail and Notes cannot be read by any other app.

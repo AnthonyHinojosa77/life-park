@@ -33,6 +33,20 @@ It fails if a normal person cannot get value in the first few minutes without le
 - Google connections, all read-only: Calendar, Contacts, Tasks, Gmail, My Drive, Docs, and Sheets (2026-09-27). Google Keep is left out because Google offers it only to company Workspace accounts, not personal ones.
 - Apple: Sign in with Apple is on the web now. Websites cannot read Apple Mail, Notes, or Reminders, so people who sign in with Apple can connect a Google account or skip. Apple Calendar, Reminders, and Contacts come with the iPhone app; Apple Mail and Notes are closed even to iPhone apps.
 
+### AI conversations (2026-09-29)
+
+- Conversations people have with AI apps (ChatGPT, Claude, Gemini) are summarized and filed in the park on their own lawn, so AI work is tracked with everything else, without the person keeping up with it.
+- It must be automatic and stay within each company's terms. OpenAI and Anthropic forbid automatically extracting chats, automated access to their apps, and sharing account logins, so LifePark never stores AI-app logins and never scrapes them, including through a browser extension.
+- Routes, in order:
+  1. A LifePark connector that people add inside ChatGPT and Claude, plus one scheduled task in each app ("every night, summarize today's conversations and save them to LifePark"). Both are features those apps offer; they need a paid plan in each app. Summaries come from what the AI recalls, not exact transcripts.
+  2. Gemini: a Google Takeout export scheduled every 2 months into Google Drive, which LifePark picks up on its own. This needs permission to open files in Drive.
+  3. Conversations held inside LifePark's own chat are tracked by default.
+- Google does not offer a way for other apps to read Gemini chats directly, and neither OpenAI nor Anthropic offers one for personal accounts (checked 2026-09-29).
+
+### Keeping the park current (2026-09-29)
+
+- LifePark refreshes every connected Google service by itself every night, and again quietly whenever the park is opened more than 12 hours after its last refresh.
+
 ### The park
 
 - Each kind of information is its own thing in the park. People are neighbors with houses, habits are garden plots, and recipes are an orchard. Things grow as they are added and used.

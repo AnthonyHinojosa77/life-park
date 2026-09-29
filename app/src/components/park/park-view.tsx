@@ -17,6 +17,8 @@ type Props = {
   initialThings: ParkThing[];
   /** Connected services not imported yet; imported as soon as the park opens. */
   pending: GoogleServiceId[];
+  /** Connected services last brought in over 12 hours ago; refreshed quietly in the background. */
+  stale?: GoogleServiceId[];
   /** Every Google service the person allowed. */
   connected: GoogleServiceId[];
   /** Whether Google sign-in is set up on this site at all. */
@@ -85,7 +87,7 @@ function Float({ className = "", children, label }: { className?: string; childr
   );
 }
 
-export function ParkView({ name, initialThings, pending, connected, googleAvailable, connectFailed }: Props) {
+export function ParkView({ name, initialThings, pending, stale = [], connected, googleAvailable, connectFailed }: Props) {
   const router = useRouter();
   const mapRef = useRef<ParkMapHandle>(null);
   const [things, setThings] = useState(initialThings);
@@ -136,11 +138,27 @@ export function ParkView({ name, initialThings, pending, connected, googleAvaila
     }
   }
 
+  /** Brings overdue services up to date without any panel; the park just updates. */
+  async function refreshQuietly(services: GoogleServiceId[]) {
+    for (const service of services) {
+      await fetch("/api/import", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ service }),
+      }).catch(() => null);
+    }
+    const park = await fetch("/api/park").then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    if (park?.things) setThings(park.things);
+  }
+
   useEffect(() => {
-    if (started.current || pending.length === 0) return;
+    if (started.current) return;
     started.current = true;
-    // Kicks off the first import on arrival; the state updates happen as each one finishes.
-    void runImports(pending);
+    // New connections import visibly on arrival; overdue ones refresh quietly after.
+    void (async () => {
+      if (pending.length) await runImports(pending);
+      if (stale.length) await refreshQuietly(stale);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
