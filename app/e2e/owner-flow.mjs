@@ -92,10 +92,16 @@ await page.waitForTimeout(800);
 const stray = `stray+${Date.now()}@example.com`;
 // A separate request context, so creating the account never signs the browser in as it.
 const api = await request.newContext();
-const made = await api.post(base + "/api/auth/sign-up/email", {
-  headers: { origin: base, "content-type": "application/json" },
-  data: { name: "Stray", email: stray, password: "a-long-enough-password" },
-});
+// Sign-up is limited to a few per 10 seconds; earlier scripts may have just used them.
+let made;
+for (let attempt = 0; attempt < 4; attempt++) {
+  made = await api.post(base + "/api/auth/sign-up/email", {
+    headers: { origin: base, "content-type": "application/json" },
+    data: { name: "Stray", email: stray, password: "a-long-enough-password" },
+  });
+  if (made.status() !== 429) break;
+  await page.waitForTimeout(11000);
+}
 if (!made.ok()) throw new Error(`could not create a throwaway account: ${made.status()}`);
 await page.goto(base + "/owner", { waitUntil: "networkidle" });
 const people = page.getByRole("list", { name: "People" });

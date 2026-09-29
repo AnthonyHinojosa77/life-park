@@ -45,7 +45,7 @@ export function PeopleList({ people, me }: { people: Row[]; me: string }) {
             {p.id !== me &&
               (arming === p.email ? (
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={() => remove(p.email)} disabled={pending} aria-label={`Really remove ${p.email}`}>
+                  <Button size="sm" variant="danger" onClick={() => remove(p.email)} disabled={pending} aria-label={`Really remove ${p.email}`}>
                     {pending ? "Removing" : "Really remove"}
                   </Button>
                   <Button size="sm" variant="soft" onClick={() => setArming(null)} disabled={pending}>

@@ -14,7 +14,7 @@ export function DeleteAccount() {
 
   if (!open) {
     return (
-      <Button variant="ghost" size="sm" className="self-start text-[#b3372c]" onClick={() => setOpen(true)}>
+      <Button variant="danger" size="sm" className="self-start" onClick={() => setOpen(true)}>
         Delete my account
       </Button>
     );
@@ -42,7 +42,7 @@ export function DeleteAccount() {
         </p>
       )}
       <div className="flex gap-2">
-        <Button type="submit" size="sm" disabled={pending || typed.trim().toLowerCase() !== "delete"}>
+        <Button type="submit" variant="danger" size="sm" disabled={pending || typed.trim().toLowerCase() !== "delete"}>
           {pending ? "Deleting" : "Delete everything"}
         </Button>
         <Button type="button" variant="soft" size="sm" onClick={() => setOpen(false)} disabled={pending}>

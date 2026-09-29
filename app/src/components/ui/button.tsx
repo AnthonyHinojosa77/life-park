@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { ChalkFill, ChalkOutline, chalk } from "./chalk";
 
-export type ButtonVariant = "press" | "stamp" | "soft" | "ghost";
+export type ButtonVariant = "press" | "stamp" | "soft" | "ghost" | "danger";
 export type ButtonSize = "sm" | "md" | "lg";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -15,15 +15,20 @@ const text: Record<ButtonVariant, string> = {
   stamp: "text-ink",
   soft: "text-ink",
   ghost: "text-ink-soft hover:bg-card",
+  danger: "text-white",
 };
+
+/** Red crayon, for the few actions that delete something for good. */
+const RED = "#c9402f";
 
 /**
  * Each variant is drawn in crayon rather than floated on a shadow:
  * press is the main action (green), stamp is emphasis (chalk outline),
- * soft is everyday (pale crayon), ghost has no chrome.
+ * soft is everyday (pale crayon), ghost has no chrome, danger is red.
  */
 function Surface({ variant, radius }: { variant: ButtonVariant; radius: number | string }) {
   if (variant === "press") return <ChalkFill color={chalk.grass} radius={radius} />;
+  if (variant === "danger") return <ChalkFill color={RED} radius={radius} />;
   if (variant === "soft") return <ChalkFill color={chalk.paper} radius={radius} />;
   if (variant === "stamp") {
     return (
