@@ -74,9 +74,11 @@ function Scribble({ tone }: { tone: Tone }) {
         <g fill="none" strokeWidth="7" strokeLinecap="round" filter="url(#chalk-fill)" opacity="0.85">
           <path d="M14 14 C 80 6, 150 10, 206 9" stroke="#e8594a" />
           <path d="M200 10 C 240 8, 276 9, 290 18" stroke="#f2c230" />
+          {/* Down the right edge, so the loop closes. */}
+          <path d="M290 16 C 292 24, 291 32, 289 41" stroke="#f2c230" />
           <path d="M288 40 C 240 49, 170 48, 110 47" stroke="#4f9a5b" />
           <path d="M112 47 C 70 49, 30 47, 12 38" stroke="#4a82de" />
-          <path d="M11 20 C 9 26, 10 32, 13 37" stroke="#e8594a" />
+          <path d="M12 15 C 9 24, 10 32, 13 39" stroke="#e8594a" />
         </g>
       </>
     );
