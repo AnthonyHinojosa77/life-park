@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { AppShell } from "@/components/app-shell";
 import { BudgetPicker, ModelSwitch } from "@/components/owner/owner-controls";
+import { PeopleList } from "@/components/owner/people-list";
 import { Card } from "@/components/ui/card";
 import { assistantModelId } from "@/lib/chat/model";
+import { listPeople } from "@/lib/account";
 import { formatDollars, monthlyCosts, type CostSummary } from "@/lib/costs";
 import { requireOwner, trialModels } from "@/lib/owner";
 
@@ -32,7 +34,7 @@ function ByModel({ costs }: { costs: CostSummary }) {
 /** Only for LifePark's owner: what the AI costs across everyone, and the model trial switch. */
 export default async function OwnerPage() {
   const { session, settings } = await requireOwner();
-  const [everyone, mine] = await Promise.all([monthlyCosts(null), monthlyCosts(session.user.id)]);
+  const [everyone, mine, people] = await Promise.all([monthlyCosts(null), monthlyCosts(session.user.id), listPeople()]);
   const month = everyone.monthStart.toLocaleString("en-US", { month: "long", timeZone: "UTC" });
   const budgetMicros = settings.monthlyLimitCents * 10_000;
   const share = budgetMicros > 0 ? everyone.monthMicros / budgetMicros : 0;
@@ -89,6 +91,24 @@ export default async function OwnerPage() {
           <Card variant="soft" className="flex flex-col gap-2 p-4">
             <span className="text-[13px] font-extrabold">Your spend this month, by model</span>
             <ByModel costs={mine} />
+          </Card>
+        </section>
+
+        <section className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <h2 className="font-serif text-2xl">People</h2>
+            <p className="text-sm font-semibold text-ink-soft">
+              Everyone with an account. Removing someone deletes their account and everything in it, for good.
+            </p>
+          </div>
+          <Card variant="soft" className="p-4">
+            <PeopleList
+              me={session.user.id}
+              people={people.map((p) => ({
+                ...p,
+                joinedAt: p.joinedAt.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }),
+              }))}
+            />
           </Card>
         </section>
       </main>

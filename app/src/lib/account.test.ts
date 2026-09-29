@@ -8,7 +8,7 @@ const { runMigrations } = await import("./db/migrate");
 const { auth } = await import("./auth");
 const { saveSettings, defaultSettings, getSettings } = await import("./settings");
 const { recordConnection, listConnections, listParkThings, saveChatThing } = await import("./things");
-const { deleteAccount } = await import("./account");
+const { deleteAccount, findUserByEmail, listPeople } = await import("./account");
 
 describe("deleting an account", () => {
   beforeAll(async () => {
@@ -31,7 +31,15 @@ describe("deleting an account", () => {
     const gone = await make("gone@example.com");
     const kept = await make("kept@example.com");
 
+    const before = await listPeople();
+    expect(before.map((p) => p.email)).toEqual(["kept@example.com", "gone@example.com"]);
+    expect(before.find((p) => p.email === "gone@example.com")).toMatchObject({ name: "Sam", things: 1, google: false });
+    expect(await findUserByEmail("  GONE@example.com ")).toMatchObject({ id: gone.id });
+
     await deleteAccount(gone.id);
+
+    expect(await findUserByEmail("gone@example.com")).toBeNull();
+    expect((await listPeople()).map((p) => p.email)).toEqual(["kept@example.com"]);
 
     expect(await getSettings(gone.id)).toBeNull();
     expect(await listParkThings(gone.id)).toEqual([]);

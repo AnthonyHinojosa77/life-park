@@ -2,7 +2,7 @@
 // the AI for the owner's account only. Needs the server started with
 // OWNER_EMAILS=owner@example.com and the mock model server on the given port.
 // Usage: node e2e/owner-flow.mjs <baseUrl> <screenshotDir> [mockBaseUrl]
-import { chromium } from "playwright";
+import { chromium, request } from "playwright";
 import { submitAndWaitFor } from "./helpers.mjs";
 
 const [base = "http://localhost:3123", dir = ".", mock = "http://localhost:3124"] = process.argv.slice(2);
@@ -86,6 +86,32 @@ if (defaultModel === trialModel) throw new Error("Default and trial models were 
 await page.goto(base + "/owner", { waitUntil: "networkidle" });
 await page.getByRole("button", { name: /^Default/ }).click();
 await page.waitForTimeout(800);
+
+
+// The People section lists everyone and can remove another person, for good.
+const stray = `stray+${Date.now()}@example.com`;
+// A separate request context, so creating the account never signs the browser in as it.
+const api = await request.newContext();
+const made = await api.post(base + "/api/auth/sign-up/email", {
+  headers: { origin: base, "content-type": "application/json" },
+  data: { name: "Stray", email: stray, password: "a-long-enough-password" },
+});
+if (!made.ok()) throw new Error(`could not create a throwaway account: ${made.status()}`);
+await page.goto(base + "/owner", { waitUntil: "networkidle" });
+const people = page.getByRole("list", { name: "People" });
+await people.getByText(stray).waitFor();
+await people.getByText(`${email} (you)`).waitFor();
+if (await people.getByRole("button", { name: `Remove ${email}` }).count()) throw new Error("the owner can remove themselves here");
+await page.getByRole("button", { name: `Remove ${stray}` }).click();
+await page.getByRole("button", { name: `Really remove ${stray}` }).click();
+await people.getByText(stray).waitFor({ state: "detached", timeout: 15000 });
+await page.screenshot({ path: `${dir}/owner-people.png`, fullPage: true });
+const gone = await api.post(base + "/api/auth/sign-in/email", {
+  headers: { origin: base, "content-type": "application/json" },
+  data: { email: stray, password: "a-long-enough-password" },
+});
+if (gone.status() !== 401) throw new Error(`removed person can still sign in (${gone.status()})`);
+await api.dispose();
 
 await browser.close();
 console.log(`owner flow ok: default ${defaultModel}, trial ${trialModel}`);

@@ -77,7 +77,7 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 **What you get:** Safe and ready for invite-only testers, then the public.
 
 - [ ] 5.1 Model trial for Anthony. Anthony uses LifePark in his own daily life with each model in turn: GPT-6 Luna, Qwen 3.8 Flash, Gemini 3.8 Flash, then GLM 5.3 Flash. Claude switches the model on his account for each round and shows what each round cost. Anthony picks the one that worked best for him, and it becomes the one AI for everyone.
-- [~] 5.2 Export everything and delete everything, from Settings. Built: "Delete my account" in Settings removes the account and everything in it after typing "delete"; the same email can sign up again from the start. Export is not built yet.
+- [~] 5.2 Export everything and delete everything, from Settings. Built: "Delete my account" in Settings removes the account and everything in it after typing "delete"; the same email can sign up again from the start. The owner dashboard lists everyone and can remove another person's account the same way. Export is not built yet.
 - [ ] 5.3 Share one thing by link, like a recipe or a gift list.
 - [ ] 5.4 Free tier limits and the monthly subscription, with price set from research and the trial's real cost per user.
 - [ ] 5.5 Google's review for calendar and contacts access.

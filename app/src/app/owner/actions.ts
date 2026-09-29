@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { deleteAccount, findUserByEmail } from "@/lib/account";
 import { isTrialModel, requireOwner } from "@/lib/owner";
 import { parseSettings, saveSettings, setAssistantModel } from "@/lib/settings";
 
@@ -31,4 +32,15 @@ export async function setBudget(cents: number) {
   }
   revalidatePath("/owner");
   return { ok: true };
+}
+
+/** Removes another person's account and everything in it. Owners delete their own account from Settings. */
+export async function removePerson(email: string) {
+  const { session } = await requireOwner();
+  const person = await findUserByEmail(email);
+  if (!person) return { error: "No account with that email." };
+  if (person.id === session.user.id) return { error: "Delete your own account from Settings." };
+  await deleteAccount(person.id);
+  revalidatePath("/owner");
+  return { ok: true, deleted: person.email };
 }

@@ -1,6 +1,7 @@
-import { eq } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import { db } from "./db";
-import { user } from "./db/schema";
+import { things } from "./db/app-schema";
+import { account, user } from "./db/schema";
 
 /**
  * Deletes a person and everything they have: sign-ins, sessions, passkeys,
@@ -9,4 +10,39 @@ import { user } from "./db/schema";
  */
 export async function deleteAccount(userId: string) {
   await db.delete(user).where(eq(user.id, userId));
+}
+
+/** Finds a person by email, ignoring case. */
+export async function findUserByEmail(email: string) {
+  const rows = await db
+    .select({ id: user.id, email: user.email, name: user.name })
+    .from(user)
+    .where(eq(user.email, email.trim().toLowerCase()))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export type Person = {
+  id: string;
+  email: string;
+  name: string;
+  joinedAt: Date;
+  things: number;
+  google: boolean;
+};
+
+/** Everyone with an account, newest first, with how much each has planted. */
+export async function listPeople(): Promise<Person[]> {
+  const [people, counts, linked] = await Promise.all([
+    db
+      .select({ id: user.id, email: user.email, name: user.name, joinedAt: user.createdAt })
+      .from(user)
+      .orderBy(desc(user.createdAt))
+      .limit(500),
+    db.select({ userId: things.userId, n: count() }).from(things).groupBy(things.userId),
+    db.select({ userId: account.userId }).from(account).where(eq(account.providerId, "google")),
+  ]);
+  const thingsOf = new Map(counts.map((c) => [c.userId, Number(c.n)]));
+  const googleOf = new Set(linked.map((l) => l.userId));
+  return people.map((p) => ({ ...p, things: thingsOf.get(p.id) ?? 0, google: googleOf.has(p.id) }));
 }
