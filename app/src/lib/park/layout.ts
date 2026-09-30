@@ -80,7 +80,7 @@ const PLOT_PAD = 24;
 /** Space between plots. */
 const PLOT_GAP = 30;
 /** A closed plot shows this many of its things. */
-export const SAMPLE = 6;
+export const SAMPLE = 4;
 
 /** One category's plot on an open lawn, relative to the lawn's center. */
 export type Plot = {
@@ -109,8 +109,8 @@ export type Placement = {
   plots: Plot[];
 };
 
-/** Lays out `n` things in this lawn's arrangement, centered on 0,0. */
-function block(kind: ThingKind, n: number) {
+/** Lays out `n` things in this lawn's arrangement, centered on 0,0; `wide` is the block's width against its height. */
+function block(kind: ThingKind, n: number, wide?: number) {
   const a = arrangements[kind];
   const spots: { x: number; y: number }[] = [];
   const rows: Plot["rows"] = [];
@@ -118,7 +118,7 @@ function block(kind: ThingKind, n: number) {
   let h = 0;
   if (n > 0 && a.shape === "rows") {
     const { dx, dy } = a;
-    const cols = Math.max(1, Math.min(n, Math.ceil(Math.sqrt((n * dy * a.wide) / dx))));
+    const cols = Math.max(1, Math.min(n, Math.ceil(Math.sqrt((n * dy * (wide ?? a.wide)) / dx))));
     const count = Math.ceil(n / cols);
     h = count * dy;
     let left = Infinity;
@@ -172,10 +172,12 @@ export function placeLawn(kind: ThingKind, groups: { id: string; count: number }
   let contentW = 0;
   let contentH = 0;
   if (open && groups.length > 0) {
-    // Plots flow two to a row, each its own size; an open plot takes a row to itself.
-    const sized = groups.map((g) => {
+    // Plots flow two to a row, each its own size. With one category open, only
+    // that plot shows, so nothing around it has to move.
+    const showing = openGroup && groups.some((g) => g.id === openGroup) ? groups.filter((g) => g.id === openGroup) : groups;
+    const sized = showing.map((g) => {
       const isOpen = g.id === openGroup;
-      const b = block(kind, isOpen ? g.count : Math.min(g.count, SAMPLE));
+      const b = block(kind, isOpen ? g.count : Math.min(g.count, SAMPLE), isOpen ? 0.8 : undefined);
       const w = Math.max(210, b.w + PLOT_PAD * 2);
       const h = PLOT_PAD + PLOT_SIGN + b.h + PLOT_PAD;
       return { g, b, w, h, isOpen };
@@ -362,7 +364,7 @@ export function buildWorld(sizes: Record<ThingKind, { w: number; h: number }>, p
   // In from the gate, up to the bottom row's walkway.
   const bottomRow = paths[paths.length - 3];
   const gateEnd = alongCurve(bottomRow, 0.5);
-  paths.push({ p: { x: gate.x, y: gate.y + 10 }, c: { x: gate.x, y: (gate.y + gateEnd.y) / 2 }, q: { x: gateEnd.x, y: gateEnd.y } });
+  paths.push({ p: { x: gate.x, y: gate.y - 20 }, c: { x: gate.x, y: (gate.y + gateEnd.y) / 2 }, q: { x: gateEnd.x, y: gateEnd.y } });
 
   // The lake sits in the middle, between the first two rows, and a stream
   // winds from it down the middle of the park to a duck pond.
@@ -372,7 +374,7 @@ export function buildWorld(sizes: Record<ThingKind, { w: number; h: number }>, p
   const lake: Water = { x: midX, y: (lakeTop + lakeBottom) / 2, rx: Math.min(420, Math.min(colWidth[0], colWidth[1]) * 0.42), ry: Math.min(190, (lakeBottom - lakeTop) / 2 - 30) };
   const [r2, r3] = [rowsOfLawns[2], rowsOfLawns[3]];
   const pondY = (Math.max(lawns[r2[0]].y + lawns[r2[0]].h / 2, lawns[r2[1]].y + lawns[r2[1]].h / 2) + Math.min(lawns[r3[0]].y - lawns[r3[0]].h / 2, lawns[r3[1]].y - lawns[r3[1]].h / 2)) / 2;
-  const streamX = (sy: number) => midX + 40 * Math.sin((sy - lake.y) / 150);
+  const streamX = (sy: number) => midX + 24 * Math.sin((sy - lake.y) / 150);
   const stream: Point[] = [];
   for (let sy = lake.y + lake.ry - 30; sy <= pondY; sy += 40) stream.push({ x: streamX(sy), y: sy });
   const ponds: Water[] = [{ x: streamX(pondY), y: pondY, rx: 110, ry: 62 }];
@@ -447,7 +449,6 @@ export function buildWorld(sizes: Record<ThingKind, { w: number; h: number }>, p
   settle({ kind: "flowerbed", x: gate.x - gate.w / 2 - 90, y: gate.y - 30 }, 50);
   settle({ kind: "flowerbed", x: gate.x + gate.w / 2 + 90, y: gate.y - 30 }, 50);
   settle({ kind: "playground", x: margin + colWidth[0] * 0.24, y: lake.y + 30 }, 130);
-  settle({ kind: "kite", x: margin + colWidth[0] * 0.24 + 140, y: lake.y - 170 }, 30);
 
   // Trees and bushes on open meadow, in groves and clearings, thicker toward
   // the fence, never on anything else. Willows lean over the water.
@@ -534,7 +535,8 @@ export function lawnPath(cx: number, cy: number, w: number, h: number, seed: num
     const c = Math.cos(t);
     const s = Math.sin(t);
     // A superellipse: a rectangle with soft corners (its corner sits at 0.84 of each side).
-    const wobble = 1 + ((((seed >>> ((i * 3) % 29)) & 7) / 7) * wobbleSize - wobbleSize / 2);
+    const amount = Math.min(wobbleSize, 22 / Math.max(a, b));
+    const wobble = 1 + ((((seed >>> ((i * 3) % 29)) & 7) / 7) * amount - amount / 2);
     return { x: cx + Math.sign(c) * Math.pow(Math.abs(c), 0.5) * a * wobble, y: cy + Math.sign(s) * Math.pow(Math.abs(s), 0.5) * b * wobble };
   });
   return smoothLoop(pts);

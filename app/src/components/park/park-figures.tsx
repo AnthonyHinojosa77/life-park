@@ -39,27 +39,27 @@ function Cottage({ t, now }: { t: ParkThing; now: number }) {
     <g transform={`scale(${size})`}>
       <Shadow w={40} />
       {/* A little front garden. */}
-      <ellipse cx={-30} cy={26} rx={10} ry={7} fill="#5fb56f" stroke={INK} strokeWidth={1.6} />
-      <ellipse cx={31} cy={26} rx={9} ry={6.5} fill="#5fb56f" stroke={INK} strokeWidth={1.6} />
+      <ellipse cx={-30} cy={26} rx={10} ry={7} fill="#5fb56f" stroke={INK} strokeWidth={1.6 / size} />
+      <ellipse cx={31} cy={26} rx={9} ry={6.5} fill="#5fb56f" stroke={INK} strokeWidth={1.6 / size} />
       <circle cx={-33} cy={23} r={2.2} fill="#f3c94b" />
       <circle cx={28} cy={23} r={2.2} fill="#e05a4f" />
       {/* Chimney, walls, roof. */}
-      <rect x={12} y={-30} width={8} height={16} fill="#b8674a" stroke={INK} strokeWidth={LINE} />
-      <rect x={-24} y={-8} width={48} height={36} rx={2} fill={wall} stroke={INK} strokeWidth={LINE} />
-      <path d="M-31 -6 L0 -34 L31 -6 Z" fill={roof} stroke={INK} strokeWidth={LINE} strokeLinejoin="round" />
-      <path d="M-20 -12 L20 -12 M-12 -20 L12 -20" stroke={INK} strokeWidth={1} opacity={0.35} />
-      <rect x={-6} y={8} width={12} height={20} rx={5} fill={door} stroke={INK} strokeWidth={1.8} />
+      <rect x={12} y={-30} width={8} height={16} fill="#b8674a" stroke={INK} strokeWidth={LINE / size} />
+      <rect x={-24} y={-8} width={48} height={36} rx={2} fill={wall} stroke={INK} strokeWidth={LINE / size} />
+      <path d="M-31 -6 L0 -34 L31 -6 Z" fill={roof} stroke={INK} strokeWidth={LINE / size} strokeLinejoin="round" />
+      <path d="M-20 -12 L20 -12 M-12 -20 L12 -20" stroke={INK} strokeWidth={1 / size} opacity={0.35} />
+      <rect x={-6} y={8} width={12} height={20} rx={5} fill={door} stroke={INK} strokeWidth={1.8 / size} />
       <circle cx={3} cy={18} r={1.2} fill={INK} />
       {[-17, 11].map((x) => (
         <g key={x}>
-          <rect x={x} y={0} width={8} height={8} fill="#cfe6f5" stroke={INK} strokeWidth={1.5} />
-          <path d={`M${x + 4} 0 V8 M${x} 4 H${x + 8}`} stroke={INK} strokeWidth={1} />
+          <rect x={x} y={0} width={8} height={8} fill="#cfe6f5" stroke={INK} strokeWidth={1.5 / size} />
+          <path d={`M${x + 4} 0 V8 M${x} 4 H${x + 8}`} stroke={INK} strokeWidth={1 / size} />
         </g>
       ))}
       {party && (
         <g className="park-sway">
-          <path d="M26 -2 C 30 -14, 26 -24, 32 -36" fill="none" stroke={INK} strokeWidth={1} />
-          <ellipse cx={32} cy={-42} rx={6} ry={7} fill="#e05a4f" stroke={INK} strokeWidth={1.4} />
+          <path d="M26 -2 C 30 -14, 26 -24, 32 -36" fill="none" stroke={INK} strokeWidth={1 / size} />
+          <ellipse cx={32} cy={-42} rx={6} ry={7} fill="#e05a4f" stroke={INK} strokeWidth={1.4 / size} />
           <ellipse cx={30} cy={-44} rx={1.6} ry={2.4} fill="#fff" opacity={0.7} />
         </g>
       )}
@@ -91,9 +91,9 @@ function Stall({ t, now }: { t: ParkThing; now: number }) {
         {label}
       </text>
       {upcoming && (
-        <g className="park-sway">
+        <g>
           <line x1={0} y1={-34} x2={0} y2={-50} stroke={INK} strokeWidth={1.4} />
-          <path d="M0 -50 L14 -45 L0 -40 Z" fill={color} stroke={INK} strokeWidth={1.2} />
+          <path className="park-flag" d="M0 -50 L14 -45 L0 -40 Z" fill={color} stroke={INK} strokeWidth={1.2} />
         </g>
       )}
     </g>
@@ -214,6 +214,8 @@ function Bench({ t }: { t: ParkThing }) {
 /** A file is a book standing on a library shelf, its cover colored by what kind of file it is. */
 function Book({ t, i }: { t: ParkThing; i: number }) {
   const kind = t.detail.type;
+  const mime = typeof t.detail.mime === "string" ? t.detail.mime : "";
+  if (mime.startsWith("image/") || /\.(jpe?g|png|heic|gif|webp)$/i.test(t.title)) return <Photo t={t} i={i} />;
   const cover = kind === "doc" ? "#3f78c9" : kind === "sheet" ? "#3b9152" : kind === "slides" ? "#e9a93a" : ["#d9544a", "#e2763a", "#9a5fc2", "#c9553f", "#b36bd4"][hash(t.id) % 5];
   const lean = ((hash(t.id) % 5) - 2) * 2.5;
   const tall = 40 + (i % 3) * 4;
@@ -224,6 +226,22 @@ function Book({ t, i }: { t: ParkThing; i: number }) {
       <rect x={-9} y={-tall / 2 + 5} width={18} height={tall - 10} rx={1.5} fill="none" stroke="#fffaf0" strokeWidth={1.2} opacity={0.7} />
       <rect x={-13} y={-tall / 2} width={5} height={tall} fill={INK} opacity={0.18} />
       <path d={`M-4 ${-tall / 2 + 12} H6 M-4 ${-tall / 2 + 17} H4`} stroke="#fffaf0" strokeWidth={1.4} strokeLinecap="round" />
+    </g>
+  );
+}
+
+/** A photo is a print leaning on the shelf, with a little scene on it. */
+function Photo({ t, i }: { t: ParkThing; i: number }) {
+  const h = hash(t.id);
+  const sky = ["#bcdcef", "#f9cfdb", "#fff4c2", "#d8eef3"][h % 4];
+  const lean = ((h % 5) - 2) * 3;
+  return (
+    <g transform={`translate(0 ${30 - 20}) rotate(${lean})`}>
+      <Shadow w={16} y={22} ry={4} />
+      <rect x={-16} y={-20} width={32} height={40} rx={1.5} fill="#fffaf0" stroke={INK} strokeWidth={LINE} />
+      <rect x={-12} y={-16} width={24} height={26} fill={sky} stroke={INK} strokeWidth={1} />
+      <path d={`M-12 10 L-4 ${-2 - (i % 3) * 2} L2 4 L7 -1 L12 10 Z`} fill="#4fae62" stroke={INK} strokeWidth={0.8} />
+      <circle cx={6} cy={-10} r={2.5} fill="#f3c94b" />
     </g>
   );
 }
@@ -286,44 +304,44 @@ export function DecorFigure({ kind, s, m = false, c = 0 }: { kind: DecorKind; s:
       return (
         <>
           <Shadow w={26} y={26} />
-          <path d="M-5 26 L-4 4 Q0 -2 4 4 L5 26 Z" fill="#8a5a2b" stroke={INK} strokeWidth={LINE} />
-          <circle cx={-12} cy={-6} r={16} fill={dark} stroke={INK} strokeWidth={LINE} />
-          <circle cx={12} cy={-6} r={16} fill={dark} stroke={INK} strokeWidth={LINE} />
-          <circle cx={0} cy={-20} r={18} fill={mid} stroke={INK} strokeWidth={LINE} />
-          <path d="M-22 -8 a16 16 0 0 1 12 -14 M-6 -32 a18 18 0 0 1 12 -3" fill="none" stroke={light} strokeWidth={3} strokeLinecap="round" />
+          <path d="M-5 26 L-4 4 Q0 -2 4 4 L5 26 Z" fill="#8a5a2b" stroke={INK} strokeWidth={LINE / s} />
+          <circle cx={-12} cy={-6} r={16} fill={dark} stroke={INK} strokeWidth={LINE / s} />
+          <circle cx={12} cy={-6} r={16} fill={dark} stroke={INK} strokeWidth={LINE / s} />
+          <circle cx={0} cy={-20} r={18} fill={mid} stroke={INK} strokeWidth={LINE / s} />
+          <path d="M-22 -8 a16 16 0 0 1 12 -14 M-6 -32 a18 18 0 0 1 12 -3" fill="none" stroke={light} strokeWidth={3 / s} strokeLinecap="round" />
         </>
       );
     if (kind === "pine")
       return (
         <>
           <Shadow w={22} y={28} />
-          <rect x={-4} y={12} width={8} height={16} fill="#8a5a2b" stroke={INK} strokeWidth={LINE} />
-          <path d="M-26 14 L0 -14 L26 14 Z" fill={dark} stroke={INK} strokeWidth={LINE} strokeLinejoin="round" />
-          <path d="M-21 -2 L0 -26 L21 -2 Z" fill={mid} stroke={INK} strokeWidth={LINE} strokeLinejoin="round" />
-          <path d="M-15 -16 L0 -38 L15 -16 Z" fill={mid} stroke={INK} strokeWidth={LINE} strokeLinejoin="round" />
-          <path d="M-10 -20 L0 -34" stroke={light} strokeWidth={2.4} strokeLinecap="round" />
+          <rect x={-4} y={12} width={8} height={16} fill="#8a5a2b" stroke={INK} strokeWidth={LINE / s} />
+          <path d="M-26 14 L0 -14 L26 14 Z" fill={dark} stroke={INK} strokeWidth={LINE / s} strokeLinejoin="round" />
+          <path d="M-21 -2 L0 -26 L21 -2 Z" fill={mid} stroke={INK} strokeWidth={LINE / s} strokeLinejoin="round" />
+          <path d="M-15 -16 L0 -38 L15 -16 Z" fill={mid} stroke={INK} strokeWidth={LINE / s} strokeLinejoin="round" />
+          <path d="M-10 -20 L0 -34" stroke={light} strokeWidth={2.4 / s} strokeLinecap="round" />
         </>
       );
     if (kind === "willow")
       return (
         <>
           <Shadow w={30} y={30} />
-          <path d="M-5 30 L-3 0 Q0 -6 3 0 L5 30 Z" fill="#8a5a2b" stroke={INK} strokeWidth={LINE} />
-          <ellipse cx={0} cy={-14} rx={30} ry={20} fill={light} stroke={INK} strokeWidth={LINE} />
-          <g className="park-hang" fill="none" stroke={mid} strokeWidth={2.4} strokeLinecap="round">
+          <path d="M-5 30 L-3 0 Q0 -6 3 0 L5 30 Z" fill="#8a5a2b" stroke={INK} strokeWidth={LINE / s} />
+          <ellipse cx={0} cy={-14} rx={30} ry={20} fill={light} stroke={INK} strokeWidth={LINE / s} />
+          <g className="park-hang" fill="none" stroke={mid} strokeWidth={2.4 / s} strokeLinecap="round">
             <path d="M-26 -8 q-4 16 -2 30 M-16 -2 q-3 18 0 30 M-6 0 q-2 16 0 30 M6 0 q2 16 0 30 M16 -2 q3 18 0 30 M26 -8 q4 16 2 30" />
           </g>
-          <path d="M-18 -26 q10 -8 24 -4" fill="none" stroke="#dff3dc" strokeWidth={3} strokeLinecap="round" />
+          <path d="M-18 -26 q10 -8 24 -4" fill="none" stroke="#dff3dc" strokeWidth={3 / s} strokeLinecap="round" />
         </>
       );
     if (kind === "blossom")
       return (
         <>
           <Shadow w={24} y={26} />
-          <path d="M-4 26 L-3 6 Q0 0 3 6 L4 26 Z" fill="#8a5a2b" stroke={INK} strokeWidth={LINE} />
-          <circle cx={-11} cy={-4} r={14} fill="#f4b8c8" stroke={INK} strokeWidth={LINE} />
-          <circle cx={11} cy={-4} r={14} fill="#f4b8c8" stroke={INK} strokeWidth={LINE} />
-          <circle cx={0} cy={-17} r={15} fill="#f9cfdb" stroke={INK} strokeWidth={LINE} />
+          <path d="M-4 26 L-3 6 Q0 0 3 6 L4 26 Z" fill="#8a5a2b" stroke={INK} strokeWidth={LINE / s} />
+          <circle cx={-11} cy={-4} r={14} fill="#f4b8c8" stroke={INK} strokeWidth={LINE / s} />
+          <circle cx={11} cy={-4} r={14} fill="#f4b8c8" stroke={INK} strokeWidth={LINE / s} />
+          <circle cx={0} cy={-17} r={15} fill="#f9cfdb" stroke={INK} strokeWidth={LINE / s} />
           {[[-8, -10], [6, -2], [2, -22], [-14, 2], [12, -14]].map(([x, y], k) => (
             <circle key={k} cx={x} cy={y} r={2.4} fill="#e8698e" />
           ))}
@@ -333,17 +351,17 @@ export function DecorFigure({ kind, s, m = false, c = 0 }: { kind: DecorKind; s:
       return (
         <>
           <Shadow w={20} y={10} ry={4} />
-          <path d="M-18 10 a10 10 0 0 1 4 -16 a11 11 0 0 1 18 -4 a10 10 0 0 1 14 20 Z" fill={mid} stroke={INK} strokeWidth={LINE} />
-          <path d="M-10 -2 a8 8 0 0 1 10 -6" fill="none" stroke={light} strokeWidth={2.4} strokeLinecap="round" />
+          <path d="M-18 10 a10 10 0 0 1 4 -16 a11 11 0 0 1 18 -4 a10 10 0 0 1 14 20 Z" fill={mid} stroke={INK} strokeWidth={LINE / s} />
+          <path d="M-10 -2 a8 8 0 0 1 10 -6" fill="none" stroke={light} strokeWidth={2.4 / s} strokeLinecap="round" />
         </>
       );
     if (kind === "rock")
       return (
         <>
           <Shadow w={18} y={10} ry={4} />
-          <path d="M-16 8 L-12 -4 L-2 -10 L10 -8 L16 2 L12 9 Z" fill="#b8b2a4" stroke={INK} strokeWidth={LINE} strokeLinejoin="round" />
-          <path d="M-9 -1 L-2 -6 L6 -5" fill="none" stroke="#e8e2d4" strokeWidth={2} strokeLinecap="round" />
-          <path d="M-20 10 q6 -6 12 0" fill="none" stroke={mid} strokeWidth={2} strokeLinecap="round" />
+          <path d="M-16 8 L-12 -4 L-2 -10 L10 -8 L16 2 L12 9 Z" fill="#b8b2a4" stroke={INK} strokeWidth={LINE / s} strokeLinejoin="round" />
+          <path d="M-9 -1 L-2 -6 L6 -5" fill="none" stroke="#e8e2d4" strokeWidth={2 / s} strokeLinecap="round" />
+          <path d="M-20 10 q6 -6 12 0" fill="none" stroke={mid} strokeWidth={2 / s} strokeLinecap="round" />
         </>
       );
     return (
@@ -355,8 +373,8 @@ export function DecorFigure({ kind, s, m = false, c = 0 }: { kind: DecorKind; s:
           [-2, 8, "#fffaf0"],
         ].map(([x, y, col], k) => (
           <g key={k} transform={`translate(${x} ${y})`}>
-            <path d="M0 6 V0" stroke={mid} strokeWidth={1.5} />
-            <circle r={3.2} fill={col as string} stroke={INK} strokeWidth={0.8} />
+            <path d="M0 6 V0" stroke={mid} strokeWidth={1.5 / s} />
+            <circle r={3.2} fill={col as string} stroke={INK} strokeWidth={0.8 / s} />
           </g>
         ))}
       </>
@@ -406,7 +424,7 @@ export function FurnitureFigure({ f }: { f: Furniture }) {
             <path d="M-34 40 L-24 -30 L-14 40 M34 40 L24 -30 L14 40" fill="none" stroke="#3f78c9" strokeWidth={4} strokeLinecap="round" />
             <path d="M-26 -30 H26" stroke={INK} strokeWidth={7.5} strokeLinecap="round" />
             <path d="M-26 -30 H26" stroke="#3f78c9" strokeWidth={5} strokeLinecap="round" />
-            <g className="park-hang" style={{ transformOrigin: "0 -30px" }}>
+            <g className="park-hang">
               <path d="M-12 -28 V14 M-2 -28 V14 M6 -28 V16 M16 -28 V16" stroke={INK} strokeWidth={1.4} />
               <rect x={-15} y={13} width={16} height={5} rx={1.5} fill="#e05a4f" stroke={INK} strokeWidth={1.2} />
               <rect x={3} y={15} width={16} height={5} rx={1.5} fill="#efb33e" stroke={INK} strokeWidth={1.2} />
@@ -632,7 +650,7 @@ function Bandstand() {
       <path d="M-80 -34 L0 -78 L80 -34" fill="none" stroke="#fffaf0" strokeWidth={2} opacity={0.6} />
       <path d="M-100 -34 H100" stroke={INK} strokeWidth={LINE} />
       {/* Bunting swinging from the roof. */}
-      <g className="park-hang" style={{ transformOrigin: "0 -30px" }}>
+      <g className="park-hang">
         <path d="M-96 -30 Q-48 -8 0 -30 Q48 -8 96 -30" fill="none" stroke={INK} strokeWidth={1.4} />
         {[-84, -66, -48, -30, -12, 6, 24, 42, 60, 78].map((x, k) => {
           const y = -30 + 22 * Math.sin((Math.PI * ((x + 96) % 96)) / 96);
@@ -886,8 +904,7 @@ export function Lamp() {
 }
 
 /** The park's entrance: an iron arch over the path in, with the park's name, standing on the fence line. */
-export function Gate({ name, brief = false }: { name: string; brief?: boolean }) {
-  const w = Math.max(220, name.length * 15 + 80);
+export function Gate({ name, w, brief = false }: { name: string; w: number; brief?: boolean }) {
   return (
     <g>
       <Shadow w={w / 2 + 10} y={6} ry={9} />

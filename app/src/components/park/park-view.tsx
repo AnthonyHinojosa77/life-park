@@ -98,10 +98,16 @@ function Chip({
   );
 }
 
+/** Marks a scrolling row while more of it lies to the right, so its edge fades only then. */
+function moreToScroll(el: HTMLElement | null) {
+  if (!el) return;
+  el.dataset.more = el.scrollLeft + el.clientWidth < el.scrollWidth - 2 ? "1" : "0";
+}
+
 /** A floating panel over the map, drawn in the crayon look. */
 function Float({ className = "", children, label }: { className?: string; children: React.ReactNode; label?: string }) {
   return (
-    <section aria-label={label} className={`pointer-events-auto relative isolate rounded-card bg-card/95 ${className}`}>
+    <section aria-label={label} className={`pointer-events-auto relative isolate rounded-card bg-card ${className}`}>
       <ChalkOutline radius={22} />
       {children}
     </section>
@@ -226,7 +232,7 @@ export function ParkView({ name, initialThings, pending, stale = [], connected, 
     setThing(null);
     setOpenLawn(null);
     setOpenGroup(null);
-    mapRef.current?.flyTo(kind);
+    mapRef.current?.flyTo(kind, { closing: openLawn !== null });
   }
 
   /** Tapping a lawn opens its categories; tapping it again closes them. */
@@ -254,6 +260,13 @@ export function ParkView({ name, initialThings, pending, stale = [], connected, 
     chipsRef.current.querySelector<HTMLElement>(`[data-chip="${here}"]`)?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
   }, [here]);
   const lawn = openLawn;
+  // The header chip points at the open lawn while one is open, else the lawn under the camera.
+  const current = openLawn ?? here;
+  const groupRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!openGroup || !groupRef.current) return;
+    groupRef.current.querySelector<HTMLElement>(`[data-chip="${openGroup}"]`)?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+  }, [openGroup]);
   const lawnGroups = lawn ? groups[lawn] : [];
   const lawnCount = lawn ? counts[lawn] : 0;
   const first = name.split(" ")[0] || "Your";
@@ -346,7 +359,14 @@ export function ParkView({ name, initialThings, pending, stale = [], connected, 
                 ))}
               </div>
             ))}
-          {things.length === 0 && <p className="px-1 text-sm font-semibold text-muted">Nothing planted yet.</p>}
+          {things.length === 0 && (
+            <div className="flex items-center justify-between gap-3 px-1">
+              <p className="text-sm font-semibold text-muted">Nothing planted yet.</p>
+              <Button size="sm" onClick={() => router.push(chatWith(zones[0].starter))}>
+                Tell LifePark
+              </Button>
+            </div>
+          )}
         </section>
       </main>
     );
@@ -375,16 +395,16 @@ export function ParkView({ name, initialThings, pending, stale = [], connected, 
       {/* Everything floating over the map. Gaps between panels let touches reach the map. */}
       <div ref={topRef} className="pointer-events-none absolute inset-x-0 top-0 flex flex-col gap-2 p-3">
         {header}
-        <nav ref={chipsRef} aria-label="Lawns" className="chip-row pointer-events-auto -mx-3 flex gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none]">
+        <nav ref={(el) => { (chipsRef as React.MutableRefObject<HTMLElement | null>).current = el; moreToScroll(el); }} onScroll={(e) => moreToScroll(e.currentTarget)} aria-label="Lawns" className="chip-row pointer-events-auto -mx-3 flex gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none]">
           {zones.map((z) => (
             <Chip
               key={z.kind}
               data-chip={z.kind}
               aria-label={`Go to ${z.name}`}
-              aria-current={here === z.kind ? "location" : undefined}
+              aria-current={current === z.kind ? "location" : undefined}
               onClick={() => go(z.kind)}
               accent={z.accent}
-              here={here === z.kind}
+              here={current === z.kind}
               count={counts[z.kind] || undefined}
             >
               {z.name}
@@ -454,11 +474,11 @@ export function ParkView({ name, initialThings, pending, stale = [], connected, 
               </div>
             </div>
             {/* Its categories; the open one shows everything it holds on the map. */}
-            <div role="group" aria-label={`${zoneOf(lawn).name} categories`} className="chip-row -mx-4 flex gap-2 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none]">
+            <div ref={(el) => { (groupRef as React.MutableRefObject<HTMLDivElement | null>).current = el; moreToScroll(el); }} onScroll={(e) => moreToScroll(e.currentTarget)} role="group" aria-label={`${zoneOf(lawn).name} categories`} className="chip-row -mx-4 flex gap-2 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none]">
               {lawnGroups.map((g) => {
                 const on = openGroup === g.id;
                 return (
-                  <Chip key={g.id} aria-pressed={on} onClick={() => toggleGroup(lawn, on ? null : g.id)} accent={zoneOf(lawn).accent} on={on} count={g.things.length}>
+                  <Chip key={g.id} data-chip={g.id} aria-pressed={on} onClick={() => toggleGroup(lawn, on ? null : g.id)} accent={zoneOf(lawn).accent} on={on} count={g.things.length}>
                     {g.name}
                   </Chip>
                 );

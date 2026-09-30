@@ -100,7 +100,7 @@ svg [role="button"]:focus-visible > * { outline: 3px solid #2b3a31; outline-offs
 .park-hang { animation: park-sway 3.2s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 0; }
 .park-flag { animation: park-sway 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: 0 50%; }
 /* Rows of chips fade out at the edge, so it is clear there are more. */
-.chip-row { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
+.chip-row[data-more="1"] { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
 @media (prefers-reduced-motion: reduce) {
   .park-item, .park-cloud, .park-sway, .park-hang, .park-flag { animation: none; }
 }
