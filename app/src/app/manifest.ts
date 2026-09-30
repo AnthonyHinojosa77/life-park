@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "LifePark",
     short_name: "LifePark",
-    description: "Your life, filed by AI and grown into a park.",
+    description: "Your life, filed, and grown into your own park.",
     id: "/",
     start_url: "/",
     scope: "/",

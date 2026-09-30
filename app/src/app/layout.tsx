@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     default: "LifePark",
     template: "%s · LifePark",
   },
-  description: "Your life, filed by AI and grown into a park.",
+  description: "Your life, filed, and grown into your own park.",
   applicationName: "LifePark",
   appleWebApp: {
     capable: true,

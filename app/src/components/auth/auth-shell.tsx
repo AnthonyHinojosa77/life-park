@@ -23,7 +23,7 @@ export function AuthShell({ title, footer, children }: Props) {
             <Wordmark size="md" />
           </div>
           <p {...step(0)} className="font-serif text-lg italic text-ink-soft">
-            Your life, filed by AI and grown into a park.
+            Your life, filed, and grown into your own park.
           </p>
         </div>
         {isPreview() && (
@@ -36,7 +36,7 @@ export function AuthShell({ title, footer, children }: Props) {
           <div className="absolute inset-0 overflow-hidden rounded-card">
             <ChalkDust />
           </div>
-          <h1 {...step(3)} className="relative font-serif text-3xl">
+          <h1 {...step(3)} className="relative text-center font-serif text-3xl">
             {title}
           </h1>
           <div {...step(4)} className="relative">

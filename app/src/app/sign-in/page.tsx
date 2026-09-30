@@ -11,7 +11,7 @@ export default async function SignInPage() {
   if (await getSession()) redirect("/chats");
   return (
     <AuthShell
-      title="Welcome back"
+      title="Welcome"
       footer={{ text: "New here?", linkText: "Create an account", href: "/sign-up" }}
     >
       <SignInForm mode="sign-in" providers={configuredProviders()} />
