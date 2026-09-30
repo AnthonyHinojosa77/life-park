@@ -272,6 +272,7 @@ export function ParkView({ name, initialThings, pending, stale = [], connected, 
       <ParkMap
         ref={mapRef}
         things={things}
+        parkName={title}
         now={now}
         startAt={startAt}
         selectedLawn={lawn}

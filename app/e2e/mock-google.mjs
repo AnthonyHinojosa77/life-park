@@ -22,9 +22,40 @@ const files = {
   ],
 };
 
-function route(url) {
+// A big life, for looking at a full park: many neighbors, events, letters, and files.
+const first = ["Sam", "Priya", "Mom", "Dad", "Jordan", "Alex", "Maya", "Luis", "Grace", "Omar", "Nina", "Theo", "Ava", "Kai", "Rosa", "Eli"];
+const last = ["Rivera", "Shah", "Kim", "Okafor", "Nguyen", "Brown", "Silva", "Haddad", "Larsen", "Diaz"];
+const big = {
+  people: Array.from({ length: 169 }, (_, i) => ({
+    resourceName: `people/b${i}`,
+    names: [{ displayName: `${first[i % first.length]} ${last[Math.floor(i / first.length) % last.length]}` }],
+    ...(i % 4 === 0 ? { birthdays: [{ date: { month: (i % 12) + 1, day: (i % 27) + 1 } }] } : {}),
+  })),
+  events: Array.from({ length: 81 }, (_, i) => ({ id: `bev${i}`, summary: ["Dentist", "Team lunch", "Gym", "Flight home", "Book club", "Call Mom"][i % 6], start: { dateTime: soon(i - 20) } })),
+  mail: Array.from({ length: 25 }, (_, i) => `bm${i}`),
+  files: {
+    doc: Array.from({ length: 60 }, (_, i) => ({ id: `bd${i}`, name: `Notes ${i + 1}`, mimeType: "application/vnd.google-apps.document", modifiedTime: soon(-i) })),
+    sheet: Array.from({ length: 34 }, (_, i) => ({ id: `bs${i}`, name: `Budget ${i + 1}`, mimeType: "application/vnd.google-apps.spreadsheet", modifiedTime: soon(-i) })),
+    file: Array.from({ length: 100 }, (_, i) => ({ id: `bf${i}`, name: `Photo ${i + 1}.jpg`, mimeType: "image/jpeg", modifiedTime: soon(-i) })),
+  },
+};
+
+function route(url, life = "small") {
   const u = new URL(url, "http://mock");
   const p = u.pathname;
+  if (life === "big") {
+    if (p === "/calendar/v3/calendars/primary/events") return { items: big.events };
+    if (p === "/v1/people/me/connections") return { connections: big.people };
+    if (p === "/gmail/v1/users/me/messages") return { messages: big.mail.map((id) => ({ id })) };
+    const bm = p.match(/^\/gmail\/v1\/users\/me\/messages\/(bm\d+)$/);
+    if (bm) return { id: bm[1], payload: { headers: [{ name: "From", value: `${first[bm[1].length % first.length]} <x@example.com>` }, { name: "Subject", value: `Letter ${bm[1]}` }, { name: "Date", value: new Date().toUTCString() }] } };
+    if (p === "/drive/v3/files") {
+      const q = u.searchParams.get("q") ?? "";
+      if (q.includes("mimeType = 'application/vnd.google-apps.document'")) return { files: big.files.doc };
+      if (q.includes("mimeType = 'application/vnd.google-apps.spreadsheet'")) return { files: big.files.sheet };
+      return { files: big.files.file };
+    }
+  }
   if (p === "/calendar/v3/calendars/primary/events") {
     return {
       items: [
@@ -61,13 +92,14 @@ function route(url) {
   return null;
 }
 
-export function createMockGoogle() {
+/** `life` is "small" (the fixed few things tests expect) or "big" (hundreds, for looking at a full park). */
+export function createMockGoogle(life = "small") {
   return http.createServer((req, res) => {
     if (req.headers.authorization !== "Bearer mock-google-token") {
       res.writeHead(401, { "content-type": "application/json" }).end("{}");
       return;
     }
-    const body = route(req.url ?? "/");
+    const body = route(req.url ?? "/", life);
     if (!body) {
       res.writeHead(404, { "content-type": "application/json" }).end("{}");
       return;

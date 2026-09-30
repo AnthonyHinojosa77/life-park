@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { hash } from "@/lib/park/layout";
 import type { ParkThing } from "@/lib/things";
+import type { ThingKind } from "@/lib/kinds";
 
 /**
  * The drawings for things in the park. Each is about 90 map units across,
@@ -31,8 +32,9 @@ function Cottage({ t, now }: { t: ParkThing; now: number }) {
     if (next.getTime() < now - 86400000) next.setFullYear(year + 1);
     party = next.getTime() - now < 14 * 86400000;
   }
+  const size = 0.9 + ((h >>> 9) % 16) / 100;
   return (
-    <>
+    <g transform={`scale(${size})`}>
       <Shadow w={40} />
       {/* A little front garden. */}
       <ellipse cx={-30} cy={26} rx={10} ry={7} fill="#5fb56f" stroke={INK} strokeWidth={1.6} />
@@ -59,7 +61,7 @@ function Cottage({ t, now }: { t: ParkThing; now: number }) {
           <ellipse cx={30} cy={-44} rx={1.6} ry={2.4} fill="#fff" opacity={0.7} />
         </g>
       )}
-    </>
+    </g>
   );
 }
 
@@ -206,24 +208,19 @@ function Bench({ t }: { t: ParkThing }) {
   );
 }
 
-function Pavilion({ t }: { t: ParkThing }) {
+/** A file is a book standing on a library shelf, its cover colored by what kind of file it is. */
+function Book({ t, i }: { t: ParkThing; i: number }) {
   const kind = t.detail.type;
-  const roof = kind === "doc" ? "#3f78c9" : kind === "sheet" ? "#3b9152" : "#d9544a";
-  const tag = kind === "doc" ? "DOC" : kind === "sheet" ? "SHEET" : "FILE";
+  const cover = kind === "doc" ? "#3f78c9" : kind === "sheet" ? "#3b9152" : kind === "slides" ? "#e9a93a" : ["#d9544a", "#e2763a", "#9a5fc2", "#c9553f", "#b36bd4"][hash(t.id) % 5];
+  const lean = ((hash(t.id) % 5) - 2) * 2.5;
+  const tall = 40 + (i % 3) * 4;
   return (
-    <>
-      <Shadow w={40} />
-      <rect x={-34} y={22} width={68} height={8} rx={2} fill="#e6dcc6" stroke={INK} strokeWidth={1.8} />
-      {[-26, -9, 9, 26].map((x) => (
-        <rect key={x} x={x - 3.5} y={-8} width={7} height={30} fill="#fffaf0" stroke={INK} strokeWidth={1.6} />
-      ))}
-      <rect x={-34} y={-14} width={68} height={7} fill="#fffaf0" stroke={INK} strokeWidth={1.8} />
-      <path d="M-38 -14 L0 -40 L38 -14 Z" fill={roof} stroke={INK} strokeWidth={LINE} strokeLinejoin="round" />
-      <rect x={-14} y={-30} width={28} height={11} rx={2} fill="#fffaf0" stroke={INK} strokeWidth={1.2} />
-      <text y={-21.5} textAnchor="middle" fontSize={8} fontWeight={900} fill={roof}>
-        {tag}
-      </text>
-    </>
+    <g transform={`translate(0 ${30 - tall / 2}) rotate(${lean})`}>
+      <rect x={-13} y={-tall / 2} width={26} height={tall} rx={2} fill={cover} stroke={INK} strokeWidth={1.8} />
+      <rect x={-9} y={-tall / 2 + 5} width={18} height={tall - 10} rx={1.5} fill="none" stroke="#fffaf0" strokeWidth={1.2} opacity={0.7} />
+      <rect x={-13} y={-tall / 2} width={5} height={tall} fill={INK} opacity={0.18} />
+      <path d={`M-4 ${-tall / 2 + 12} H6 M-4 ${-tall / 2 + 17} H4`} stroke="#fffaf0" strokeWidth={1.4} strokeLinecap="round" />
+    </g>
   );
 }
 
@@ -263,7 +260,7 @@ export function Figure({ t, now, i }: { t: ParkThing; now: number; i: number }) 
     case "note":
       return <Bench t={t} />;
     case "file":
-      return <Pavilion t={t} />;
+      return <Book t={t} i={i} />;
     case "mail":
       return <Mailbox t={t} i={i} />;
   }
@@ -302,6 +299,355 @@ export function DecorFigure({ kind, s }: { kind: "tree" | "bush" | "flowers"; s:
           <circle r={3.2} fill={c as string} stroke={INK} strokeWidth={0.8} />
         </g>
       ))}
+    </g>
+  );
+}
+
+/**
+ * The landmark at the head of each lawn: the building or structure that says
+ * what the place is, about 220 map units across with its base at y = 60.
+ */
+export function Landmark({ kind }: { kind: ThingKind }) {
+  switch (kind) {
+    case "person":
+      return <Cafe />;
+    case "event":
+      return <Bandstand />;
+    case "habit":
+      return <Greenhouse />;
+    case "recipe":
+      return <Barn />;
+    case "list":
+      return <Gazebo />;
+    case "note":
+      return <Fountain />;
+    case "file":
+      return <Library />;
+    case "mail":
+      return <PostOffice />;
+  }
+}
+
+function Cafe() {
+  return (
+    <>
+      <Shadow w={90} y={60} />
+      {/* Two stories with a striped awning and tables out front. */}
+      <rect x={-70} y={-50} width={140} height={100} rx={3} fill="#fbeedd" stroke={INK} strokeWidth={LINE} />
+      <path d="M-78 -50 L0 -84 L78 -50 Z" fill="#c9553f" stroke={INK} strokeWidth={LINE} strokeLinejoin="round" />
+      <rect x={-64} y={-8} width={128} height={4} fill={INK} opacity={0.25} />
+      {[-48, -16, 16, 48].map((x) => (
+        <rect key={x} x={x - 9} y={-40} width={18} height={20} rx={2} fill="#cfe6f5" stroke={INK} strokeWidth={1.5} />
+      ))}
+      <path d="M-74 -2 H74 L66 18 H-66 Z" fill="#fffaf0" stroke={INK} strokeWidth={1.8} strokeLinejoin="round" />
+      {[-60, -36, -12, 12, 36].map((x, k) => (
+        <path key={x} d={`M${x} -2 H${x + 12} L${x + 11} 18 H${x - 1} Z`} fill={k % 2 ? "#e8594a" : "#e8594a"} opacity={0.85} />
+      ))}
+      <rect x={-12} y={14} width={24} height={36} rx={4} fill="#5b8a63" stroke={INK} strokeWidth={1.8} />
+      {[-46, 40].map((x) => (
+        <rect key={x} x={x - 12} y={22} width={24} height={22} rx={2} fill="#cfe6f5" stroke={INK} strokeWidth={1.5} />
+      ))}
+      {/* A café table with an umbrella on each side. */}
+      {[-104, 104].map((x) => (
+        <g key={x} transform={`translate(${x} 40)`}>
+          <ellipse rx={16} ry={7} cy={12} fill="#fffaf0" stroke={INK} strokeWidth={1.5} />
+          <path d="M0 12 V-24" stroke={INK} strokeWidth={2} />
+          <path d="M-26 -22 Q0 -46 26 -22 Z" fill="#e8594a" stroke={INK} strokeWidth={1.6} strokeLinejoin="round" />
+          <path d="M-13 -24 Q0 -30 13 -24" fill="none" stroke="#fffaf0" strokeWidth={1.4} />
+        </g>
+      ))}
+      <rect x={-34} y={-72} width={68} height={14} rx={4} fill="#fffaf0" stroke={INK} strokeWidth={1.4} />
+      <text y={-61.5} textAnchor="middle" fontSize={10} fontWeight={900} fill={INK} letterSpacing={1.5}>
+        CORNER CAFÉ
+      </text>
+    </>
+  );
+}
+
+function Bandstand() {
+  const posts = [-70, -35, 35, 70];
+  return (
+    <>
+      <Shadow w={95} y={60} />
+      <ellipse cx={0} cy={44} rx={92} ry={26} fill="#f3e2b8" stroke={INK} strokeWidth={LINE} />
+      <ellipse cx={0} cy={38} rx={92} ry={26} fill="#f9ecc9" stroke={INK} strokeWidth={LINE} />
+      {posts.map((x) => (
+        <rect key={x} x={x - 3} y={-34} width={6} height={72} fill="#fffaf0" stroke={INK} strokeWidth={1.4} />
+      ))}
+      <path d="M-100 -34 L0 -90 L100 -34 Z" fill="#f2a93b" stroke={INK} strokeWidth={LINE} strokeLinejoin="round" />
+      <path d="M-80 -34 L0 -78 L80 -34" fill="none" stroke="#fffaf0" strokeWidth={2} opacity={0.6} />
+      <path d="M-100 -34 H100" stroke={INK} strokeWidth={LINE} />
+      {/* Bunting swinging from the roof. */}
+      <g className="park-sway">
+        <path d="M-96 -30 Q-48 -8 0 -30 Q48 -8 96 -30" fill="none" stroke={INK} strokeWidth={1.4} />
+        {[-84, -66, -48, -30, -12, 6, 24, 42, 60, 78].map((x, k) => {
+          const y = -30 + 22 * Math.sin((Math.PI * ((x + 96) % 96)) / 96);
+          return <path key={x} d={`M${x} ${y} l5 10 l5 -10 Z`} fill={brights[k % brights.length]} stroke={INK} strokeWidth={0.8} />;
+        })}
+      </g>
+      <circle cx={0} cy={-96} r={6} fill="#fffaf0" stroke={INK} strokeWidth={1.4} />
+      {/* The board itself, with a few pinned notices. */}
+      <g transform="translate(0 4)">
+        <rect x={-44} y={-22} width={88} height={40} rx={3} fill="#a8794f" stroke={INK} strokeWidth={1.8} />
+        <rect x={-38} y={-16} width={22} height={16} fill="#fffaf0" stroke={INK} strokeWidth={1} />
+        <rect x={-10} y={-18} width={20} height={20} fill="#f3d27a" stroke={INK} strokeWidth={1} />
+        <rect x={16} y={-14} width={22} height={14} fill="#cfe6f5" stroke={INK} strokeWidth={1} />
+      </g>
+    </>
+  );
+}
+
+function Greenhouse() {
+  return (
+    <>
+      <Shadow w={88} y={60} />
+      <rect x={-80} y={-20} width={160} height={70} fill="#d8eef3" stroke="#3b9152" strokeWidth={3} />
+      <path d="M-86 -20 L0 -70 L86 -20 Z" fill="#e6f4f6" stroke="#3b9152" strokeWidth={3} strokeLinejoin="round" />
+      <path d="M-80 -20 H80 M-40 -20 V50 M0 -20 V50 M40 -20 V50 M-80 15 H80 M-43 -45 L43 -45" fill="none" stroke="#3b9152" strokeWidth={2} />
+      <path d="M-86 -20 L0 -70 L86 -20 Z M-80 -20 H80 V50 H-80 Z" fill="none" stroke={INK} strokeWidth={1.4} opacity={0.5} />
+      <rect x={-12} y={14} width={24} height={36} fill="#fffaf0" stroke="#3b9152" strokeWidth={2} />
+      {/* Plants showing through the glass. */}
+      {[-62, -24, 20, 58].map((x, k) => (
+        <g key={x} transform={`translate(${x} 40)`}>
+          <path d="M0 0 V-22" stroke="#3b9152" strokeWidth={2.2} strokeLinecap="round" />
+          <path d="M0 -10 q-9 -2 -10 -10 q8 1 10 8 M0 -14 q9 -2 10 -10 q-8 1 -10 8" fill="#5fb56f" stroke={INK} strokeWidth={0.8} />
+          {k % 2 === 0 && <circle cy={-24} r={4} fill={brights[k % brights.length]} stroke={INK} strokeWidth={0.8} />}
+        </g>
+      ))}
+      <g transform="translate(96 40)">
+        <rect x={-14} y={0} width={28} height={16} rx={3} fill="#b9814a" stroke={INK} strokeWidth={1.6} />
+        <path d="M-14 4 H14" stroke={INK} strokeWidth={1} opacity={0.4} />
+        <circle cx={-6} cy={-6} r={5} fill="#e05a4f" stroke={INK} strokeWidth={1} />
+        <circle cx={6} cy={-7} r={5} fill="#efb33e" stroke={INK} strokeWidth={1} />
+      </g>
+    </>
+  );
+}
+
+function Barn() {
+  return (
+    <>
+      <Shadow w={90} y={60} />
+      <rect x={-70} y={-30} width={140} height={80} fill="#c9553f" stroke={INK} strokeWidth={LINE} />
+      <path d="M-76 -30 L-60 -66 L60 -66 L76 -30 Z" fill="#a8412f" stroke={INK} strokeWidth={LINE} strokeLinejoin="round" />
+      <path d="M-60 -66 L0 -88 L60 -66" fill="#a8412f" stroke={INK} strokeWidth={LINE} strokeLinejoin="round" />
+      <rect x={-26} y={0} width={52} height={50} fill="#8a5a2b" stroke={INK} strokeWidth={LINE} />
+      <path d="M-26 0 L26 50 M26 0 L-26 50 M0 0 V50" stroke="#fffaf0" strokeWidth={2.2} opacity={0.7} />
+      <rect x={-12} y={-52} width={24} height={16} rx={2} fill="#fffaf0" stroke={INK} strokeWidth={1.4} />
+      <path d="M-70 -30 H70" stroke="#fffaf0" strokeWidth={2} opacity={0.4} />
+      {/* Crates of apples and a ladder. */}
+      {[-96, 92].map((x, k) => (
+        <g key={x} transform={`translate(${x} 34)`}>
+          <rect x={-16} y={2} width={32} height={20} rx={2} fill="#c88a4a" stroke={INK} strokeWidth={1.6} />
+          <path d="M-16 8 H16 M-16 14 H16" stroke="#8a5a2b" strokeWidth={1.2} />
+          {[-9, 0, 9].map((cx) => (
+            <circle key={cx} cx={cx} cy={-1} r={5} fill={k ? "#efb33e" : "#e05a4f"} stroke={INK} strokeWidth={1} />
+          ))}
+        </g>
+      ))}
+      <g transform="translate(46 -20) rotate(12)">
+        <path d="M-6 -50 V40 M6 -50 V40 M-6 -36 H6 M-6 -20 H6 M-6 -4 H6 M-6 12 H6 M-6 28 H6" stroke="#8a5a2b" strokeWidth={3} strokeLinecap="round" />
+      </g>
+    </>
+  );
+}
+
+function Gazebo() {
+  return (
+    <>
+      <Shadow w={80} y={60} />
+      <path d="M-70 40 L-56 52 L56 52 L70 40 Z" fill="#e6dcc6" stroke={INK} strokeWidth={LINE} strokeLinejoin="round" />
+      {[-56, -28, 28, 56].map((x) => (
+        <rect key={x} x={x - 3} y={-30} width={6} height={72} fill="#fffaf0" stroke={INK} strokeWidth={1.4} />
+      ))}
+      <path d="M-62 -6 H62 M-62 6 H62" stroke="#fffaf0" strokeWidth={4} />
+      <path d="M-62 -6 H62 M-62 6 H62" stroke={INK} strokeWidth={1.2} />
+      <path d="M-82 -30 L0 -84 L82 -30 Z" fill="#b36bd4" stroke={INK} strokeWidth={LINE} strokeLinejoin="round" />
+      <path d="M-82 -30 H82" stroke={INK} strokeWidth={LINE} />
+      <path d="M-56 -36 L0 -74 L56 -36" fill="none" stroke="#fffaf0" strokeWidth={2} opacity={0.5} />
+      <circle cx={0} cy={-90} r={5} fill="#fffaf0" stroke={INK} strokeWidth={1.4} />
+      {/* A picnic table inside. */}
+      <rect x={-30} y={14} width={60} height={8} rx={2} fill="#b9814a" stroke={INK} strokeWidth={1.4} />
+      <rect x={-36} y={30} width={72} height={6} rx={2} fill="#c78f55" stroke={INK} strokeWidth={1.4} />
+      <path d="M-22 22 L-28 42 M22 22 L28 42" stroke={INK} strokeWidth={2.4} strokeLinecap="round" />
+      <ellipse cx={-10} cy={13} rx={7} ry={3} fill="#fffaf0" stroke={INK} strokeWidth={1} />
+      <ellipse cx={12} cy={13} rx={7} ry={3} fill="#fffaf0" stroke={INK} strokeWidth={1} />
+    </>
+  );
+}
+
+function Fountain() {
+  return (
+    <>
+      <Shadow w={90} y={62} />
+      <ellipse cx={0} cy={40} rx={92} ry={30} fill="#e6dcc6" stroke={INK} strokeWidth={LINE} />
+      <ellipse cx={0} cy={34} rx={80} ry={24} fill="#bcdcef" stroke="#8fbcd6" strokeWidth={2} />
+      <path d="M-54 34 q10 -6 20 0 t20 0 t20 0 t20 0" fill="none" stroke="#8fbcd6" strokeWidth={2} />
+      <rect x={-8} y={-10} width={16} height={44} fill="#e6dcc6" stroke={INK} strokeWidth={1.6} />
+      <ellipse cx={0} cy={-10} rx={36} ry={11} fill="#bcdcef" stroke={INK} strokeWidth={1.6} />
+      <rect x={-5} y={-42} width={10} height={32} fill="#e6dcc6" stroke={INK} strokeWidth={1.4} />
+      <ellipse cx={0} cy={-42} rx={16} ry={6} fill="#bcdcef" stroke={INK} strokeWidth={1.4} />
+      {/* The spray. */}
+      <g className="park-sway">
+        <path d="M0 -48 Q-14 -70 -26 -46 M0 -48 Q14 -70 26 -46 M0 -50 V-74" fill="none" stroke="#8fbcd6" strokeWidth={2.4} strokeLinecap="round" />
+        <circle cx={-27} cy={-42} r={2.4} fill="#bcdcef" />
+        <circle cx={27} cy={-42} r={2.4} fill="#bcdcef" />
+        <circle cx={0} cy={-78} r={2.6} fill="#bcdcef" />
+      </g>
+      <path d="M-40 4 L-40 -2 M40 4 L40 -2" stroke={INK} strokeWidth={1} />
+    </>
+  );
+}
+
+function Library() {
+  return (
+    <>
+      <Shadow w={100} y={60} />
+      <rect x={-90} y={44} width={180} height={8} rx={2} fill="#e6dcc6" stroke={INK} strokeWidth={1.8} />
+      <rect x={-82} y={-30} width={164} height={76} fill="#fbf3e2" stroke={INK} strokeWidth={LINE} />
+      {[-64, -38, 38, 64].map((x) => (
+        <rect key={x} x={x - 5} y={-26} width={10} height={70} rx={1} fill="#fffaf0" stroke={INK} strokeWidth={1.6} />
+      ))}
+      <rect x={-18} y={4} width={36} height={40} rx={3} fill="#4a82de" stroke={INK} strokeWidth={1.8} />
+      <path d="M0 4 V44" stroke={INK} strokeWidth={1} opacity={0.5} />
+      <rect x={-92} y={-38} width={184} height={10} fill="#fffaf0" stroke={INK} strokeWidth={1.8} />
+      <path d="M-100 -38 L0 -80 L100 -38 Z" fill="#4a82de" stroke={INK} strokeWidth={LINE} strokeLinejoin="round" />
+      <path d="M-84 -42 L0 -74 L84 -42" fill="none" stroke="#fffaf0" strokeWidth={2} opacity={0.5} />
+      <ellipse cx={0} cy={-82} rx={26} ry={12} fill="#7fb0ea" stroke={INK} strokeWidth={1.6} />
+      <rect x={-46} y={-58} width={92} height={13} rx={3} fill="#fffaf0" stroke={INK} strokeWidth={1.4} />
+      <text y={-48} textAnchor="middle" fontSize={10} fontWeight={900} fill={INK} letterSpacing={2}>
+        LIBRARY
+      </text>
+      {/* A stack of books by the steps. */}
+      <g transform="translate(-102 30)">
+        <rect x={-14} y={8} width={28} height={7} rx={1} fill="#d9544a" stroke={INK} strokeWidth={1.2} />
+        <rect x={-12} y={1} width={26} height={7} rx={1} fill="#3b9152" stroke={INK} strokeWidth={1.2} />
+        <rect x={-13} y={-6} width={24} height={7} rx={1} fill="#3f78c9" stroke={INK} strokeWidth={1.2} />
+      </g>
+    </>
+  );
+}
+
+function PostOffice() {
+  return (
+    <>
+      <Shadow w={90} y={60} />
+      <rect x={-72} y={-34} width={144} height={84} rx={3} fill="#f6e3c3" stroke={INK} strokeWidth={LINE} />
+      <path d="M-80 -34 L-80 -46 H80 V-34" fill="#2f6fb8" stroke={INK} strokeWidth={LINE} strokeLinejoin="round" />
+      <rect x={-80} y={-46} width={160} height={12} fill="#2f6fb8" stroke={INK} strokeWidth={LINE} />
+      <rect x={-56} y={-70} width={112} height={26} rx={4} fill="#fffaf0" stroke={INK} strokeWidth={1.8} />
+      <text y={-51} textAnchor="middle" fontSize={11} fontWeight={900} fill="#2f6fb8" letterSpacing={2}>
+        POST OFFICE
+      </text>
+      <rect x={-14} y={8} width={28} height={42} rx={3} fill="#2f6fb8" stroke={INK} strokeWidth={1.8} />
+      {[-50, 44].map((x) => (
+        <rect key={x} x={x - 11} y={-14} width={22} height={22} rx={2} fill="#cfe6f5" stroke={INK} strokeWidth={1.5} />
+      ))}
+      <path d="M-30 -12 H30 V4 H-30 Z" fill="#cfe6f5" stroke={INK} strokeWidth={1.5} />
+      <path d="M-30 -12 L0 0 L30 -12" fill="none" stroke={INK} strokeWidth={1.2} />
+      {/* A big blue postbox and a flagpole out front. */}
+      <g transform="translate(-100 24)">
+        <rect x={-14} y={-6} width={28} height={36} rx={4} fill="#2f6fb8" stroke={INK} strokeWidth={1.8} />
+        <path d="M-14 -6 A14 14 0 0 1 14 -6" fill="#2f6fb8" stroke={INK} strokeWidth={1.8} />
+        <rect x={-9} y={-4} width={18} height={4} rx={2} fill={INK} />
+        <path d="M-6 30 V36 M6 30 V36" stroke={INK} strokeWidth={2.4} />
+      </g>
+      <g transform="translate(100 -60)">
+        <path d="M0 0 V110" stroke={INK} strokeWidth={2.4} strokeLinecap="round" />
+        <circle r={3.5} fill="#f3c94b" stroke={INK} strokeWidth={1} />
+        <path className="park-sway" d="M2 6 L34 12 L2 22 Z" fill="#e8594a" stroke={INK} strokeWidth={1.2} strokeLinejoin="round" />
+      </g>
+    </>
+  );
+}
+
+/** What a lawn's rows of things stand on: a street, a shelf, a lane, a bunting line, a soil bed. */
+export function RowDressing({ kind, rows }: { kind: ThingKind; rows: { y: number; x0: number; x1: number }[] }) {
+  if (kind === "person")
+    return (
+      <>
+        {rows.map((r, i) => (
+          <g key={i}>
+            <rect x={r.x0 - 30} y={r.y + 34} width={r.x1 - r.x0 + 60} height={26} rx={13} fill="#efe3c4" stroke="#dccb9f" strokeWidth={3} />
+            <path d={`M${r.x0 - 10} ${r.y + 47} H${r.x1 + 10}`} stroke="#fffaf0" strokeWidth={2} strokeDasharray="14 12" />
+          </g>
+        ))}
+      </>
+    );
+  if (kind === "file")
+    return (
+      <>
+        {rows.map((r, i) => (
+          <g key={i}>
+            <rect x={r.x0 - 16} y={r.y + 30} width={r.x1 - r.x0 + 32} height={10} rx={2} fill="#b9814a" stroke={INK} strokeWidth={1.6} />
+            <rect x={r.x0 - 16} y={r.y + 40} width={r.x1 - r.x0 + 32} height={4} fill="#8a5a2b" />
+          </g>
+        ))}
+      </>
+    );
+  if (kind === "mail")
+    return (
+      <>
+        {rows.map((r, i) => (
+          <rect key={i} x={r.x0 - 24} y={r.y + 28} width={r.x1 - r.x0 + 48} height={16} rx={8} fill="#efe3c4" stroke="#dccb9f" strokeWidth={2.5} />
+        ))}
+      </>
+    );
+  if (kind === "event")
+    return (
+      <>
+        {rows.map((r, i) => (
+          <path key={i} d={`M${r.x0 - 20} ${r.y - 56} H${r.x1 + 20}`} stroke={INK} strokeWidth={1.2} strokeDasharray="6 10" opacity={0.5} />
+        ))}
+      </>
+    );
+  if (kind === "habit")
+    return (
+      <>
+        {rows.map((r, i) => (
+          <rect key={i} x={r.x0 - 20} y={r.y - 14} width={r.x1 - r.x0 + 40} height={50} rx={10} fill="#a98b5c" opacity={0.35} />
+        ))}
+      </>
+    );
+  return null;
+}
+
+/** A lamp post beside a path. */
+export function Lamp() {
+  return (
+    <g>
+      <ellipse cy={14} rx={10} ry={3} fill={INK} opacity={0.12} />
+      <path d="M0 14 V-30" stroke={INK} strokeWidth={2.6} strokeLinecap="round" />
+      <rect x={-6} y={8} width={12} height={6} rx={2} fill={INK} />
+      <path d="M-8 -30 L0 -44 L8 -30 Z" fill="#f3d27a" stroke={INK} strokeWidth={1.6} strokeLinejoin="round" />
+      <circle cy={-32} r={4} fill="#fff4c2" />
+    </g>
+  );
+}
+
+/** The park's entrance: an iron arch over the path in, with the park's name. */
+export function Gate({ name }: { name: string }) {
+  const w = Math.max(220, name.length * 15 + 80);
+  return (
+    <g>
+      <ellipse cy={40} rx={w / 2 + 10} ry={10} fill={INK} opacity={0.1} />
+      {[-w / 2, w / 2].map((x) => (
+        <g key={x}>
+          <rect x={x - 10} y={-60} width={20} height={100} rx={3} fill="#e6dcc6" stroke={INK} strokeWidth={LINE} />
+          <rect x={x - 13} y={-66} width={26} height={8} rx={2} fill="#e6dcc6" stroke={INK} strokeWidth={1.6} />
+          <circle cx={x} cy={-74} r={7} fill="#3b9152" stroke={INK} strokeWidth={1.6} />
+        </g>
+      ))}
+      <path d={`M${-w / 2 + 10} -60 Q0 -110 ${w / 2 - 10} -60`} fill="none" stroke={INK} strokeWidth={4} strokeLinecap="round" />
+      <path d={`M${-w / 2 + 10} -52 Q0 -100 ${w / 2 - 10} -52`} fill="none" stroke={INK} strokeWidth={2} />
+      {Array.from({ length: 9 }, (_, i) => {
+        const x = (-w / 2 + 30) + ((w - 60) * i) / 8;
+        return <path key={i} d={`M${x} -54 V-40`} stroke={INK} strokeWidth={1.6} />;
+      })}
+      <rect x={-w / 2 + 24} y={-96} width={w - 48} height={26} rx={6} fill="#f4e0b0" stroke={INK} strokeWidth={2} />
+      <text y={-77} textAnchor="middle" className="font-serif" fontSize={19} fill={INK}>
+        {name}
+      </text>
     </g>
   );
 }

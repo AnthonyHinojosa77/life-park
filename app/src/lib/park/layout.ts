@@ -36,37 +36,109 @@ export function stageOf(count: number): Stage {
   return "bloom";
 }
 
-/** Distance between neighboring things on a lawn, in map units. */
-export const ITEM_SPACING = 150;
-/** Room at the top of every lawn for its wooden sign. */
-const SIGN_ROOM = 70;
-
-/** A lawn's radius: roomy when empty, growing with what is planted on it, with no upper limit. */
-export function lawnRadius(count: number) {
-  if (count <= 0) return 190;
-  return Math.max(200, ITEM_SPACING * 0.62 * Math.sqrt(count) + 125);
-}
-
 /**
- * Where the i-th thing sits on its lawn, relative to the lawn's center: a
- * sunflower spiral, which spreads any number of things evenly and organically.
+ * How each lawn arranges its things, in map units. Houses line up along
+ * streets, books stand on shelves, mailboxes along a lane; picnic blankets
+ * and benches are scattered. `dx`/`dy` is the room one thing takes.
  */
-export function itemSpot(i: number) {
-  const golden = Math.PI * (3 - Math.sqrt(5));
-  const d = ITEM_SPACING * 0.62 * Math.sqrt(i + 0.5);
-  const a = i * golden - Math.PI / 2;
-  return { x: Math.cos(a) * d, y: Math.sin(a) * d * 0.92 + SIGN_ROOM / 2 };
+type Arrangement =
+  | { shape: "rows"; dx: number; dy: number; stagger: boolean; wide: number; /** How far a thing may sit off its exact spot, so rows look lived-in rather than ruled. */ loose: number }
+  | { shape: "scatter"; gap: number };
+
+const arrangements: Record<ThingKind, Arrangement> = {
+  person: { shape: "rows", dx: 98, dy: 108, stagger: true, wide: 1.7, loose: 0.1 },
+  event: { shape: "rows", dx: 90, dy: 100, stagger: false, wide: 1.6, loose: 0.06 },
+  habit: { shape: "rows", dx: 100, dy: 66, stagger: false, wide: 1.5, loose: 0 },
+  recipe: { shape: "rows", dx: 86, dy: 92, stagger: true, wide: 1.6, loose: 0.1 },
+  file: { shape: "rows", dx: 46, dy: 60, stagger: false, wide: 1.9, loose: 0 },
+  mail: { shape: "rows", dx: 66, dy: 86, stagger: false, wide: 1.7, loose: 0.05 },
+  list: { shape: "scatter", gap: 118 },
+  note: { shape: "scatter", gap: 112 },
+};
+
+/** Grass around the edge of every lawn. */
+const PAD = 64;
+/** Room at the top of every lawn for its wooden sign, then its landmark building. */
+const SIGN_ROOM = 84;
+const LANDMARK_ROOM = 160;
+/** The smallest a lawn gets, so an empty one still has a sign and a landmark. */
+const MIN_W = 460;
+/**
+ * A lawn's rounded outline (see `lawnPath`) cuts across the corners of what is
+ * on it, so the outline is drawn this much bigger than the block inside it.
+ */
+const FIT = 0.78;
+
+export type Placement = {
+  /** Where each thing sits, relative to the lawn's center. */
+  spots: { x: number; y: number }[];
+  /** The rows things sit on, for streets and shelves, relative to the lawn's center. */
+  rows: { y: number; x0: number; x1: number }[];
+  /** The lawn's size. */
+  w: number;
+  h: number;
+  /** Where the sign and the landmark stand, relative to the lawn's center. */
+  signY: number;
+  landmarkY: number;
+};
+
+/** Lays out one lawn: its sign, its landmark, and every thing on it, and how big that makes it. */
+export function placeItems(kind: ThingKind, n: number): Placement {
+  const a = arrangements[kind];
+  const spots: { x: number; y: number }[] = [];
+  const rows: Placement["rows"] = [];
+  let blockW = 0;
+  let blockH = 0;
+  if (n > 0 && a.shape === "rows") {
+    const cols = Math.max(1, Math.min(n, Math.ceil(Math.sqrt((n * a.dy * a.wide) / a.dx))));
+    const count = Math.ceil(n / cols);
+    blockW = cols * a.dx + (a.stagger ? a.dx / 2 : 0);
+    blockH = count * a.dy;
+    for (let r = 0; r < count; r++) {
+      const inRow = Math.min(cols, n - r * cols);
+      const shift = a.stagger && r % 2 === 1 ? a.dx / 2 : 0;
+      const y = r * a.dy - blockH / 2 + a.dy / 2;
+      const x0 = -(inRow * a.dx) / 2 + shift;
+      rows.push({ y, x0: -blockW / 2, x1: blockW / 2 });
+      for (let c = 0; c < inRow; c++) {
+        const h = hash(`${kind}${r},${c}`);
+        spots.push({ x: x0 + c * a.dx + a.dx / 2 + ((h % 100) / 100 - 0.5) * a.dx * a.loose, y: y + (((h >>> 8) % 100) / 100 - 0.5) * a.dy * a.loose * 0.6 });
+      }
+    }
+  } else if (n > 0 && a.shape === "scatter") {
+    // A sunflower spiral spreads any number of things evenly and organically.
+    const golden = Math.PI * (3 - Math.sqrt(5));
+    let far = 0;
+    for (let i = 0; i < n; i++) {
+      const d = a.gap * 0.62 * Math.sqrt(i + 0.5);
+      const ang = i * golden - Math.PI / 2;
+      spots.push({ x: Math.cos(ang) * d, y: Math.sin(ang) * d * 0.85 });
+      far = Math.max(far, d);
+    }
+    blockW = far * 2 + a.gap * 0.6;
+    blockH = far * 2 * 0.85 + a.gap * 0.6;
+  }
+  const innerW = Math.max(MIN_W, blockW + PAD * 2);
+  const innerH = PAD + SIGN_ROOM + LANDMARK_ROOM + blockH + PAD;
+  const w = innerW / FIT;
+  const h = innerH / FIT;
+  const top = -innerH / 2;
+  // Everything below the landmark shifts down to its block.
+  const blockY = top + PAD + SIGN_ROOM + LANDMARK_ROOM + blockH / 2;
+  for (const s of spots) s.y += blockY;
+  for (const r of rows) r.y += blockY;
+  return { spots, rows, w, h, signY: top + PAD + SIGN_ROOM / 2, landmarkY: top + PAD + SIGN_ROOM + LANDMARK_ROOM - 30 };
 }
 
 /** Lawns sit in two columns, rows in this order, like blocks on a town map. */
-const rows: [ThingKind, ThingKind][] = [
+const rowsOfLawns: [ThingKind, ThingKind][] = [
   ["person", "event"],
   ["file", "mail"],
   ["list", "recipe"],
   ["habit", "note"],
 ];
 
-export type Lawn = { kind: ThingKind; x: number; y: number; r: number };
+export type Lawn = { kind: ThingKind; x: number; y: number; w: number; h: number; /** Half the longer side, for distances. */ r: number };
 export type Decor = { kind: "tree" | "bush" | "flowers"; x: number; y: number; s: number };
 export type World = {
   width: number;
@@ -75,6 +147,10 @@ export type World = {
   paths: [ThingKind, ThingKind][];
   ponds: { x: number; y: number; rx: number; ry: number }[];
   decor: Decor[];
+  /** Lamp posts along the paths. */
+  lamps: { x: number; y: number }[];
+  /** The park's entrance, at the bottom. */
+  gate: { x: number; y: number };
 };
 
 /** A small stable number from a string, for picking colors and slight variations. */
@@ -84,56 +160,85 @@ export function hash(s: string) {
   return h >>> 0;
 }
 
+/** True when a point is inside a lawn's rounded outline, with `pad` extra around it. */
+export function onLawn(l: Lawn, x: number, y: number, pad = 0) {
+  const a = l.w / 2 + pad;
+  const b = l.h / 2 + pad;
+  return Math.pow(Math.abs(x - l.x) / a, 3) + Math.pow(Math.abs(y - l.y) / b, 3) <= 1;
+}
+
 /**
  * Lays out the whole park from how many things each lawn holds. Lawns are
  * spaced so none ever overlap, however big they grow, with meadow, paths,
- * ponds, and trees between them.
+ * ponds, lamps, and trees between them.
  */
 export function buildWorld(counts: Record<ThingKind, number>): World {
-  const radius = (k: ThingKind) => lawnRadius(counts[k] ?? 0);
-  const margin = 170;
-  const colWidth = [0, 1].map((c) => Math.max(...rows.map((row) => radius(row[c]))) * 2 + margin);
-  const rowHeight = rows.map(([a, b]) => Math.max(radius(a), radius(b)) * 2 + margin);
+  const sizes = {} as Record<ThingKind, { w: number; h: number }>;
+  for (const z of zones) {
+    const p = placeItems(z.kind, counts[z.kind] ?? 0);
+    sizes[z.kind] = { w: p.w, h: p.h };
+  }
+  const margin = 180;
+  const colWidth = [0, 1].map((c) => Math.max(...rowsOfLawns.map((row) => sizes[row[c]].w)) + margin);
+  const rowHeight = rowsOfLawns.map(([a, b]) => Math.max(sizes[a].h, sizes[b].h) + margin);
   const lawns = {} as Record<ThingKind, Lawn>;
   let y = margin;
-  rows.forEach((row, ri) => {
+  rowsOfLawns.forEach((row, ri) => {
     let x = margin;
     row.forEach((kind, ci) => {
       // A slight, stable offset keeps the blocks from looking ruled.
       const h = hash(kind);
-      const jx = ((h % 100) / 100 - 0.5) * margin * 0.5;
-      const jy = (((h >>> 8) % 100) / 100 - 0.5) * margin * 0.5;
-      lawns[kind] = { kind, x: x + colWidth[ci] / 2 + jx, y: y + rowHeight[ri] / 2 + jy + (ci === 1 ? margin * 0.35 : 0), r: radius(kind) };
+      const jx = ((h % 100) / 100 - 0.5) * margin * 0.4;
+      const jy = (((h >>> 8) % 100) / 100 - 0.5) * margin * 0.4;
+      const { w, h: lh } = sizes[kind];
+      lawns[kind] = { kind, x: x + colWidth[ci] / 2 + jx, y: y + rowHeight[ri] / 2 + jy + (ci === 1 ? margin * 0.3 : 0), w, h: lh, r: Math.max(w, lh) / 2 };
       x += colWidth[ci];
     });
     y += rowHeight[ri];
   });
   const width = colWidth[0] + colWidth[1] + margin * 2;
-  const height = y + margin * 1.4;
+  const height = y + margin * 1.6;
 
   const paths: [ThingKind, ThingKind][] = [];
-  rows.forEach(([a, b], ri) => {
+  rowsOfLawns.forEach(([a, b], ri) => {
     paths.push([a, b]);
     if (ri > 0) {
-      paths.push([rows[ri - 1][0], a]);
-      paths.push([rows[ri - 1][1], b]);
+      paths.push([rowsOfLawns[ri - 1][0], a]);
+      paths.push([rowsOfLawns[ri - 1][1], b]);
     }
   });
 
   // Ponds sit between rows, in the middle of the park.
   const midX = margin + colWidth[0];
-  const ponds = rows.slice(0, -1).flatMap((row, ri) => {
+  const ponds = rowsOfLawns.slice(0, -1).flatMap((row, ri) => {
     if (ri % 2 === 1) return [];
-    const below = rows[ri + 1];
-    const py = (Math.max(lawns[row[0]].y + lawns[row[0]].r, lawns[row[1]].y + lawns[row[1]].r) + Math.min(lawns[below[0]].y - lawns[below[0]].r, lawns[below[1]].y - lawns[below[1]].r)) / 2;
-    return [{ x: midX, y: py, rx: 78, ry: 40 }];
+    const below = rowsOfLawns[ri + 1];
+    const bottom = Math.max(lawns[row[0]].y + lawns[row[0]].h / 2, lawns[row[1]].y + lawns[row[1]].h / 2);
+    const top = Math.min(lawns[below[0]].y - lawns[below[0]].h / 2, lawns[below[1]].y - lawns[below[1]].h / 2);
+    return [{ x: midX, y: (bottom + top) / 2, rx: 78, ry: 40 }];
   });
 
-  // Trees and bushes scattered on open meadow, never on a lawn, a path end, or a pond.
+  // A lamp post at the middle of every path, just off it.
+  const lamps = paths.map(([a, b]) => {
+    const p = lawns[a];
+    const q = lawns[b];
+    const dx = q.x - p.x;
+    const dy = q.y - p.y;
+    const len = Math.hypot(dx, dy) || 1;
+    return { x: (p.x + q.x) / 2 + (-dy / len) * 34, y: (p.y + q.y) / 2 + (dx / len) * 34 };
+  });
+
+  const gate = { x: (margin + colWidth[0] + colWidth[1] + margin) / 2, y: height - margin * 0.7 };
+
+  // Trees and bushes scattered on open meadow, never on a lawn, a path, a lamp, the gate, or a pond.
   const decor: Decor[] = [];
+  const all = Object.values(lawns);
   const clear = (x: number, y: number, pad: number) =>
-    Object.values(lawns).every((l) => Math.hypot(x - l.x, y - l.y) > l.r + pad) &&
-    ponds.every((p) => Math.hypot((x - p.x) / (p.rx + pad), (y - p.y) / (p.ry + pad)) > 1);
+    all.every((l) => !onLawn(l, x, y, pad)) &&
+    ponds.every((p) => Math.hypot((x - p.x) / (p.rx + pad), (y - p.y) / (p.ry + pad)) > 1) &&
+    lamps.every((l) => Math.hypot(x - l.x, y - l.y) > pad) &&
+    Math.hypot(x - gate.x, y - gate.y) > 180 &&
+    paths.every(([a, b]) => distanceToSegment(x, y, lawns[a], lawns[b]) > 40 + pad);
   const step = 150;
   for (let gx = step / 2; gx < width; gx += step) {
     for (let gy = step / 2; gy < height; gy += step) {
@@ -146,7 +251,15 @@ export function buildWorld(counts: Record<ThingKind, number>): World {
       decor.push({ kind: pick < 4 ? "tree" : pick < 7 ? "bush" : "flowers", x, y: yy, s: 0.85 + ((h >>> 17) % 30) / 100 });
     }
   }
-  return { width, height, lawns, paths, ponds, decor };
+  return { width, height, lawns, paths, ponds, decor, lamps, gate };
+}
+
+function distanceToSegment(x: number, y: number, p: { x: number; y: number }, q: { x: number; y: number }) {
+  const dx = q.x - p.x;
+  const dy = q.y - p.y;
+  const len2 = dx * dx + dy * dy || 1;
+  const t = Math.max(0, Math.min(1, ((x - p.x) * dx + (y - p.y) * dy) / len2));
+  return Math.hypot(x - (p.x + t * dx), y - (p.y + t * dy));
 }
 
 /** How far along the park is: lawns with at least one thing, out of all lawns. */
@@ -162,22 +275,43 @@ export function nextZone(counts: Record<ThingKind, number>) {
 }
 
 /**
- * A lawn's organic outline: a closed, smooth blob around a center, slightly
- * different for every lawn so the park never looks stamped out.
+ * A lawn's organic outline: a smooth, slightly wobbly rounded block around a
+ * center, different for every lawn so the park never looks stamped out. It
+ * always holds the `w` by `h` rectangle of what is on the lawn.
  */
+export function lawnPath(cx: number, cy: number, w: number, h: number, seed: number, points = 20) {
+  const a = w / 2;
+  const b = h / 2;
+  const pts = Array.from({ length: points }, (_, i) => {
+    const t = (i / points) * Math.PI * 2;
+    const c = Math.cos(t);
+    const s = Math.sin(t);
+    // A superellipse: a rectangle with soft corners.
+    const wobble = 1 + ((((seed >>> ((i * 3) % 29)) & 7) / 7) * 0.05 - 0.025);
+    return { x: cx + Math.sign(c) * Math.pow(Math.abs(c), 2 / 3) * a * wobble, y: cy + Math.sign(s) * Math.pow(Math.abs(s), 2 / 3) * b * wobble };
+  });
+  return smoothLoop(pts);
+}
+
+/** A round blob, for ponds and the like. */
 export function blobPath(cx: number, cy: number, r: number, seed: number, points = 11) {
   const pts = Array.from({ length: points }, (_, i) => {
     const a = (i / points) * Math.PI * 2;
     const wobble = 0.93 + (((seed >>> ((i * 3) % 29)) & 7) / 7) * 0.07;
     return { x: cx + Math.cos(a) * r * wobble * 1.04, y: cy + Math.sin(a) * r * wobble * 0.97 };
   });
-  // Catmull-Rom through the points, written as cubic curves.
+  return smoothLoop(pts);
+}
+
+/** Catmull-Rom through the points, written as a closed run of cubic curves. */
+function smoothLoop(pts: { x: number; y: number }[]) {
+  const n = pts.length;
   let d = `M${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
-  for (let i = 0; i < points; i++) {
-    const p0 = pts[(i - 1 + points) % points];
+  for (let i = 0; i < n; i++) {
+    const p0 = pts[(i - 1 + n) % n];
     const p1 = pts[i];
-    const p2 = pts[(i + 1) % points];
-    const p3 = pts[(i + 2) % points];
+    const p2 = pts[(i + 1) % n];
+    const p3 = pts[(i + 2) % n];
     const c1 = { x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6 };
     const c2 = { x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6 };
     d += ` C${c1.x.toFixed(1)} ${c1.y.toFixed(1)} ${c2.x.toFixed(1)} ${c2.y.toFixed(1)} ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;

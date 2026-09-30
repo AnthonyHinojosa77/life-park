@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { countByKind, thingKinds, type ThingKind } from "../kinds";
-import { blobPath, buildWorld, countLabel, hash, ITEM_SPACING, itemSpot, lawnRadius, nextZone, progress, stageOf, zones } from "./layout";
+import { blobPath, buildWorld, countLabel, hash, lawnPath, nextZone, onLawn, placeItems, progress, stageOf, zones } from "./layout";
 
 const none = countByKind([]);
 const counts = (c: Partial<Record<ThingKind, number>>) => ({ ...none, ...c });
@@ -16,40 +16,50 @@ describe("park layout", () => {
       const lawns = Object.values(world.lawns);
       expect(lawns).toHaveLength(8);
       for (const l of lawns) {
-        expect(l.x - l.r).toBeGreaterThan(0);
-        expect(l.y - l.r).toBeGreaterThan(0);
-        expect(l.x + l.r).toBeLessThan(world.width);
-        expect(l.y + l.r).toBeLessThan(world.height);
+        expect(l.x - l.w / 2).toBeGreaterThan(0);
+        expect(l.y - l.h / 2).toBeGreaterThan(0);
+        expect(l.x + l.w / 2).toBeLessThan(world.width);
+        expect(l.y + l.h / 2).toBeLessThan(world.height);
       }
       for (const a of lawns) {
         for (const b of lawns) {
           if (a === b) continue;
-          expect(Math.hypot(a.x - b.x, a.y - b.y), `${a.kind} touches ${b.kind}`).toBeGreaterThan(a.r + b.r + 60);
+          const apart = Math.abs(a.x - b.x) > (a.w + b.w) / 2 + 60 || Math.abs(a.y - b.y) > (a.h + b.h) / 2 + 60;
+          expect(apart, `${a.kind} touches ${b.kind}`).toBe(true);
         }
       }
       for (const p of world.ponds) {
-        for (const l of lawns) expect(Math.hypot(p.x - l.x, p.y - l.y)).toBeGreaterThan(l.r + p.rx * 0.5);
+        for (const l of lawns) expect(onLawn(l, p.x, p.y, p.rx * 0.5)).toBe(false);
       }
       for (const d of world.decor) {
-        for (const l of lawns) expect(Math.hypot(d.x - l.x, d.y - l.y)).toBeGreaterThan(l.r);
+        for (const l of lawns) expect(onLawn(l, d.x, d.y)).toBe(false);
       }
+      expect(world.gate.y).toBeLessThan(world.height);
+      expect(world.lamps).toHaveLength(world.paths.length);
     }
   });
 
   it("grows lawns with what is planted, without a cap", () => {
-    expect(lawnRadius(1)).toBeGreaterThanOrEqual(lawnRadius(0));
-    expect(lawnRadius(40)).toBeGreaterThan(lawnRadius(4));
-    expect(lawnRadius(1000)).toBeGreaterThan(lawnRadius(100));
+    const area = (n: number) => placeItems("person", n).w * placeItems("person", n).h;
+    expect(area(1)).toBeGreaterThanOrEqual(area(0));
+    expect(area(40)).toBeGreaterThan(area(4));
+    expect(area(1000)).toBeGreaterThan(area(100));
   });
 
-  it("spreads things over their lawn without crowding or spilling off it", () => {
-    for (const n of [1, 3, 12, 80, 500]) {
-      const r = lawnRadius(n);
-      const spots = Array.from({ length: n }, (_, i) => itemSpot(i));
-      for (const s of spots) expect(Math.hypot(s.x, s.y)).toBeLessThan(r - 40);
-      for (let i = 0; i < spots.length; i++) {
-        for (let j = i + 1; j < Math.min(spots.length, i + 30); j++) {
-          expect(Math.hypot(spots[i].x - spots[j].x, spots[i].y - spots[j].y)).toBeGreaterThan(ITEM_SPACING * 0.45);
+  it("places every thing on its lawn without crowding, below the sign and the landmark", () => {
+    for (const kind of zones.map((z) => z.kind)) {
+      for (const n of [1, 3, 12, 80, 500]) {
+        const p = placeItems(kind, n);
+        expect(p.spots).toHaveLength(n);
+        const lawn = { kind, x: 0, y: 0, w: p.w, h: p.h, r: 0 };
+        for (const s of p.spots) {
+          expect(onLawn(lawn, s.x, s.y), `${kind} ${n}: a thing spilled off the lawn`).toBe(true);
+          expect(s.y, `${kind} ${n}: a thing sits on the landmark`).toBeGreaterThan(p.landmarkY + 30);
+        }
+        for (let i = 0; i < p.spots.length; i++) {
+          for (let j = i + 1; j < Math.min(p.spots.length, i + 30); j++) {
+            expect(Math.hypot(p.spots[i].x - p.spots[j].x, p.spots[i].y - p.spots[j].y), `${kind} ${n}: things ${i} and ${j} overlap`).toBeGreaterThan(38);
+          }
         }
       }
     }
@@ -69,9 +79,10 @@ describe("park layout", () => {
   });
 
   it("draws closed lawn outlines that differ per lawn, and labels counts", () => {
-    const a = blobPath(100, 100, 50, hash("person"));
+    const a = lawnPath(100, 100, 300, 200, hash("person"));
     expect(a.startsWith("M") && a.endsWith("Z")).toBe(true);
-    expect(a).not.toBe(blobPath(100, 100, 50, hash("event")));
+    expect(a).not.toBe(lawnPath(100, 100, 300, 200, hash("event")));
+    expect(blobPath(0, 0, 50, 1).endsWith("Z")).toBe(true);
     expect(countLabel(zones[0], 1)).toBe("1 neighbor");
     expect(countLabel(zones[0], 2)).toBe("2 neighbors");
   });
