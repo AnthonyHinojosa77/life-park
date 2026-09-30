@@ -9,25 +9,29 @@ const SEEN = "lifepark-intro-seen";
 /** Pause on the finished logo before it moves up. */
 const HOLD_MS = 350;
 const MOVE_MS = 750;
-/** Long enough for the last staged piece to finish drawing in. */
-const REVEAL_MS = 1400;
+/** Long enough for the last staged piece to finish drawing in (see globals.css). */
+const REVEAL_MS = 2700;
 
-// Runs before the first paint on a full page load, so a returning visitor (or
-// anyone who prefers less motion) never sees a flash of the big logo.
-const skipScript = `try{if(sessionStorage.getItem("${SEEN}")||matchMedia("(prefers-reduced-motion: reduce)").matches)document.currentScript.parentElement.setAttribute("data-intro","done")}catch(e){}`;
+// Runs before the first paint on a full page load, so a returning visitor never
+// sees a flash of the big logo: they go straight to the page drawing in, and
+// anyone who prefers less motion goes straight to the finished page.
+const skipScript = `try{var e=document.currentScript.parentElement;if(matchMedia("(prefers-reduced-motion: reduce)").matches)e.setAttribute("data-intro","done");else if(localStorage.getItem("${SEEN}"))e.setAttribute("data-intro","reveal")}catch(e){}`;
 
-function shouldSkip() {
+/** Where to start: the full intro the first time, the page drawing in after that. */
+function startPhase(): Phase {
   try {
-    return Boolean(sessionStorage.getItem(SEEN)) || matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return "done";
+    return localStorage.getItem(SEEN) ? "reveal" : "draw";
   } catch {
-    return false;
+    return "draw";
   }
 }
 
 /**
- * The sign-in and sign-up intro, once per visit: the LifePark name and tree
- * are drawn large in the middle of the screen, then shrink into their spot at
- * the top, and the rest of the page draws in after. Tap anywhere to skip.
+ * The sign-in and sign-up intro. The first time on this device, the LifePark
+ * name and tree are drawn large in the middle of the screen, then shrink into
+ * their spot at the top; every time, the rest of the page draws in after.
+ * Tap the big logo to skip it.
  */
 export function AuthIntro({ children }: { children: ReactNode }) {
   const [phase, setPhase] = useState<Phase>("draw");
@@ -43,9 +47,10 @@ export function AuthIntro({ children }: { children: ReactNode }) {
 
   // Decide before paint on client-side navigations, too.
   useLayoutEffect(() => {
-    // Returning visitors and reduced-motion users go straight to the page.
+    // Returning visitors skip the logo; reduced-motion users skip it all.
+    const start = startPhase();
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (shouldSkip()) setPhase("done");
+    if (start !== "draw") setPhase(start);
   }, []);
 
   useEffect(() => {
@@ -53,7 +58,7 @@ export function AuthIntro({ children }: { children: ReactNode }) {
     const overlay = overlayRef.current;
     if (!overlay) return;
     try {
-      sessionStorage.setItem(SEEN, "1");
+      localStorage.setItem(SEEN, "1");
     } catch {}
     let cancelled = false;
     const drawing = overlay.getAnimations({ subtree: true }).map((a) => a.finished.catch(() => undefined));

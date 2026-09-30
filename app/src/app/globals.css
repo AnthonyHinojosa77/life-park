@@ -135,12 +135,13 @@ a:hover .park-sign, [role="button"]:hover .park-sign { transform: scale(1.03); }
 .intro-badge-fill { animation: intro-pop 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 
 @keyframes intro-sweep-on { from { --intro-sweep: 0deg; } to { --intro-sweep: 360deg; } }
-.intro-sweep,
-.intro-card-outline {
+/* Only masked while drawing, so a finished outline is always whole. */
+.intro-overlay .intro-sweep,
+[data-intro="reveal"] .intro-card-outline {
   -webkit-mask-image: conic-gradient(from -90deg, #000 var(--intro-sweep), transparent 0);
   mask-image: conic-gradient(from -90deg, #000 var(--intro-sweep), transparent 0);
 }
-.intro-sweep { animation: intro-sweep-on 0.7s ease-in-out 0.2s both; }
+.intro-overlay .intro-sweep { animation: intro-sweep-on 0.7s ease-in-out 0.2s both; }
 
 @keyframes intro-stroke { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
 .intro-trunk,
@@ -167,17 +168,20 @@ a:hover .park-sign, [role="button"]:hover .park-sign { transform: scale(1.03); }
 [data-intro="move"] [data-intro-target] {
   opacity: 0;
 }
+[data-intro="reveal"] .intro-overlay,
 [data-intro="done"] .intro-overlay { display: none; }
 
 @keyframes intro-in {
   from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: none; }
 }
+/* Unhurried: the last piece (step 5) starts at 1.5s and lands by 2.5s. */
 [data-intro="reveal"] [data-intro-step] {
-  animation: intro-in 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-  animation-delay: calc(var(--step, 0) * 120ms);
+  animation: intro-in 1s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(var(--step, 0) * 300ms);
 }
-[data-intro="reveal"] .intro-card-outline { animation: intro-sweep-on 0.8s ease-in-out 0.2s both; }
+/* The card's crayon outline traces itself around the card as it arrives. */
+[data-intro="reveal"] .intro-card-outline { animation: intro-sweep-on 1.4s ease-in-out 0.5s both; }
 
 @media (prefers-reduced-motion: reduce) {
   .intro-overlay { display: none; }
