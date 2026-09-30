@@ -14,10 +14,28 @@ function check(condition, message) {
   if (!condition) throw new Error(message);
 }
 
-// Signed out: everything leads to sign-in.
-await page.goto(base + "/", { waitUntil: "networkidle" });
+// Signed out: everything leads to sign-in, which opens with the intro once per visit:
+// the logo draws itself big, shrinks into its spot at the top, then the page draws in.
+await page.goto(base + "/", { waitUntil: "domcontentloaded" });
 check(page.url().endsWith("/sign-in"), `expected redirect to /sign-in, got ${page.url()}`);
+await page.locator("[data-intro-overlay]").waitFor({ state: "visible", timeout: 5000 });
+await page.screenshot({ path: `${dir}/auth-intro.png` });
+await page.locator("[data-intro-overlay]").waitFor({ state: "detached", timeout: 15000 });
+await page.locator('[data-intro="done"]').waitFor({ state: "attached", timeout: 5000 });
+check((await page.locator("[data-intro-target]").evaluate((el) => getComputedStyle(el).opacity)) === "1", "wordmark hidden after the intro");
 await page.screenshot({ path: `${dir}/auth-sign-in.png` });
+// The same visit never replays it, whether by link or reload.
+await page.getByRole("link", { name: "Create an account" }).click();
+await page.waitForURL("**/sign-up");
+check((await page.locator("[data-intro-overlay]").count()) === 0, "intro replayed on sign-up in the same visit");
+await page.reload({ waitUntil: "domcontentloaded" });
+check((await page.locator('[data-intro="done"]').count()) === 1, "intro replayed after a reload in the same visit");
+// People who ask for less motion never see it.
+const calm = await browser.newPage({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+await calm.goto(base + "/sign-in", { waitUntil: "domcontentloaded" });
+check((await calm.locator('[data-intro="done"]').count()) === 1, "intro played despite reduced motion");
+await calm.getByLabel("Email").waitFor();
+await calm.close();
 await page.goto(base + "/chats", { waitUntil: "networkidle" });
 check(page.url().endsWith("/sign-in"), "protected page did not redirect when signed out");
 

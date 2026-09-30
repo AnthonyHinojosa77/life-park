@@ -2,6 +2,11 @@ import { ChalkFill, ChalkOutline, chalk } from "@/components/ui/chalk";
 
 type WordmarkProps = {
   size?: "sm" | "md" | "lg";
+  /**
+   * Draws itself in: the badge colors in, its outline and the tree are drawn
+   * stroke by stroke, then the name is written out. Used by the sign-in intro.
+   */
+  drawn?: boolean;
 };
 
 const sizes = {
@@ -10,8 +15,8 @@ const sizes = {
   lg: { badge: 56, icon: 30, text: "text-[40px]", gap: "gap-3.5" },
 } as const;
 
-/** The LifePark wordmark: a stamped leaf badge next to the serif name. */
-export function Wordmark({ size = "md" }: WordmarkProps) {
+/** The LifePark wordmark: a stamped tree badge next to the serif name. */
+export function Wordmark({ size = "md", drawn = false }: WordmarkProps) {
   const s = sizes[size];
   return (
     <div className={`flex items-center ${s.gap}`}>
@@ -20,16 +25,29 @@ export function Wordmark({ size = "md" }: WordmarkProps) {
         className="relative isolate flex items-center justify-center rounded-[14px]"
         style={{ width: s.badge, height: s.badge }}
       >
-        <ChalkFill color={chalk.grassLight} radius={12} />
-        <ChalkOutline radius={12} width={2} />
-        <LeafIcon size={s.icon} />
+        {drawn ? (
+          <>
+            <span className="intro-badge-fill absolute inset-0 -z-10">
+              <ChalkFill color={chalk.grassLight} radius={12} />
+            </span>
+            <span className="intro-sweep absolute inset-0 -z-10">
+              <ChalkOutline radius={12} width={2} />
+            </span>
+          </>
+        ) : (
+          <>
+            <ChalkFill color={chalk.grassLight} radius={12} />
+            <ChalkOutline radius={12} width={2} />
+          </>
+        )}
+        <TreeIcon size={s.icon} drawn={drawn} />
       </span>
-      <span className={`font-serif tracking-tight ${s.text}`}>LifePark</span>
+      <span className={`font-serif tracking-tight ${s.text} ${drawn ? "intro-write" : ""}`}>LifePark</span>
     </div>
   );
 }
 
-function LeafIcon({ size }: { size: number }) {
+function TreeIcon({ size, drawn }: { size: number; drawn: boolean }) {
   return (
     <svg
       width={size}
@@ -41,8 +59,12 @@ function LeafIcon({ size }: { size: number }) {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <path d="M12 21v-7" />
-      <path d="M6 14c-2.2 0-4-1.8-4-4 0-1.8 1.2-3.3 2.8-3.8C5.2 3.6 7.4 2 10 2c2 0 3.8 1 4.8 2.6C17.7 4.9 20 7.2 20 10c0 2.2-1.8 4-4 4H6z" />
+      <path d="M12 21v-7" pathLength={drawn ? 1 : undefined} className={drawn ? "intro-trunk" : undefined} />
+      <path
+        d="M6 14c-2.2 0-4-1.8-4-4 0-1.8 1.2-3.3 2.8-3.8C5.2 3.6 7.4 2 10 2c2 0 3.8 1 4.8 2.6C17.7 4.9 20 7.2 20 10c0 2.2-1.8 4-4 4H6z"
+        pathLength={drawn ? 1 : undefined}
+        className={drawn ? "intro-canopy" : undefined}
+      />
     </svg>
   );
 }

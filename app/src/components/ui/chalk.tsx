@@ -162,9 +162,19 @@ export function ChalkFill({ color, radius = 12, opacity = 1, solid = false, text
 }
 
 /** A chalk-drawn outline around its parent. The parent needs `relative isolate`. */
-export function ChalkOutline({ color = chalk.ink, radius = 12, width = 2.5 }: { color?: string; radius?: number | string; width?: number }) {
+export function ChalkOutline({
+  color = chalk.ink,
+  radius = 12,
+  width = 2.5,
+  className = "",
+}: {
+  color?: string;
+  radius?: number | string;
+  width?: number;
+  className?: string;
+}) {
   return (
-    <svg className="pointer-events-none absolute inset-0 -z-10 h-full w-full overflow-visible" aria-hidden="true">
+    <svg className={`pointer-events-none absolute inset-0 -z-10 h-full w-full overflow-visible ${className}`} aria-hidden="true">
       <rect width="100%" height="100%" rx={radius} fill="none" stroke={color} strokeWidth={width} filter="url(#chalk-line)" />
     </svg>
   );

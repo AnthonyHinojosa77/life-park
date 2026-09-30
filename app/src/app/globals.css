@@ -104,3 +104,83 @@ a:hover .park-sign, [role="button"]:hover .park-sign { transform: scale(1.03); }
 @media (prefers-reduced-motion: reduce) {
   .park-duck { animation: none; }
 }
+
+/* The sign-in intro: the logo draws itself big, shrinks into place, then the page draws in. */
+@property --intro-sweep {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+.intro-mark {
+  position: fixed;
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%) scale(var(--intro-scale));
+  /* Big enough that the mark spans most of the screen width. */
+  --intro-scale: 2.35;
+}
+@media (min-width: 380px) { .intro-mark { --intro-scale: 2.55; } }
+@media (min-width: 640px) { .intro-mark { --intro-scale: 3.4; } }
+@media (min-width: 1024px) { .intro-mark { --intro-scale: 4.2; } }
+/* The tree starts centered on its own, then slides over as the name is written beside it.
+   50% of the wordmark's width, less half the 40px badge, puts the badge in the middle. */
+@keyframes intro-center { from { transform: translateX(calc(50% - 20px)); } to { transform: none; } }
+.intro-mark > div { animation: intro-center 0.9s cubic-bezier(0.45, 0, 0.25, 1) 1.2s both; }
+
+@keyframes intro-pop {
+  from { opacity: 0; transform: scale(0.55) rotate(-6deg); }
+  70% { opacity: 1; transform: scale(1.07) rotate(1deg); }
+  to { opacity: 1; transform: scale(1) rotate(0); }
+}
+.intro-badge-fill { animation: intro-pop 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+@keyframes intro-sweep-on { from { --intro-sweep: 0deg; } to { --intro-sweep: 360deg; } }
+.intro-sweep,
+.intro-card-outline {
+  -webkit-mask-image: conic-gradient(from -90deg, #000 var(--intro-sweep), transparent 0);
+  mask-image: conic-gradient(from -90deg, #000 var(--intro-sweep), transparent 0);
+}
+.intro-sweep { animation: intro-sweep-on 0.7s ease-in-out 0.2s both; }
+
+@keyframes intro-stroke { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+.intro-trunk,
+.intro-canopy { stroke-dasharray: 1; stroke-dashoffset: 1; }
+.intro-trunk { animation: intro-stroke 0.4s ease-out 0.5s forwards; }
+.intro-canopy { animation: intro-stroke 0.9s ease-in-out 0.8s forwards; }
+
+/* The name is written out left to right, with a soft pen edge. */
+@keyframes intro-write-on { from { -webkit-mask-position: 100% 0; mask-position: 100% 0; } to { -webkit-mask-position: 0 0; mask-position: 0 0; } }
+.intro-write {
+  -webkit-mask-image: linear-gradient(90deg, #000 45%, transparent 55%);
+  mask-image: linear-gradient(90deg, #000 45%, transparent 55%);
+  -webkit-mask-size: 240% 100%;
+  mask-size: 240% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  animation: intro-write-on 1s ease-in-out 1.35s both;
+}
+
+/* While the logo is on its own, the page waits unseen underneath, keeping its layout. */
+[data-intro="draw"] [data-intro-step],
+[data-intro="move"] [data-intro-step],
+[data-intro="draw"] [data-intro-target],
+[data-intro="move"] [data-intro-target] {
+  opacity: 0;
+}
+[data-intro="done"] .intro-overlay { display: none; }
+
+@keyframes intro-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+[data-intro="reveal"] [data-intro-step] {
+  animation: intro-in 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(var(--step, 0) * 120ms);
+}
+[data-intro="reveal"] .intro-card-outline { animation: intro-sweep-on 0.8s ease-in-out 0.2s both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-overlay { display: none; }
+  [data-intro] [data-intro-step],
+  [data-intro] [data-intro-target] { opacity: 1 !important; animation: none !important; }
+}
