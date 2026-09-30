@@ -12,13 +12,32 @@ import {
   useState,
   type KeyboardEvent,
   type PointerEvent,
+  type ReactNode,
 } from "react";
 import type { ThingKind } from "@/lib/kinds";
-import { buildWorld, countLabel, hash, lawnPath, placeLawn, SAMPLE_SCALE, stageOf, streamPath, waterPath, zones, type Placement, type World, type Zone } from "@/lib/park/layout";
+import {
+  buildWorld,
+  countLabel,
+  hash,
+  lawnPath,
+  placeLawn,
+  spacingOf,
+  stageOf,
+  streamPath,
+  waterPath,
+  zones,
+  type Curve,
+  type Placement,
+  type World,
+  type Zone,
+} from "@/lib/park/layout";
 import type { Group } from "@/lib/park/groups";
 import type { ParkThing } from "@/lib/things";
 import { countByKind } from "@/lib/kinds";
 import { Bridge, DecorFigure, Figure, FurnitureFigure, Gate, INK, Lamp, Landmark, RowDressing } from "./park-figures";
+
+/** Screen space taken by what floats over the map's edges, so fitting never hides anything. */
+export type Insets = { top: number; bottom: number; right: number };
 
 type Props = {
   things: ParkThing[];
@@ -33,8 +52,8 @@ type Props = {
   /** The lawn whose categories are showing, and the category showing everything in it. */
   openLawn: ThingKind | null;
   openGroup: string | null;
-  selectedLawn: ThingKind | null;
   selectedThing: string | null;
+  insets: Insets;
   onSelectLawn: (kind: ThingKind) => void;
   onOpenGroup: (kind: ThingKind, id: string | null) => void;
   onSelectThing: (thing: ParkThing) => void;
@@ -57,7 +76,8 @@ type Camera = { x: number; y: number; k: number };
 
 const LAWN = "#bfe3b4";
 const LAWN_STRIPE = "#b0d9a4";
-const LAWN_EDGE = "#7fbf83";
+const LAWN_EMPTY = "#cfe6c4";
+const HEDGE = "#6faa73";
 const MEADOW = "#d7e8c8";
 const MEADOW_DARK = "#c9dfb6";
 const PATH = "#efe3c4";
@@ -65,31 +85,33 @@ const PATH_EDGE = "#dccb9f";
 const WATER = "#a9d3ea";
 const WATER_DEEP = "#8fc3e2";
 const SHORE = "#efe0b8";
+const PLOT = "#cfe8c2";
 const MAX_ZOOM = 2.6;
 
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
-/** Screen space taken by the panels floating over the map's top and bottom edges. */
-const INSET_TOP = 124;
-const INSET_BOTTOM = 92;
+/** How much detail to draw: far shows shapes, mid signs, near the names on open plots, close every name. */
+type Lod = "far" | "mid" | "near" | "close";
+const lodFor = (k: number): Lod => (k < 0.16 ? "far" : k < 0.6 ? "mid" : k < 0.9 ? "near" : "close");
 
-/** How much detail to draw: far shows the shapes, mid the signs, near the names on every thing. */
-type Lod = "far" | "mid" | "near";
-const lodFor = (k: number): Lod => (k < 0.24 ? "far" : k < 0.6 ? "mid" : "near");
-
-function lawnView(world: World, kind: ThingKind, w: number, h: number): Camera {
-  const l = world.lawns[kind];
-  // One lawn fills the open space between the floating panels, with a little meadow around it.
-  const open = Math.max(200, h - INSET_TOP - INSET_BOTTOM);
-  const k = Math.min(MAX_ZOOM, w / (l.w * 1.08), open / (l.h * 1.08));
-  const screenY = INSET_TOP + open / 2;
-  return { x: l.x, y: l.y - (screenY - h / 2) / k, k };
+/** A camera that fits a `w` by `h` box centered on `x`,`y` into the open part of the screen. */
+function fitView(x: number, y: number, w: number, h: number, size: { w: number; h: number }, insets: Insets): Camera {
+  const openW = Math.max(160, size.w - insets.right);
+  const openH = Math.max(200, size.h - insets.top - insets.bottom);
+  const k = Math.min(MAX_ZOOM, openW / w, openH / h);
+  // The box sits in the middle of the open space, not the screen.
+  return { x: x - (openW / 2 - size.w / 2) / k, y: y - (insets.top + openH / 2 - size.h / 2) / k, k };
 }
 
-function worldView(world: World, w: number, h: number): Camera {
-  const open = Math.max(200, h - INSET_TOP - INSET_BOTTOM);
-  const k = Math.min(w / world.width, open / world.height) * 0.98;
-  return { x: world.width / 2, y: world.height / 2 - (INSET_TOP + open / 2 - h / 2) / k, k };
+function lawnView(world: World, kind: ThingKind, size: { w: number; h: number }, insets: Insets, place?: Placement): Camera {
+  const l = world.lawns[kind];
+  const w = place?.w ?? l.w;
+  const h = place?.h ?? l.h;
+  return fitView(l.x, l.y, w * 1.08, h * 1.08, size, insets);
+}
+
+function worldView(world: World, size: { w: number; h: number }, insets: Insets): Camera {
+  return fitView(world.width / 2, world.height / 2, world.width * 1.02, world.height * 1.02, size, insets);
 }
 
 const activate = (fn: () => void) => (e: KeyboardEvent) => {
@@ -99,11 +121,18 @@ const activate = (fn: () => void) => (e: KeyboardEvent) => {
   }
 };
 
-const short = (s: string, n = 18) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+/** Darkens a hex color toward ink, for text that has to read on cream. */
+function inked(hex: string, amount = 0.5) {
+  const n = parseInt(hex.slice(1), 16);
+  const ink = [0x2b, 0x3a, 0x31];
+  const c = [n >> 16, (n >> 8) & 255, n & 255].map((v, i) => Math.round(v * (1 - amount) + ink[i] * amount));
+  return `#${c.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+}
 
-/** A name tag under a thing, sized to its text. */
-function NameTag({ text, y }: { text: string; y: number }) {
-  const label = short(text);
+/** A name tag under a thing, no wider than the room the thing has. */
+function NameTag({ text, y, maxW }: { text: string; y: number; maxW: number }) {
+  const fit = Math.max(3, Math.floor((maxW - 20) / 7.4));
+  const label = text.length > fit ? `${text.slice(0, fit - 1)}…` : text;
   const w = label.length * 7.4 + 20;
   return (
     <g transform={`translate(0 ${y})`} pointerEvents="none">
@@ -116,23 +145,47 @@ function NameTag({ text, y }: { text: string; y: number }) {
 }
 
 /** A lawn's wooden sign: its name and how much is on it. */
-function Sign({ z, n, x, y, scale = 1 }: { z: Zone; n: number; x: number; y: number; scale?: number }) {
+function Sign({ z, n, y, scale = 1, brief = false }: { z: Zone; n: number; y: number; scale?: number; brief?: boolean }) {
   const title = z.name;
   const sub = n > 0 ? countLabel(z, n) : z.sign;
-  const w = Math.max(title.length * 15, sub.length * 8.6) + 44;
+  const w = signWidth(z, n);
+  const h = brief ? 40 : 56;
   return (
-    <g transform={`translate(${x} ${y}) scale(${scale})`}>
-      <rect x={-w / 2 + 18} y={30} width={7} height={34} fill="#7d5234" stroke={INK} strokeWidth={1.6} />
-      <rect x={w / 2 - 25} y={30} width={7} height={34} fill="#7d5234" stroke={INK} strokeWidth={1.6} />
-      <rect x={-w / 2} y={-30} width={w} height={64} rx={10} fill="#f4e0b0" stroke={INK} strokeWidth={2.4} />
-      <rect x={-w / 2 + 5} y={-25} width={w - 10} height={54} rx={7} fill="none" stroke="#d8bd84" strokeWidth={1.5} />
-      <circle cx={-w / 2 + 12} cy={-18} r={2.2} fill={INK} opacity={0.5} />
-      <circle cx={w / 2 - 12} cy={-18} r={2.2} fill={INK} opacity={0.5} />
-      <text y={2} textAnchor="middle" className="font-serif" fontSize={27} fill={INK}>
+    <g transform={`translate(0 ${y}) scale(${scale})`}>
+      <rect x={-w / 2 + 16} y={h / 2 - 4} width={7} height={30} fill="#7d5234" stroke={INK} strokeWidth={1.6} />
+      <rect x={w / 2 - 23} y={h / 2 - 4} width={7} height={30} fill="#7d5234" stroke={INK} strokeWidth={1.6} />
+      <rect x={-w / 2} y={-h / 2} width={w} height={h} rx={9} fill="#f4e0b0" stroke={INK} strokeWidth={2.2} />
+      <rect x={-w / 2 + 5} y={-h / 2 + 5} width={w - 10} height={h - 10} rx={6} fill="none" stroke="#d8bd84" strokeWidth={1.4} />
+      <text y={brief ? 7 : -3} textAnchor="middle" className="font-serif" fontSize={24} fill={INK}>
         {title}
       </text>
-      <text y={22} textAnchor="middle" fontSize={13} fontWeight={800} fill={z.accent}>
-        {sub}
+      {!brief && (
+        <>
+          <circle cx={-(sub.length * 6.6) / 2 - 8} cy={14} r={4} fill={z.accent} stroke={INK} strokeWidth={1} />
+          <text x={4} y={18} textAnchor="middle" fontSize={12} fontWeight={800} fill={inked(z.accent)}>
+            {sub}
+          </text>
+        </>
+      )}
+    </g>
+  );
+}
+
+function signWidth(z: Zone, n: number) {
+  const sub = n > 0 ? countLabel(z, n) : z.sign;
+  return Math.max(z.name.length * 12.5, sub.length * 6.6 + 24) + 40;
+}
+
+/** A category's little sign on its plot. */
+function PlotSign({ name, n, open, accent }: { name: string; n: number; open: boolean; accent: string }) {
+  const label = `${name} · ${n}`;
+  const w = label.length * 8 + 36;
+  return (
+    <g>
+      <rect x={-w / 2} y={-15} width={w} height={30} rx={15} fill={open ? INK : "#fffaf0"} stroke={INK} strokeWidth={2} />
+      <circle cx={-w / 2 + 15} cy={0} r={5} fill={accent} stroke={open ? "#fffaf0" : INK} strokeWidth={1.2} />
+      <text x={7} y={5} textAnchor="middle" fontSize={14} fontWeight={800} fill={open ? "#fffaf0" : INK}>
+        {label}
       </text>
     </g>
   );
@@ -141,10 +194,10 @@ function Sign({ z, n, x, y, scale = 1 }: { z: Zone; n: number; x: number; y: num
 /**
  * Someone's life as a park they move around like a maps app: one lawn fills
  * the screen, and dragging, pinching, scrolling, or double-tapping moves and
- * zooms to the others. Each lawn holds one kind of thing and grows with it.
+ * zooms to the others. Each lawn is one place; opened, it shows its categories.
  */
 export const ParkMap = forwardRef<ParkMapHandle, Props>(function ParkMap(
-  { things, parkName, now, startAt, groups, openLawn, openGroup, selectedLawn, selectedThing, onSelectLawn, onOpenGroup, onSelectThing, emptyAction, onCenterLawn },
+  { things, parkName, now, startAt, groups, openLawn, openGroup, selectedThing, insets, onSelectLawn, onOpenGroup, onSelectThing, emptyAction, onCenterLawn },
   ref,
 ) {
   const boxRef = useRef<HTMLDivElement>(null);
@@ -165,19 +218,27 @@ export const ParkMap = forwardRef<ParkMapHandle, Props>(function ParkMap(
   } | null>(null);
   const lastTap = useRef<{ t: number; x: number; y: number } | null>(null);
   const centered = useRef<ThingKind | null>(null);
+  const skipRefit = useRef(false);
 
   const ready = cam !== null;
   const counts = useMemo(() => countByKind(things), [things]);
-  // Every lawn's layout, which depends on what is open, and the park laid out around them.
-  const placements = useMemo(() => {
-    const out = {} as Record<ThingKind, Placement>;
-    for (const z of zones) {
-      const g = groups[z.kind].map((x) => ({ id: x.id, count: x.things.length }));
-      out[z.kind] = placeLawn(z.kind, g, openLawn === z.kind, openLawn === z.kind ? openGroup : null);
-    }
+  const groupCounts = useMemo(() => {
+    const out = {} as Record<ThingKind, { id: string; count: number }[]>;
+    for (const z of zones) out[z.kind] = groups[z.kind].map((g) => ({ id: g.id, count: g.things.length }));
     return out;
-  }, [groups, openLawn, openGroup]);
-  const world = useMemo(() => buildWorld(placements), [placements]);
+  }, [groups]);
+  // The park is laid out once from every lawn closed; it never moves when one opens.
+  const world = useMemo(() => {
+    const sizes = {} as Record<ThingKind, { w: number; h: number }>;
+    for (const z of zones) {
+      const p = placeLawn(z.kind, groupCounts[z.kind], false, null);
+      sizes[z.kind] = { w: p.w, h: p.h };
+    }
+    return buildWorld(sizes, parkName);
+  }, [groupCounts, parkName]);
+  const closedPlacement = useMemo(() => placeLawn("person", [], false, null), []);
+  // The open lawn's own layout, drawn bigger over its spot.
+  const openPlacement = useMemo(() => (openLawn ? placeLawn(openLawn, groupCounts[openLawn], true, openGroup) : null), [openLawn, openGroup, groupCounts]);
   const byKind = useMemo(() => {
     const m = new Map<ThingKind, ParkThing[]>();
     for (const t of things) m.set(t.kind, [...(m.get(t.kind) ?? []), t]);
@@ -196,7 +257,7 @@ export const ParkMap = forwardRef<ParkMapHandle, Props>(function ParkMap(
   const clamp = useCallback(
     (c: Camera): Camera => {
       if (!size) return c;
-      const fit = worldView(world, size.w, size.h).k;
+      const fit = worldView(world, size, insets).k;
       const k = Math.min(MAX_ZOOM, Math.max(fit * 0.9, c.k));
       // Keep some of the park on screen wherever you drag.
       const mx = size.w / 2 / k;
@@ -207,7 +268,7 @@ export const ParkMap = forwardRef<ParkMapHandle, Props>(function ParkMap(
         y: Math.min(world.height - Math.min(my, world.height / 2) * 0.2, Math.max(Math.min(my, world.height / 2) * 0.2, c.y)),
       };
     },
-    [size, world],
+    [size, world, insets],
   );
 
   const apply = useCallback(
@@ -248,11 +309,16 @@ export const ParkMap = forwardRef<ParkMapHandle, Props>(function ParkMap(
   useImperativeHandle(
     ref,
     () => ({
-      flyTo: (kind) => size && glide(lawnView(world, kind, size.w, size.h)),
-      overview: () => size && glide(worldView(world, size.w, size.h)),
+      flyTo: (kind) => {
+        if (!size) return;
+        // A jump wins over the refit that closing a lawn would otherwise make.
+        skipRefit.current = true;
+        glide(lawnView(world, kind, size, insets, kind === openLawn && openPlacement ? openPlacement : undefined));
+      },
+      overview: () => size && glide(worldView(world, size, insets)),
       zoomBy: (f) => camRef.current && glide({ ...camRef.current, k: camRef.current.k * f }, 280),
     }),
-    [size, world, glide],
+    [size, world, glide, insets, openLawn, openPlacement],
   );
 
   // Measure the screen area, and start on the first lawn once it is known.
@@ -271,34 +337,36 @@ export const ParkMap = forwardRef<ParkMapHandle, Props>(function ParkMap(
 
   useEffect(() => {
     if (!size || camRef.current) return;
-    const start = lawnView(world, startAt, size.w, size.h);
+    const start = lawnView(world, startAt, size, insets);
     camRef.current = start;
     // The first camera can only be chosen once the screen size is known.
     setCam(start);
-  }, [size, world, startAt]);
+  }, [size, world, startAt, insets]);
 
-  // Whatever opens, fly to fit it: a lawn's categories, or one category's things.
-  const opened = useRef<string | null>(null);
+  // Whatever opens, fly to fit it: a lawn's categories, or one category's
+  // things. When a lawn closes, fly back to it at its closed size.
+  const opened = useRef<{ lawn: ThingKind | null; group: string | null }>({ lawn: null, group: null });
   useEffect(() => {
     if (!size || !camRef.current) return;
-    const key = openLawn ? `${openLawn}/${openGroup ?? ""}` : null;
-    if (key === opened.current) return;
-    opened.current = key;
-    if (!openLawn) return;
+    const prev = opened.current;
+    if (prev.lawn === openLawn && prev.group === openGroup) return;
+    opened.current = { lawn: openLawn, group: openGroup };
+    if (!openLawn) {
+      if (prev.lawn && !skipRefit.current) glide(lawnView(world, prev.lawn, size, insets));
+      skipRefit.current = false;
+      return;
+    }
     const l = world.lawns[openLawn];
-    const plot = openGroup ? placements[openLawn].plots.find((p) => p.id === openGroup) : null;
-    const open = Math.max(200, size.h - INSET_TOP - INSET_BOTTOM);
-    if (plot) {
-      const k = Math.min(MAX_ZOOM, size.w / (plot.w * 1.1), open / ((plot.h + 60) * 1.1));
-      glide({ x: l.x + plot.x, y: l.y + plot.y - (INSET_TOP + open / 2 - size.h / 2) / k, k });
-    } else glide(lawnView(world, openLawn, size.w, size.h));
-  }, [openLawn, openGroup, world, placements, size, glide]);
+    const plot = openGroup && openPlacement ? openPlacement.plots.find((p) => p.id === openGroup) : null;
+    if (plot) glide(fitView(l.x + plot.x, l.y + plot.y, plot.w * 1.12, plot.h * 1.12 + 40, size, insets));
+    else glide(lawnView(world, openLawn, size, insets, openPlacement ?? undefined));
+  }, [openLawn, openGroup, world, openPlacement, size, glide, insets]);
 
   // Tell the parent which lawn is in the middle of the open space as the map moves.
   useEffect(() => {
     if (!cam || !onCenterLawn || !size) return;
-    const open = Math.max(200, size.h - INSET_TOP - INSET_BOTTOM);
-    const midY = cam.y + (INSET_TOP + open / 2 - size.h / 2) / cam.k;
+    const open = Math.max(200, size.h - insets.top - insets.bottom);
+    const midY = cam.y + (insets.top + open / 2 - size.h / 2) / cam.k;
     let best: ThingKind = startAt;
     let bestD = Infinity;
     for (const l of Object.values(world.lawns)) {
@@ -312,7 +380,7 @@ export const ParkMap = forwardRef<ParkMapHandle, Props>(function ParkMap(
       centered.current = best;
       onCenterLawn(best);
     }
-  }, [cam, world, onCenterLawn, startAt, size]);
+  }, [cam, world, onCenterLawn, startAt, size, insets]);
 
   // Scroll wheel and trackpad zoom around the pointer. Needs a non-passive listener.
   useEffect(() => {
@@ -426,8 +494,8 @@ export const ParkMap = forwardRef<ParkMapHandle, Props>(function ParkMap(
 
   const k = cam?.k ?? 1;
   const lod = lodFor(k);
-  // Zoomed far out, signs grow in half steps so they still read, like labels on a map.
-  const signScale = lod === "far" ? Math.min(2.5, Math.max(1, Math.round((0.5 / k) * 2) / 2)) : 1;
+  // Zoomed out, signs grow in half steps so they still read, like labels on a map.
+  const signScale = k < 0.34 ? Math.min(1.8, Math.max(1, Math.round((0.34 / k) * 2) / 2)) : 1;
   const summary = zones.map((z) => countLabel(z, counts[z.kind])).join(", ");
 
   // The scene only re-renders when what is on it changes, never while the camera moves.
@@ -440,11 +508,12 @@ export const ParkMap = forwardRef<ParkMapHandle, Props>(function ParkMap(
       onSelectLawn: (kind: ThingKind) => handlers.current.onSelectLawn(kind),
       onOpenGroup: (kind: ThingKind, id: string | null) => handlers.current.onOpenGroup(kind, id),
       onSelectThing: (t: ParkThing) => handlers.current.onSelectThing(t),
-      emptyAction: (z: Zone) => handlers.current.emptyAction(z),
+      // Looked up at the moment of the tap, so it is never stale.
+      emptyAction: (z: Zone) => handlers.current.emptyAction(z)?.(),
     }),
     [],
   );
-  // What the empty lawns offer can change (say, once Google is connected), so ask again per render of the parent.
+  // Which empty lawns have something to offer can change (say, once Google is connected).
   const emptyKinds = zones.filter((z) => counts[z.kind] === 0 && emptyAction(z) !== null).map((z) => z.kind).join(",");
 
   return (
@@ -466,6 +535,9 @@ export const ParkMap = forwardRef<ParkMapHandle, Props>(function ParkMap(
             <pattern id="meadow" width="46" height="46" patternUnits="userSpaceOnUse">
               <path d="M8 30 l2 -6 l2 6 M30 12 l2 -6 l2 6" fill="none" stroke="#b9d3a6" strokeWidth={1.6} strokeLinecap="round" />
             </pattern>
+            <pattern id="meadow2" width="71" height="97" patternUnits="userSpaceOnUse" patternTransform="rotate(23)">
+              <path d="M14 60 l2 -7 l2 7 M52 22 l2 -7 l2 7 M40 84 l2 -6 l2 6" fill="none" stroke="#bfd8ad" strokeWidth={1.5} strokeLinecap="round" />
+            </pattern>
             <pattern id="mowed" width="64" height="64" patternUnits="userSpaceOnUse" patternTransform="rotate(-18)">
               <rect width="32" height="64" fill={LAWN_STRIPE} opacity={0.55} />
             </pattern>
@@ -484,16 +556,15 @@ export const ParkMap = forwardRef<ParkMapHandle, Props>(function ParkMap(
           <g transform={`translate(${size.w / 2 - cam.x * k} ${size.h / 2 - cam.y * k}) scale(${k})`}>
             <Scene
               world={world}
-              placements={placements}
               groups={groups}
               openLawn={openLawn}
-              openGroup={openGroup}
+              openPlacement={openPlacement}
+              closedPlacement={closedPlacement}
               byKind={byKind}
               now={now}
               lod={lod}
               signScale={signScale}
               parkName={parkName}
-              selectedLawn={selectedLawn}
               selectedThing={selectedThing}
               emptyKinds={emptyKinds}
               {...stable}
@@ -507,68 +578,192 @@ export const ParkMap = forwardRef<ParkMapHandle, Props>(function ParkMap(
 
 type SceneProps = {
   world: World;
-  placements: Record<ThingKind, Placement>;
   groups: Record<ThingKind, Group[]>;
   openLawn: ThingKind | null;
-  openGroup: string | null;
+  openPlacement: Placement | null;
+  closedPlacement: Placement;
   byKind: Map<ThingKind, ParkThing[]>;
   now: number;
   lod: Lod;
   signScale: number;
   parkName: string;
-  selectedLawn: ThingKind | null;
   selectedThing: string | null;
   emptyKinds: string;
   onSelectLawn: (kind: ThingKind) => void;
   onOpenGroup: (kind: ThingKind, id: string | null) => void;
   onSelectThing: (thing: ParkThing) => void;
-  emptyAction: (zone: Zone) => (() => void) | null;
+  emptyAction: (zone: Zone) => void;
 };
 
-/** A category's little sign on its plot. */
-function PlotSign({ name, n, open, accent }: { name: string; n: number; open: boolean; accent: string }) {
-  const label = `${name} · ${n}`;
-  const w = label.length * 8.2 + 36;
-  return (
-    <g>
-      <rect x={-w / 2} y={-16} width={w} height={32} rx={16} fill={open ? INK : "#fffaf0"} stroke={INK} strokeWidth={2} />
-      <circle cx={-w / 2 + 16} cy={0} r={5} fill={accent} stroke={open ? "#fffaf0" : INK} strokeWidth={1.2} />
-      <text x={8} y={5} textAnchor="middle" fontSize={14} fontWeight={800} fill={open ? "#fffaf0" : INK}>
-        {label}
-      </text>
-    </g>
-  );
-}
+const curveD = (c: Curve) => `M${c.p.x} ${c.p.y} Q${c.c.x} ${c.c.y} ${c.q.x} ${c.q.y}`;
 
 /** Everything in the park, in map units. Memoized: moving the camera never redraws it. */
-const Scene = memo(function Scene({ world, placements, groups, openLawn, openGroup, byKind, now, lod, signScale, parkName, selectedLawn, selectedThing, emptyKinds, onSelectLawn, onOpenGroup, onSelectThing, emptyAction }: SceneProps) {
-  void openGroup;
+const Scene = memo(function Scene({ world, groups, openLawn, openPlacement, closedPlacement, byKind, now, lod, signScale, parkName, selectedThing, emptyKinds, onSelectLawn, onOpenGroup, onSelectThing, emptyAction }: SceneProps) {
+  const far = lod === "far";
+  const fenceD = (() => {
+    const i = world.fence;
+    const gap = world.gate.w + 24;
+    return `M${world.gate.x + gap / 2} ${world.height - i} H${world.width - i - 40} Q${world.width - i} ${world.height - i} ${world.width - i} ${world.height - i - 40} V${i + 40} Q${world.width - i} ${i} ${world.width - i - 40} ${i} H${i + 40} Q${i} ${i} ${i} ${i + 40} V${world.height - i - 40} Q${i} ${world.height - i} ${i + 40} ${world.height - i} H${world.gate.x - gap / 2}`;
+  })();
+
+  /** One lawn: its outline, landmark, sign, and, if it is the open one, its plots. */
+  const lawn = (z: Zone, open: boolean) => {
+    const l = world.lawns[z.kind];
+    const items = byKind.get(z.kind) ?? [];
+    const n = items.length;
+    const place = open && openPlacement ? openPlacement : closedPlacement;
+    const outline = lawnPath(0, 0, place.w, place.h, hash(z.kind));
+    const hedge = lawnPath(0, 0, place.w - 30, place.h - 30, hash(z.kind));
+    const offers = n === 0 && emptyKinds.split(",").includes(z.kind);
+    const toggle = () => onSelectLawn(z.kind);
+    const act = offers ? () => emptyAction(z) : undefined;
+    const scale = Math.min(signScale, (l.w * 0.9) / signWidth(z, n));
+    const signY = place.signY - (scale - 1) * 30;
+    const lawnGroups = groups[z.kind];
+    const { dx, dy } = spacingOf(z.kind);
+    const hit = Math.min(40, dx / 2, dy / 2);
+    return (
+      <g key={z.kind} data-zone={z.kind} data-stage={stageOf(n)} data-open={open || undefined} transform={`translate(${l.x} ${l.y})`}>
+        {open && <path d={outline} fill={INK} opacity={0.14} transform="translate(0 14)" />}
+        {/* Only the sign and the landmark open a lawn; the grass itself does nothing once it is open. */}
+        <g onClick={open ? undefined : n > 0 ? toggle : act} className={!open && (n > 0 || offers) ? "cursor-pointer" : undefined}>
+          <path d={outline} fill={n > 0 ? LAWN : LAWN_EMPTY} />
+          {n > 0 && <path d={outline} fill="url(#mowed)" />}
+          {/* One clipped hedge just inside the edge, faded on an empty lawn. */}
+          <path d={hedge} fill="none" stroke={HEDGE} strokeWidth={12} strokeDasharray="10 7" strokeLinecap="round" opacity={n > 0 ? 0.85 : 0.4} />
+          <path d={outline} fill="none" stroke={INK} strokeWidth={1.6} opacity={0.55} />
+          <g transform={`translate(0 ${place.landmarkY})`} opacity={n > 0 ? 1 : 0.55} aria-hidden="true" onClick={open ? toggle : undefined} className={open ? "cursor-pointer" : undefined}>
+            <Landmark kind={z.kind} />
+          </g>
+        </g>
+
+        {n > 0 ? (
+          <g
+            role="button"
+            tabIndex={0}
+            aria-label={`${z.name}: ${countLabel(z, n)}. ${open ? "Close it." : "Open it."}`}
+            aria-expanded={open}
+            onClick={toggle}
+            onKeyDown={activate(toggle)}
+            className="park-sign cursor-pointer"
+          >
+            <Sign z={z} n={n} y={signY} scale={scale} brief={far} />
+          </g>
+        ) : act ? (
+          <g role="button" tabIndex={0} aria-label={`${z.name}: ${z.sign}`} onClick={act} onKeyDown={activate(act)} className="park-sign cursor-pointer">
+            <Sign z={z} n={0} y={signY} scale={scale} brief={far} />
+          </g>
+        ) : (
+          <Sign z={z} n={0} y={signY} scale={scale} brief={far} />
+        )}
+
+        {/* Open: a plot per category, with a few of its things, or all of them once it is opened too. */}
+        {open &&
+          place.plots.map((plot) => {
+            const group = lawnGroups.find((g) => g.id === plot.id);
+            if (!group) return null;
+            const shown = plot.open ? group.things : group.things.slice(0, plot.spots.length);
+            const toggleGroup = () => onOpenGroup(z.kind, plot.open ? null : plot.id);
+            const bed = lawnPath(0, 0, plot.w, plot.h, hash(plot.id), 16, 0.03);
+            // Names only where they can be read: on an open plot up close, on a sample only closer still. Files show theirs when picked.
+            const tags = !far && (plot.open ? lod !== "mid" : lod === "close");
+            const tagLayer: ReactNode[] = [];
+            return (
+              <g key={plot.id} transform={`translate(${plot.x} ${plot.y})`} data-plot={plot.id} data-open={plot.open || undefined}>
+                <path d={bed} fill={PLOT} stroke={PATH_EDGE} strokeWidth={6} />
+                <path d={bed} fill="none" stroke={INK} strokeWidth={1.6} opacity={0.6} />
+                <g aria-hidden="true" pointerEvents="none">
+                  <RowDressing kind={z.kind} rows={plot.rows} />
+                </g>
+                {(
+                  <g
+                    transform={`translate(0 ${plot.signY}) scale(${signScale})`}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${group.name}: ${countLabel(z, group.things.length)}. ${plot.open ? "Close it." : "Open it."}`}
+                    aria-expanded={plot.open}
+                    onClick={toggleGroup}
+                    onKeyDown={activate(toggleGroup)}
+                    className="park-sign cursor-pointer"
+                  >
+                    <PlotSign name={group.name} n={group.things.length} open={plot.open} accent={z.accent} />
+                  </g>
+                )}
+                {shown.map((t, i) => {
+                  const s = plot.spots[i];
+                  if (!s) return null;
+                  const pick = () => onSelectThing(t);
+                  const picked = selectedThing === t.id;
+                  if ((tags && z.kind !== "file") || picked) {
+                    tagLayer.push(
+                      <g key={t.id} transform={`translate(${s.x} ${s.y})`}>
+                        <NameTag text={t.title} y={34} maxW={picked ? 160 : dx * 0.96} />
+                      </g>,
+                    );
+                  }
+                  return (
+                    <g
+                      key={t.id}
+                      transform={`translate(${s.x} ${s.y})`}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`${t.title}, ${z.one}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        pick();
+                      }}
+                      onKeyDown={activate(pick)}
+                      className="park-thing cursor-pointer"
+                    >
+                      <g className="park-item" style={{ animationDelay: `${Math.min(i * 30, 1200)}ms` }}>
+                        <circle r={hit} fill="transparent" />
+                        {picked && <circle r={hit + 8} fill="#fffaf0" opacity={0.6} stroke={INK} strokeWidth={2.4} strokeDasharray="8 6" />}
+                        <Figure t={t} now={now} i={i} />
+                      </g>
+                    </g>
+                  );
+                })}
+                {/* Names go on after every figure, so no house covers its neighbor's name. */}
+                <g pointerEvents="none">{tagLayer}</g>
+              </g>
+            );
+          })}
+      </g>
+    );
+  };
+
   return (
     <>
       <rect x={-2000} y={-2000} width={world.width + 4000} height={world.height + 4000} fill={MEADOW} />
       {/* Soft darker patches keep the meadow from looking flat. */}
       {Array.from({ length: 14 }, (_, i) => {
         const h = hash(`patch${i}`);
-        return <ellipse key={i} cx={(h % 1000) / 1000 * world.width} cy={((h >>> 10) % 1000) / 1000 * world.height} rx={180 + (h % 200)} ry={110 + ((h >>> 5) % 120)} fill={MEADOW_DARK} opacity={0.55} />;
+        const f = world.fence + 80;
+        return <ellipse key={i} cx={f + ((h % 1000) / 1000) * (world.width - 2 * f)} cy={f + (((h >>> 10) % 1000) / 1000) * (world.height - 2 * f)} rx={160 + (h % 160)} ry={100 + ((h >>> 5) % 100)} fill={MEADOW_DARK} opacity={0.55} />;
       })}
       <rect x={-2000} y={-2000} width={world.width + 4000} height={world.height + 4000} fill="url(#meadow)" />
+      <rect x={-2000} y={-2000} width={world.width + 4000} height={world.height + 4000} fill="url(#meadow2)" />
 
-      {/* Paths between lawns, and in from the gate: a darker edge under a gravel walkway. */}
+      {/* A low picket fence around the grounds, open at the gate. */}
+      <g fill="none" aria-hidden="true" pointerEvents="none">
+        <path d={fenceD} stroke="#e6d6ad" strokeWidth={10} strokeLinecap="round" />
+        <path d={fenceD} stroke="#b9814a" strokeWidth={3} />
+        <path d={fenceD} stroke="#8a5a2b" strokeWidth={7} strokeDasharray="4 30" strokeLinecap="round" />
+      </g>
+
+      {/* Walkways: a darker edge under gravel, between the lawns' entrances and in from the gate. */}
       {[PATH_EDGE, PATH, "url(#gravel)"].map((color, layer) => (
         <g key={layer} fill="none" stroke={color} strokeWidth={layer === 0 ? 50 : 40} strokeLinecap="round">
-          {world.paths.map(([a, b]) => {
-            const p = world.lawns[a];
-            const q = world.lawns[b];
-            const bend = ((hash(a + b) % 60) - 30) / 220;
-            const mx = (p.x + q.x) / 2 + (q.y - p.y) * bend;
-            const my = (p.y + q.y) / 2 - (q.x - p.x) * bend;
-            return <path key={a + b} d={`M${p.x} ${p.y} Q${mx} ${my} ${q.x} ${q.y}`} />;
-          })}
-          <path d={`M${world.gate.x} ${world.gate.y + 60} V${(world.lawns.habit.y + world.lawns.note.y) / 2}`} />
+          {world.paths.map((c, i) => (
+            <path key={i} d={curveD(c)} />
+          ))}
         </g>
       ))}
 
-      {/* The lake and the duck pond, with a sandy shore, then the stream between them. */}
+      {/* The stream first, then the lake and the duck pond over its ends, each with a sandy shore. */}
+      <path d={streamPath(world.stream)} fill="none" stroke={SHORE} strokeWidth={44} strokeLinecap="round" />
+      <path d={streamPath(world.stream)} fill="none" stroke={WATER} strokeWidth={30} strokeLinecap="round" />
+      <path d={streamPath(world.stream)} fill="none" stroke="#c7e4f3" strokeWidth={4} strokeLinecap="round" strokeDasharray="14 26" opacity={0.8} />
       {[world.lake, ...world.ponds].map((w, i) => {
         const d = waterPath(w, hash(`water${i}`));
         return (
@@ -580,20 +775,19 @@ const Scene = memo(function Scene({ world, placements, groups, openLawn, openGro
           </g>
         );
       })}
-      <path d={streamPath(world.stream)} fill="none" stroke={SHORE} strokeWidth={44} strokeLinecap="round" />
-      <path d={streamPath(world.stream)} fill="none" stroke={WATER} strokeWidth={30} strokeLinecap="round" />
-      <path d={streamPath(world.stream)} fill="none" stroke="#c7e4f3" strokeWidth={4} strokeLinecap="round" strokeDasharray="14 26" opacity={0.8} />
       {world.bridges.map((b, i) => (
         <g key={i} transform={`translate(${b.x} ${b.y})`} aria-hidden="true" pointerEvents="none">
           <Bridge a={b.a} />
         </g>
       ))}
 
-      {/* Everything standing on the meadow, drawn back to front. */}
+      {/* Every closed lawn, then everything standing on the meadow, back to front. */}
+      {zones.filter((z) => z.kind !== openLawn).map((z) => lawn(z, false))}
       {[
-        ...world.decor.map((d) => ({ y: d.y, el: <DecorFigure kind={d.kind} s={d.s} />, x: d.x })),
-        ...world.lamps.map((l) => ({ y: l.y, el: <Lamp />, x: l.x })),
-        ...world.furniture.map((f) => ({ y: f.y, el: <FurnitureFigure f={f} />, x: f.x })),
+        ...world.decor.filter((d) => !far || (d.kind !== "flowers" && d.kind !== "rock")).map((d) => ({ y: d.y, x: d.x, el: <DecorFigure kind={d.kind} s={d.s} m={d.m} c={d.c} /> })),
+        ...(far ? [] : world.lamps.map((l) => ({ y: l.y, x: l.x, el: <Lamp /> }))),
+        ...world.furniture.filter((f) => !far || f.kind !== "bench").map((f) => ({ y: f.y, x: f.x, el: <FurnitureFigure f={f} /> })),
+        { y: world.gate.y, x: world.gate.x, el: <Gate name={parkName} brief={far} /> },
       ]
         .sort((a, b) => a.y - b.y)
         .map((d, i) => (
@@ -601,133 +795,14 @@ const Scene = memo(function Scene({ world, placements, groups, openLawn, openGro
             {d.el}
           </g>
         ))}
-      {/* A low picket fence around the grounds, open at the gate. */}
-      {(() => {
-        const inset = 70;
-        const gap = 150;
-        const d = `M${world.gate.x + gap / 2} ${world.height - inset} H${world.width - inset - 40} Q${world.width - inset} ${world.height - inset} ${world.width - inset} ${world.height - inset - 40} V${inset + 40} Q${world.width - inset} ${inset} ${world.width - inset - 40} ${inset} H${inset + 40} Q${inset} ${inset} ${inset} ${inset + 40} V${world.height - inset - 40} Q${inset} ${world.height - inset} ${inset + 40} ${world.height - inset} H${world.gate.x - gap / 2}`;
-        return (
-          <g fill="none" aria-hidden="true" pointerEvents="none">
-            <path d={d} stroke="#e6d6ad" strokeWidth={10} strokeLinecap="round" />
-            <path d={d} stroke="#b9814a" strokeWidth={3} />
-            <path d={d} stroke="#8a5a2b" strokeWidth={7} strokeDasharray="4 30" strokeLinecap="round" />
-          </g>
-        );
-      })()}
-      <g transform={`translate(${world.gate.x} ${world.gate.y})`} aria-hidden="true" pointerEvents="none">
-        <Gate name={parkName} />
-      </g>
 
-      {zones.map((z) => {
-        const l = world.lawns[z.kind];
-        const items = byKind.get(z.kind) ?? [];
-        const n = items.length;
-        const place = placements[z.kind];
-        const outline = lawnPath(0, 0, l.w, l.h, hash(z.kind));
-        const selected = selectedLawn === z.kind;
-        const isOpen = openLawn === z.kind;
-        const action = n === 0 && emptyKinds.split(",").includes(z.kind) ? emptyAction(z) : null;
-        const open = () => onSelectLawn(z.kind);
-        const signY = place.signY - (signScale - 1) * 64;
-        const lawnGroups = groups[z.kind];
-        return (
-          <g
-            key={z.kind}
-            data-zone={z.kind}
-            data-stage={stageOf(n)}
-            data-open={isOpen || undefined}
-            style={{ transform: `translate(${l.x}px, ${l.y}px)`, transition: "transform 550ms cubic-bezier(0.2, 0.7, 0.2, 1)" }}
-          >
-            <g onClick={n > 0 ? open : action ?? undefined} className={n > 0 || action ? "cursor-pointer" : undefined}>
-              <path d={outline} fill={n > 0 ? LAWN : "#cfe6c4"} stroke={LAWN_EDGE} strokeWidth={5} strokeDasharray={n > 0 ? undefined : "18 14"} />
-              {n > 0 && <path d={outline} fill="url(#mowed)" />}
-              {/* A clipped hedge just inside the edge. */}
-              <path d={outline} fill="none" stroke="#6faa73" strokeWidth={9} strokeDasharray="3 13" strokeLinecap="round" opacity={0.7} transform="scale(0.965)" />
-              {selected && <path d={outline} fill="none" stroke={INK} strokeWidth={5} filter="url(#chalk-line)" />}
-              <g transform={`translate(0 ${place.landmarkY})`} opacity={n > 0 ? 1 : 0.55} aria-hidden="true">
-                <Landmark kind={z.kind} />
-              </g>
-            </g>
-
-            {n > 0 ? (
-              <g
-                role="button"
-                tabIndex={0}
-                aria-label={`${z.name}: ${countLabel(z, n)}. ${isOpen ? "Close it." : "Open it."}`}
-                aria-expanded={isOpen}
-                onClick={open}
-                onKeyDown={activate(open)}
-                className="cursor-pointer outline-none"
-              >
-                <Sign z={z} n={n} x={0} y={signY} scale={signScale} />
-              </g>
-            ) : action ? (
-              <g role="button" tabIndex={0} aria-label={`${z.name}: ${z.sign}`} onClick={action} onKeyDown={activate(action)} className="park-sign cursor-pointer outline-none">
-                <Sign z={z} n={0} x={0} y={signY} scale={signScale} />
-              </g>
-            ) : (
-              <Sign z={z} n={0} x={0} y={signY} scale={signScale} />
-            )}
-
-            {/* Open: a plot per category, with a few of its things, or all of them once it is opened too. */}
-            {isOpen &&
-              place.plots.map((plot) => {
-                const group = lawnGroups.find((g) => g.id === plot.id);
-                if (!group) return null;
-                const shown = plot.open ? group.things : group.things.slice(0, plot.spots.length);
-                const toggle = () => onOpenGroup(z.kind, plot.open ? null : plot.id);
-                const scale = plot.open ? 1 : SAMPLE_SCALE;
-                return (
-                  <g key={plot.id} transform={`translate(${plot.x} ${plot.y})`} data-plot={plot.id} data-open={plot.open || undefined}>
-                    <rect x={-plot.w / 2} y={-plot.h / 2} width={plot.w} height={plot.h} rx={28} fill="#d2ebc6" stroke="#9ccf9a" strokeWidth={3} onClick={toggle} className="cursor-pointer" />
-                    <g transform={`scale(${scale})`} aria-hidden="true" pointerEvents="none">
-                      <RowDressing kind={z.kind} rows={plot.rows.map((r) => ({ y: r.y / scale, x0: r.x0 / scale, x1: r.x1 / scale }))} />
-                    </g>
-                    <g
-                      transform={`translate(0 ${plot.signY})`}
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`${group.name}: ${countLabel(z, group.things.length)}. ${plot.open ? "Close it." : "Open it."}`}
-                      aria-expanded={plot.open}
-                      onClick={toggle}
-                      onKeyDown={activate(toggle)}
-                      className="cursor-pointer outline-none"
-                    >
-                      <PlotSign name={group.name} n={group.things.length} open={plot.open} accent={z.accent} />
-                    </g>
-                    {shown.map((t, i) => {
-                      const s = plot.spots[i];
-                      if (!s) return null;
-                      const pick = () => onSelectThing(t);
-                      return (
-                        <g
-                          key={t.id}
-                          transform={`translate(${s.x} ${s.y}) scale(${scale})`}
-                          role="button"
-                          tabIndex={0}
-                          aria-label={`${t.title}, ${z.one}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            pick();
-                          }}
-                          onKeyDown={activate(pick)}
-                          className="cursor-pointer outline-none"
-                        >
-                          <g className="park-item" style={{ animationDelay: `${Math.min(i * 30, 1200)}ms` }}>
-                            <circle r={40} fill="transparent" />
-                            {selectedThing === t.id && <circle r={52} fill="#fffaf0" opacity={0.6} stroke={INK} strokeWidth={2.4} strokeDasharray="8 6" />}
-                            <Figure t={t} now={now} i={i} />
-                          </g>
-                          {(plot.open ? lod === "near" : lod !== "far") && <NameTag text={t.title} y={36} />}
-                        </g>
-                      );
-                    })}
-                  </g>
-                );
-              })}
-          </g>
-        );
-      })}
+      {/* The open lawn last, over everything, with the rest of the park quieted under it. */}
+      {openLawn && (
+        <>
+          <rect x={-2000} y={-2000} width={world.width + 4000} height={world.height + 4000} fill="#fffaf0" opacity={0.28} pointerEvents="none" />
+          {lawn(zones.find((z) => z.kind === openLawn)!, true)}
+        </>
+      )}
     </>
   );
 });

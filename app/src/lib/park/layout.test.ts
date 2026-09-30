@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { countByKind, thingKinds, type ThingKind } from "../kinds";
-import { blobPath, buildWorld, countLabel, hash, lawnPath, nextZone, onLawn, placeLawn, progress, stageOf, zones, SAMPLE } from "./layout";
+import { alongCurve, blobPath, buildWorld, countLabel, hash, lawnPath, nextZone, onLawn, placeLawn, progress, stageOf, zones, SAMPLE } from "./layout";
 
 const none = countByKind([]);
 const counts = (c: Partial<Record<ThingKind, number>>) => ({ ...none, ...c });
@@ -49,12 +49,37 @@ describe("park layout", () => {
       for (const pt of world.stream) for (const l of lawns) expect(onLawn(l, pt.x, pt.y, 20), `${l.kind} sits on the stream`).toBe(false);
       for (const f of world.furniture) for (const l of lawns) expect(onLawn(l, f.x, f.y), `${l.kind} sits on a ${f.kind}`).toBe(false);
       expect(world.bridges).toHaveLength(2);
+      // Paths run from lawn to lawn, and nothing but the water's own things stands on a path or in the water.
+      const inWater = (x: number, y: number) => Math.hypot((x - world.lake.x) / world.lake.rx, (y - world.lake.y) / world.lake.ry) <= 1 || world.stream.some((p) => Math.hypot(x - p.x, y - p.y) < 34);
+      const onPath = (x: number, y: number) => world.paths.some((c) => [0, 0.25, 0.5, 0.75, 1].some((t) => Math.hypot(x - alongCurve(c, t).x, y - alongCurve(c, t).y) < 30));
+      for (const f of world.furniture) {
+        if (["dock", "boat", "duck", "lily", "reeds"].includes(f.kind)) continue;
+        expect(onPath(f.x, f.y), `a ${f.kind} stands on a path`).toBe(false);
+        expect(inWater(f.x, f.y), `a ${f.kind} stands in the water`).toBe(false);
+      }
+      for (const d of world.decor) {
+        expect(onPath(d.x, d.y), `a ${d.kind} stands on a path`).toBe(false);
+        expect(inWater(d.x, d.y), `a ${d.kind} stands in the water`).toBe(false);
+        const edge = Math.min(d.x, d.y, world.width - d.x, world.height - d.y);
+        expect(Math.abs(edge - world.fence), `a ${d.kind} stands on the fence`).toBeGreaterThan(40);
+      }
+      for (const l of world.lamps) expect(inWater(l.x, l.y)).toBe(false);
+      expect(world.gate.y).toBe(world.height - world.fence);
       for (const d of world.decor) {
         for (const l of lawns) expect(onLawn(l, d.x, d.y)).toBe(false);
       }
       expect(world.gate.y).toBeLessThan(world.height);
       expect(world.lamps.length).toBeGreaterThan(0);
     }
+  });
+
+  it("never moves the park when a lawn opens: the world comes from closed sizes only", () => {
+    const closed = buildWorld(sizes());
+    const again = buildWorld(sizes());
+    expect(again.lawns.person).toEqual(closed.lawns.person);
+    expect(again.decor.length).toBe(closed.decor.length);
+    const w = placeLawn("person", [{ id: "a", count: 40 }], true, null).w;
+    expect(w).toBeGreaterThan(closed.lawns.person.w);
   });
 
   it("keeps a closed lawn the same size however much it holds, and grows it as it opens", () => {
