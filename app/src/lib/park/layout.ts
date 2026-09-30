@@ -61,73 +61,149 @@ const PAD = 64;
 /** Room at the top of every lawn for its wooden sign, then its landmark building. */
 const SIGN_ROOM = 84;
 const LANDMARK_ROOM = 160;
-/** The smallest a lawn gets, so an empty one still has a sign and a landmark. */
+/** The smallest a lawn gets: its sign and its landmark, side by side with nothing open. */
 const MIN_W = 460;
 /**
  * A lawn's rounded outline (see `lawnPath`) cuts across the corners of what is
  * on it, so the outline is drawn this much bigger than the block inside it.
  */
 const FIT = 0.78;
+/** Room at the top of a category's plot for its little sign. */
+const PLOT_SIGN = 60;
+const PLOT_PAD = 26;
+/** Space between plots. */
+const PLOT_GAP = 34;
+/** A closed plot shows this many of its things, drawn smaller. */
+export const SAMPLE = 6;
+export const SAMPLE_SCALE = 0.72;
+
+/** One category's plot on an open lawn, relative to the lawn's center. */
+export type Plot = {
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** Where its sign stands, relative to the plot's center. */
+  signY: number;
+  /** Where its things sit, relative to the plot's center: all of them when open, a sample when closed. */
+  spots: { x: number; y: number }[];
+  open: boolean;
+  /** The rows things sit on, for streets and shelves, relative to the plot's center. */
+  rows: { y: number; x0: number; x1: number }[];
+};
 
 export type Placement = {
-  /** Where each thing sits, relative to the lawn's center. */
-  spots: { x: number; y: number }[];
-  /** The rows things sit on, for streets and shelves, relative to the lawn's center. */
-  rows: { y: number; x0: number; x1: number }[];
   /** The lawn's size. */
   w: number;
   h: number;
   /** Where the sign and the landmark stand, relative to the lawn's center. */
   signY: number;
   landmarkY: number;
+  /** The category plots, when the lawn is open. */
+  plots: Plot[];
 };
 
-/** Lays out one lawn: its sign, its landmark, and every thing on it, and how big that makes it. */
-export function placeItems(kind: ThingKind, n: number): Placement {
+/** Lays out `n` things in this lawn's arrangement, centered on 0,0, at `scale`. */
+function block(kind: ThingKind, n: number, scale = 1) {
   const a = arrangements[kind];
   const spots: { x: number; y: number }[] = [];
-  const rows: Placement["rows"] = [];
-  let blockW = 0;
-  let blockH = 0;
+  const rows: Plot["rows"] = [];
+  let w = 0;
+  let h = 0;
   if (n > 0 && a.shape === "rows") {
-    const cols = Math.max(1, Math.min(n, Math.ceil(Math.sqrt((n * a.dy * a.wide) / a.dx))));
+    const dx = a.dx * scale;
+    const dy = a.dy * scale;
+    const cols = Math.max(1, Math.min(n, Math.ceil(Math.sqrt((n * dy * a.wide) / dx))));
     const count = Math.ceil(n / cols);
-    blockW = cols * a.dx + (a.stagger ? a.dx / 2 : 0);
-    blockH = count * a.dy;
+    w = cols * dx + (a.stagger ? dx / 2 : 0);
+    h = count * dy;
     for (let r = 0; r < count; r++) {
       const inRow = Math.min(cols, n - r * cols);
-      const shift = a.stagger && r % 2 === 1 ? a.dx / 2 : 0;
-      const y = r * a.dy - blockH / 2 + a.dy / 2;
-      const x0 = -(inRow * a.dx) / 2 + shift;
-      rows.push({ y, x0: -blockW / 2, x1: blockW / 2 });
+      const shift = a.stagger && r % 2 === 1 ? dx / 2 : 0;
+      const y = r * dy - h / 2 + dy / 2;
+      const x0 = -(inRow * dx) / 2 + shift;
+      rows.push({ y, x0: -w / 2, x1: w / 2 });
       for (let c = 0; c < inRow; c++) {
-        const h = hash(`${kind}${r},${c}`);
-        spots.push({ x: x0 + c * a.dx + a.dx / 2 + ((h % 100) / 100 - 0.5) * a.dx * a.loose, y: y + (((h >>> 8) % 100) / 100 - 0.5) * a.dy * a.loose * 0.6 });
+        const hs = hash(`${kind}${r},${c}`);
+        spots.push({ x: x0 + c * dx + dx / 2 + ((hs % 100) / 100 - 0.5) * dx * a.loose, y: y + (((hs >>> 8) % 100) / 100 - 0.5) * dy * a.loose * 0.6 });
       }
     }
   } else if (n > 0 && a.shape === "scatter") {
     // A sunflower spiral spreads any number of things evenly and organically.
+    const gap = a.gap * scale;
     const golden = Math.PI * (3 - Math.sqrt(5));
     let far = 0;
     for (let i = 0; i < n; i++) {
-      const d = a.gap * 0.62 * Math.sqrt(i + 0.5);
+      const d = gap * 0.62 * Math.sqrt(i + 0.5);
       const ang = i * golden - Math.PI / 2;
       spots.push({ x: Math.cos(ang) * d, y: Math.sin(ang) * d * 0.85 });
       far = Math.max(far, d);
     }
-    blockW = far * 2 + a.gap * 0.6;
-    blockH = far * 2 * 0.85 + a.gap * 0.6;
+    w = far * 2 + gap * 0.6;
+    h = far * 2 * 0.85 + gap * 0.6;
   }
-  const innerW = Math.max(MIN_W, blockW + PAD * 2);
-  const innerH = PAD + SIGN_ROOM + LANDMARK_ROOM + blockH + PAD;
-  const w = innerW / FIT;
-  const h = innerH / FIT;
+  return { spots, rows, w, h };
+}
+
+/**
+ * Lays out one lawn: its sign, its landmark, and, when it is open, a plot for
+ * each of its categories, one of which may itself be open to show everything
+ * on it. Returns how big all that makes the lawn.
+ */
+export function placeLawn(kind: ThingKind, groups: { id: string; count: number }[], open: boolean, openGroup: string | null): Placement {
+  const plots: Plot[] = [];
+  let contentW = 0;
+  let contentH = 0;
+  if (open && groups.length > 0) {
+    // Plots flow two to a row; an open plot takes a whole row to itself.
+    const sized = groups.map((g) => {
+      const isOpen = g.id === openGroup;
+      const b = block(kind, isOpen ? g.count : Math.min(g.count, SAMPLE), isOpen ? 1 : SAMPLE_SCALE);
+      const w = Math.max(230, b.w + PLOT_PAD * 2);
+      const h = PLOT_SIGN + b.h + PLOT_PAD * 2;
+      return { g, b, w, h, isOpen };
+    });
+    const closedW = Math.max(0, ...sized.filter((s) => !s.isOpen).map((s) => s.w));
+    const rowsOfPlots: (typeof sized)[] = [];
+    for (const s of sized) {
+      const last = rowsOfPlots[rowsOfPlots.length - 1];
+      if (!s.isOpen && last && last.length === 1 && !last[0].isOpen) last.push(s);
+      else rowsOfPlots.push([s]);
+    }
+    let y = 0;
+    for (const row of rowsOfPlots) {
+      const cellW = row[0].isOpen ? row[0].w : closedW;
+      const rowW = row.length * cellW + (row.length - 1) * PLOT_GAP;
+      const rowH = Math.max(...row.map((s) => s.h));
+      contentW = Math.max(contentW, rowW);
+      row.forEach((s, i) => {
+        const cx = -rowW / 2 + i * (cellW + PLOT_GAP) + cellW / 2;
+        const cy = y + rowH / 2;
+        // Things sit below the plot's sign, centered in what is left.
+        const itemsY = PLOT_SIGN / 2;
+        plots.push({
+          id: s.g.id,
+          x: cx,
+          y: cy,
+          w: cellW,
+          h: rowH,
+          signY: -rowH / 2 + PLOT_PAD + 14,
+          spots: s.b.spots.map((p) => ({ x: p.x, y: p.y + itemsY })),
+          rows: s.b.rows.map((r) => ({ ...r, y: r.y + itemsY })),
+          open: s.isOpen,
+        });
+      });
+      y += rowH + PLOT_GAP;
+    }
+    contentH = y - PLOT_GAP;
+  }
+  const innerW = Math.max(MIN_W, contentW + PAD * 2);
+  const innerH = PAD + SIGN_ROOM + LANDMARK_ROOM + (contentH > 0 ? contentH + PLOT_GAP : 0) + PAD;
   const top = -innerH / 2;
-  // Everything below the landmark shifts down to its block.
-  const blockY = top + PAD + SIGN_ROOM + LANDMARK_ROOM + blockH / 2;
-  for (const s of spots) s.y += blockY;
-  for (const r of rows) r.y += blockY;
-  return { spots, rows, w, h, signY: top + PAD + SIGN_ROOM / 2, landmarkY: top + PAD + SIGN_ROOM + LANDMARK_ROOM - 30 };
+  const blockY = top + PAD + SIGN_ROOM + LANDMARK_ROOM + PLOT_GAP;
+  for (const p of plots) p.y += blockY;
+  return { w: innerW / FIT, h: innerH / FIT, signY: top + PAD + SIGN_ROOM / 2, landmarkY: top + PAD + SIGN_ROOM + LANDMARK_ROOM - 30, plots };
 }
 
 /** Lawns sit in two columns, rows in this order, like blocks on a town map. */
@@ -168,16 +244,11 @@ export function onLawn(l: Lawn, x: number, y: number, pad = 0) {
 }
 
 /**
- * Lays out the whole park from how many things each lawn holds. Lawns are
- * spaced so none ever overlap, however big they grow, with meadow, paths,
+ * Lays out the whole park from the size of each lawn (see `placeLawn`). Lawns
+ * are spaced so none ever overlap, however big they grow, with meadow, paths,
  * ponds, lamps, and trees between them.
  */
-export function buildWorld(counts: Record<ThingKind, number>): World {
-  const sizes = {} as Record<ThingKind, { w: number; h: number }>;
-  for (const z of zones) {
-    const p = placeItems(z.kind, counts[z.kind] ?? 0);
-    sizes[z.kind] = { w: p.w, h: p.h };
-  }
+export function buildWorld(sizes: Record<ThingKind, { w: number; h: number }>): World {
   const margin = 180;
   const colWidth = [0, 1].map((c) => Math.max(...rowsOfLawns.map((row) => sizes[row[c]].w)) + margin);
   const rowHeight = rowsOfLawns.map(([a, b]) => Math.max(sizes[a].h, sizes[b].h) + margin);

@@ -8,6 +8,7 @@ import { ParkIcon } from "@/components/ui/icons";
 import { connectGoogle } from "@/lib/connect-google";
 import { googleServices, type GoogleServiceId } from "@/lib/google/services";
 import { countByKind, type ThingKind } from "@/lib/kinds";
+import { groupThings, type Group } from "@/lib/park/groups";
 import { countLabel, nextZone, progress, zones, type Zone } from "@/lib/park/layout";
 import type { ParkThing } from "@/lib/things";
 import { ParkMap, type ParkMapHandle } from "./park-map";
@@ -95,6 +96,9 @@ export function ParkView({ name, initialThings, pending, stale = [], connected, 
   const [showStatus, setShowStatus] = useState(true);
   const [mode, setMode] = useState<"map" | "list">("map");
   const [lawn, setLawn] = useState<ThingKind | null>(null);
+  // The lawn whose categories are showing on the map, and the category opened to show everything in it.
+  const [openLawn, setOpenLawn] = useState<ThingKind | null>(null);
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [thing, setThing] = useState<ParkThing | null>(null);
   const [here, setHere] = useState<ThingKind | null>(null);
   const [connectError, setConnectError] = useState<string | null>(
@@ -104,6 +108,10 @@ export function ParkView({ name, initialThings, pending, stale = [], connected, 
   const started = useRef(false);
 
   const counts = useMemo(() => countByKind(things), [things]);
+  const groups = useMemo(
+    () => Object.fromEntries(zones.map((z) => [z.kind, groupThings(z.kind, things.filter((t) => t.kind === z.kind), now)])) as Record<ThingKind, Group[]>,
+    [things, now],
+  );
   const { grown, total } = progress(counts);
   const next = nextZone(counts);
   const importing = statuses.some((s) => s.state === "waiting" || s.state === "working");
@@ -177,13 +185,35 @@ export function ParkView({ name, initialThings, pending, stale = [], connected, 
     mapRef.current?.flyTo(kind);
   }
 
+  /** Tapping a lawn opens its categories (and its list); tapping it again closes them. */
+  function toggleLawn(kind: ThingKind) {
+    setThing(null);
+    if (openLawn === kind) {
+      setOpenLawn(null);
+      setOpenGroup(null);
+      setLawn(null);
+    } else {
+      setOpenLawn(kind);
+      setOpenGroup(null);
+      setLawn(kind);
+    }
+  }
+
+  function toggleGroup(kind: ThingKind, id: string | null) {
+    setThing(null);
+    setOpenLawn(kind);
+    setOpenGroup(id);
+    setLawn(kind);
+  }
+
   function emptyAction(z: Zone) {
     if (z.kind === "mail" || z.kind === "file") return googleAvailable ? () => void connect() : null;
     return () => router.push(chatWith(z.starter));
   }
 
   const onCenterLawn = useCallback((kind: ThingKind) => setHere(kind), []);
-  const lawnList = lawn ? [...things.filter((t) => t.kind === lawn)].reverse() : [];
+  const lawnGroups = lawn ? groups[lawn] : [];
+  const lawnCount = lawn ? counts[lawn] : 0;
   const first = name.split(" ")[0] || "Your";
   const title = first === "Your" ? "Your park" : `${first}'s park`;
 
@@ -275,12 +305,13 @@ export function ParkView({ name, initialThings, pending, stale = [], connected, 
         parkName={title}
         now={now}
         startAt={startAt}
+        groups={groups}
+        openLawn={openLawn}
+        openGroup={openGroup}
         selectedLawn={lawn}
         selectedThing={thing?.id ?? null}
-        onSelectLawn={(kind) => {
-          setThing(null);
-          setLawn(kind);
-        }}
+        onSelectLawn={toggleLawn}
+        onOpenGroup={toggleGroup}
         onSelectThing={(t) => {
           setLawn(null);
           setThing(t);
@@ -357,26 +388,36 @@ export function ParkView({ name, initialThings, pending, stale = [], connected, 
             </div>
           </Float>
         ) : lawn ? (
-          <Float label={zoneOf(lawn).name} className="flex max-h-[45dvh] w-full max-w-sm flex-col gap-2 px-4 py-3">
+          <Float label={zoneOf(lawn).name} className="flex w-full max-w-sm flex-col gap-1.5 px-4 py-2.5">
             <div className="flex items-center justify-between">
-              <h2 className="font-hand text-xl">
-                {zoneOf(lawn).name} · {countLabel(zoneOf(lawn), lawnList.length)}
+              <h2 className="font-hand text-lg leading-tight">
+                {zoneOf(lawn).name} · {countLabel(zoneOf(lawn), lawnCount)}
               </h2>
-              <Button variant="ghost" size="sm" onClick={() => setLawn(null)}>
+              <Button variant="ghost" size="sm" onClick={() => toggleLawn(lawn)}>
                 Close
               </Button>
             </div>
-            <ul className="flex min-h-0 flex-col divide-y-2 divide-tan overflow-y-auto">
-              {lawnList.map((t) => (
-                <li key={t.id} className="flex flex-col py-2">
-                  <span className="font-semibold">{t.title}</span>
-                  {describe(t) && <span className="text-sm text-muted">{describe(t)}</span>}
-                </li>
-              ))}
-            </ul>
-            <Button variant="soft" size="sm" className="self-start" onClick={() => router.push(chatWith(zoneOf(lawn).starter))}>
-              Add another
-            </Button>
+            {/* Its categories; the open one shows everything it holds on the map. */}
+            <div role="group" aria-label={`${zoneOf(lawn).name} categories`} className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none]">
+              {lawnGroups.map((g) => {
+                const on = openGroup === g.id;
+                return (
+                  <button
+                    key={g.id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => toggleGroup(lawn, on ? null : g.id)}
+                    className={`flex shrink-0 items-center gap-1 rounded-pill border-2 px-2.5 py-1 text-xs font-extrabold whitespace-nowrap ${on ? "border-ink bg-ink text-paper" : "border-ink/60 bg-card text-ink"}`}
+                  >
+                    {g.name}
+                    <span className={on ? "text-paper/80" : "text-muted"}>{g.things.length}</span>
+                  </button>
+                );
+              })}
+              <Button variant="soft" size="sm" className="shrink-0" onClick={() => router.push(chatWith(zoneOf(lawn).starter))}>
+                Add another
+              </Button>
+            </div>
           </Float>
         ) : (
           <>

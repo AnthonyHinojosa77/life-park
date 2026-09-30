@@ -102,7 +102,8 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 - 2026-09-29: AI conversations get their own lawn, filled automatically through a LifePark connector plus each AI app's own scheduled task, and Google Takeout for Gemini (Anthony). Browser-extension scraping and stored logins are ruled out by OpenAI's and Anthropic's terms.
 - 2026-09-29: LifePark refreshes connected sources by itself nightly and when the park is opened (Anthony).
 - 2026-09-30: The sign-in intro plays on every open while signed out, and the page draws itself in piece by piece after the logo (Anthony).
-- 2026-09-30: The park has to look like an actual park, with each area designed around what is connected there, instead of green circles with labels (Anthony). Every lawn got a landmark and a place-specific arrangement of its things, drawn at every zoom.
+- 2026-09-30: The park has to look like an actual park, with each area designed around what is connected there, instead of green circles with labels (Anthony). Every lawn got a landmark and a place-specific arrangement of its things.
+- 2026-09-30: The park must be consolidated and categorized: one design per kind of thing, and tapping it expands to its categories (Anthony). Lawns now show only their landmark until tapped, then their categories, then one category's things.
 - 2026-09-29: Account deletion moves up so Anthony can delete his account and test the full sign-up flow from scratch (Anthony).
 - 2026-09-27: Sign-in with Google or Apple leads to a short welcome, then a connect screen, then a park that builds itself (Anthony). Google connections: Calendar, Contacts, Tasks, Gmail, My Drive, Docs, Sheets. Keep is left out because Google does not offer it to personal accounts.
 - 2026-09-27: Apple sign-in users can connect Google or skip; Apple Reminders, Calendar, and Contacts wait for the iPhone app (Anthony). Apple Mail and Notes cannot be read by any other app.

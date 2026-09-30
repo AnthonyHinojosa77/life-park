@@ -157,7 +157,7 @@ function driveFiles(query: string, type: "file" | "doc" | "sheet") {
         kind: "file" as const,
         title: str(f.name) ?? "Untitled",
         date: str(f.modifiedTime) ? new Date(str(f.modifiedTime)!) : null,
-        detail: { type, link: str(f.webViewLink) ?? null },
+        detail: { type, mime: str(f.mimeType) ?? null, link: str(f.webViewLink) ?? null },
       }));
   };
 }

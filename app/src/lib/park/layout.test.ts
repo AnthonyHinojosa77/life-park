@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { countByKind, thingKinds, type ThingKind } from "../kinds";
-import { blobPath, buildWorld, countLabel, hash, lawnPath, nextZone, onLawn, placeItems, progress, stageOf, zones } from "./layout";
+import { blobPath, buildWorld, countLabel, hash, lawnPath, nextZone, onLawn, placeLawn, progress, stageOf, zones, SAMPLE } from "./layout";
 
 const none = countByKind([]);
 const counts = (c: Partial<Record<ThingKind, number>>) => ({ ...none, ...c });
@@ -10,9 +10,18 @@ describe("park layout", () => {
     expect(zones.map((z) => z.kind).sort()).toEqual([...thingKinds].sort());
   });
 
-  it("keeps every lawn inside the park and apart from the others, however big they grow", () => {
-    for (const c of [none, counts({ person: 3, mail: 2 }), counts({ person: 900, event: 250, file: 60, habit: 1 })]) {
-      const world = buildWorld(c);
+  const sizes = (open: ThingKind | null = null, group: string | null = null, n = 40) =>
+    Object.fromEntries(
+      zones.map((z) => {
+        const groups = [{ id: "a", count: n }, { id: "b", count: 3 }, { id: "c", count: 1 }];
+        const p = placeLawn(z.kind, groups, z.kind === open, z.kind === open ? group : null);
+        return [z.kind, { w: p.w, h: p.h }];
+      }),
+    ) as Record<ThingKind, { w: number; h: number }>;
+
+  it("keeps every lawn inside the park and apart from the others, whatever is open", () => {
+    for (const s of [sizes(), sizes("person"), sizes("file", "a", 900), sizes("note", "b")]) {
+      const world = buildWorld(s);
       const lawns = Object.values(world.lawns);
       expect(lawns).toHaveLength(8);
       for (const l of lawns) {
@@ -39,27 +48,41 @@ describe("park layout", () => {
     }
   });
 
-  it("grows lawns with what is planted, without a cap", () => {
-    const area = (n: number) => placeItems("person", n).w * placeItems("person", n).h;
-    expect(area(1)).toBeGreaterThanOrEqual(area(0));
-    expect(area(40)).toBeGreaterThan(area(4));
-    expect(area(1000)).toBeGreaterThan(area(100));
+  it("keeps a closed lawn the same size however much it holds, and grows it as it opens", () => {
+    const closed = (n: number) => placeLawn("person", [{ id: "a", count: n }], false, null);
+    expect(closed(1000).w).toBe(closed(0).w);
+    expect(closed(1000).h).toBe(closed(0).h);
+    expect(closed(0).plots).toHaveLength(0);
+    const open = placeLawn("person", [{ id: "a", count: 40 }, { id: "b", count: 2 }], true, null);
+    expect(open.plots).toHaveLength(2);
+    expect(open.h).toBeGreaterThan(closed(40).h);
+    const deeper = placeLawn("person", [{ id: "a", count: 40 }, { id: "b", count: 2 }], true, "a");
+    expect(deeper.plots.find((p) => p.id === "a")?.spots).toHaveLength(40);
+    expect(deeper.plots.find((p) => p.id === "b")?.spots).toHaveLength(2);
+    expect(deeper.h).toBeGreaterThan(open.h);
   });
 
-  it("places every thing on its lawn without crowding, below the sign and the landmark", () => {
+  it("places every thing on its plot without crowding, below the plot's sign", () => {
     for (const kind of zones.map((z) => z.kind)) {
       for (const n of [1, 3, 12, 80, 500]) {
-        const p = placeItems(kind, n);
-        expect(p.spots).toHaveLength(n);
-        const lawn = { kind, x: 0, y: 0, w: p.w, h: p.h, r: 0 };
-        for (const s of p.spots) {
-          expect(onLawn(lawn, s.x, s.y), `${kind} ${n}: a thing spilled off the lawn`).toBe(true);
-          expect(s.y, `${kind} ${n}: a thing sits on the landmark`).toBeGreaterThan(p.landmarkY + 30);
-        }
-        for (let i = 0; i < p.spots.length; i++) {
-          for (let j = i + 1; j < Math.min(p.spots.length, i + 30); j++) {
-            expect(Math.hypot(p.spots[i].x - p.spots[j].x, p.spots[i].y - p.spots[j].y), `${kind} ${n}: things ${i} and ${j} overlap`).toBeGreaterThan(38);
+        const p = placeLawn(kind, [{ id: "a", count: n }, { id: "b", count: 4 }], true, "a");
+        for (const plot of p.plots) {
+          expect(plot.spots).toHaveLength(plot.open ? n : Math.min(4, SAMPLE));
+          for (const s of plot.spots) {
+            expect(Math.abs(s.x), `${kind} ${n}: a thing spilled off its plot`).toBeLessThan(plot.w / 2);
+            expect(s.y, `${kind} ${n}: a thing sits on the plot's sign`).toBeGreaterThan(plot.signY + 20);
+            expect(s.y).toBeLessThan(plot.h / 2);
           }
+          for (let i = 0; i < plot.spots.length; i++) {
+            for (let j = i + 1; j < Math.min(plot.spots.length, i + 30); j++) {
+              expect(Math.hypot(plot.spots[i].x - plot.spots[j].x, plot.spots[i].y - plot.spots[j].y), `${kind} ${n}: things ${i} and ${j} overlap`).toBeGreaterThan(plot.open ? 38 : 26);
+            }
+          }
+          // Every plot sits on the lawn.
+          const lawn = { kind, x: 0, y: 0, w: p.w, h: p.h, r: 0 };
+          expect(onLawn(lawn, plot.x - plot.w / 2, plot.y - plot.h / 2)).toBe(true);
+          expect(onLawn(lawn, plot.x + plot.w / 2, plot.y + plot.h / 2)).toBe(true);
+          expect(plot.y - plot.h / 2, `${kind} ${n}: a plot overlaps the landmark`).toBeGreaterThan(p.landmarkY + 40);
         }
       }
     }

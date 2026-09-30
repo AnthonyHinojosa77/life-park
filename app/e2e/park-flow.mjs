@@ -150,7 +150,8 @@ try {
   // The park opens on the first lawn with something on it.
   await page.getByRole("button", { name: "Go to Orchard" }).and(page.locator('[aria-current="location"]')).waitFor();
   await page.getByRole("button", { name: /Orchard: 1 recipe/ }).click();
-  await page.getByRole("region", { name: "Orchard" }).getByText("Grandma's chili").waitFor();
+  await page.getByRole("region", { name: "Orchard" }).getByRole("button", { name: /^Mains 1$/ }).waitFor();
+  await page.getByRole("button", { name: "Grandma's chili, recipe" }).waitFor();
 
   // Link a Google account the way a finished Google sign-in would, then reopen the park.
   await stopServer(server);
@@ -194,27 +195,42 @@ try {
   await page.waitForTimeout(1500); // let the sprouting finish before the picture
   await page.screenshot({ path: `${dir}/park-5-filled.png`, fullPage: true });
 
-  // Tapping an area lists what is in it.
+  // Every lawn is one landmark until it is tapped; then its categories open, then a category's things.
   await flyTo("Neighborhood");
   await page.screenshot({ path: `${dir}/park-5b-neighborhood.png` });
+  check((await page.locator('[data-zone="person"] [data-plot]').count()) === 0, "categories showed before the lawn was opened");
   await page.getByRole("button", { name: /Neighborhood: 3 neighbors/ }).click();
   const hood = page.getByRole("region", { name: "Neighborhood" });
-  await hood.getByText("Sam Rivera").waitFor();
-  await hood.getByText("Birthday Nov 3").waitFor();
-  await flyTo("Post office");
-  await page.screenshot({ path: `${dir}/park-5c-post-office.png` });
-  await page.getByRole("button", { name: /Post office: 2 letters/ }).click();
-  await page.getByRole("region", { name: "Post office" }).getByText("From Sam Rivera").waitFor();
-  await page.screenshot({ path: `${dir}/park-6-lawn.png`, fullPage: true });
+  await hood.getByRole("button", { name: /^Family 1$/ }).waitFor();
+  await hood.getByRole("button", { name: /^Everyone else 2$/ }).waitFor();
+  await page.locator('[data-zone="person"] [data-plot="family"]').waitFor();
+  await page.getByRole("button", { name: /^Family: 1 neighbor/ }).waitFor();
+  await page.waitForTimeout(800); // the lawn grows and the camera settles
+  await page.screenshot({ path: `${dir}/park-5c-open.png` });
+  // Opening a category shows everything in it, on the map and in the list.
+  await page.getByRole("button", { name: /^Everyone else: 2 neighbors/ }).click();
+  await page.locator('[data-zone="person"] [data-plot="everyone"][data-open]').waitFor();
+  await hood.getByRole("button", { name: /^Everyone else 2$/, pressed: true }).waitFor();
+  await page.getByRole("button", { name: "Priya Shah, neighbor" }).waitFor();
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: `${dir}/park-5d-category.png` });
 
   // Tapping one thing opens its card on the map.
-  await flyTo("Neighborhood");
   await page.getByRole("button", { name: "Sam Rivera, neighbor" }).click();
   const card = page.getByRole("region", { name: "Sam Rivera" });
   await card.getByText("Birthday Nov 3").waitFor();
   await card.getByText("Planted from Google Contacts").waitFor();
   await page.screenshot({ path: `${dir}/park-6b-card.png` });
   await card.getByRole("button", { name: "Close" }).click();
+
+  // Tapping another lawn closes the first and opens that one.
+  await flyTo("Post office");
+  await page.getByRole("button", { name: /Post office: 2 letters/ }).click();
+  await page.getByRole("region", { name: "Post office" }).getByRole("button", { name: /^Everyone 2$/ }).waitFor();
+  await page.getByRole("button", { name: "Dinner Friday?, letter" }).waitFor();
+  check((await page.locator('[data-zone="person"] [data-plot]').count()) === 0, "the Neighborhood stayed open");
+  await page.locator('[data-zone="mail"] [data-plot]').first().waitFor();
+  await page.screenshot({ path: `${dir}/park-6-lawn.png`, fullPage: true });
 
   // The plain list shows everything, lawn by lawn.
   await page.getByRole("radio", { name: "List" }).click();

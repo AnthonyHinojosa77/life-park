@@ -112,21 +112,36 @@ try {
   await page.getByRole("button", { name: "Show the whole park" }).click();
   await page.waitForTimeout(1200);
   await page.screenshot({ path: `${dir}/shots-2-whole.png` });
-  for (const lawn of ["Neighborhood", "Festival board", "Library", "Post office", "Picnic lawn", "Orchard", "Garden", "Bench walk"]) {
+  for (const lawn of ["Neighborhood", "Library", "Post office"]) {
     await page.getByRole("button", { name: `Go to ${lawn}` }).click();
     await page.waitForTimeout(1100);
     await page.screenshot({ path: `${dir}/shots-3-${lawn.toLowerCase().replace(/ /g, "-")}.png` });
   }
+  // Open the Neighborhood, then one of its streets.
   await page.getByRole("button", { name: "Go to Neighborhood" }).click();
   await page.waitForTimeout(1000);
-  for (let i = 0; i < 3; i++) await page.getByRole("button", { name: "Zoom in" }).click();
-  await page.waitForTimeout(900);
-  await page.screenshot({ path: `${dir}/shots-4-close.png` });
+  await page.getByRole("button", { name: /^Neighborhood: 169 neighbors/ }).click();
+  await page.waitForTimeout(1400);
+  await page.screenshot({ path: `${dir}/shots-4-open.png` });
+  await page.getByRole("button", { name: /^M–P Street:/ }).click();
+  await page.waitForTimeout(1400);
+  await page.screenshot({ path: `${dir}/shots-5-street.png` });
+  await page.getByRole("button", { name: "Show the whole park" }).click();
+  await page.waitForTimeout(1200);
+  await page.screenshot({ path: `${dir}/shots-6-whole-open.png` });
+  await page.getByRole("button", { name: "Go to Library" }).click();
+  await page.waitForTimeout(1000);
+  await page.getByRole("button", { name: /^Library: 194 files/ }).click();
+  await page.waitForTimeout(1400);
+  await page.screenshot({ path: `${dir}/shots-7-library-open.png` });
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(base + "/park", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Show the whole park" }).click();
   await page.waitForTimeout(1500);
-  await page.screenshot({ path: `${dir}/shots-5-laptop.png` });
+  await page.screenshot({ path: `${dir}/shots-8-laptop.png` });
+  await page.getByRole("button", { name: /^Festival board: 81 events/ }).click();
+  await page.waitForTimeout(1400);
+  await page.screenshot({ path: `${dir}/shots-9-laptop-open.png` });
   if (errors.length) throw new Error(`page errors: ${errors.join(" | ")}`);
   console.log("park shots ok");
 } catch (e) {
