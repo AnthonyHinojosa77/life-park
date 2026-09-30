@@ -5,61 +5,65 @@ import { Wordmark } from "@/components/wordmark";
 
 type Phase = "draw" | "move" | "reveal" | "done";
 
-const SEEN = "lifepark-intro-seen";
 /** Pause on the finished logo before it moves up. */
 const HOLD_MS = 350;
 const MOVE_MS = 750;
-/** Long enough for the last staged piece to finish drawing in (see globals.css). */
-const REVEAL_MS = 2700;
+/** The first piece of the page starts drawing this long after the logo lands. */
+const REVEAL_LEAD_S = 0.15;
+/** Each piece starts when the one before it is this far through its own drawing. */
+const OVERLAP = 0.7;
+/** How long a piece takes to draw, by kind, unless it says otherwise (`data-intro-for`). */
+const DRAW_S: Record<string, number> = { write: 0.6, card: 1.5 };
+/** A safety net so the page never stays half-drawn if an animation never reports back. */
+const REVEAL_CAP_MS = 9000;
 
-// Runs before the first paint on a full page load, so a returning visitor never
-// sees a flash of the big logo: they go straight to the page drawing in, and
-// anyone who prefers less motion goes straight to the finished page.
-const skipScript = `try{var e=document.currentScript.parentElement;if(matchMedia("(prefers-reduced-motion: reduce)").matches)e.setAttribute("data-intro","done");else if(localStorage.getItem("${SEEN}"))e.setAttribute("data-intro","reveal")}catch(e){}`;
+// Runs before the first paint, so anyone who prefers less motion never sees a
+// flash of the big logo.
+const skipScript = `try{if(matchMedia("(prefers-reduced-motion: reduce)").matches)document.currentScript.parentElement.setAttribute("data-intro","done")}catch(e){}`;
 
-/** Where to start: the full intro the first time, the page drawing in after that. */
-function startPhase(): Phase {
+function reducedMotion() {
   try {
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return "done";
-    return localStorage.getItem(SEEN) ? "reveal" : "draw";
+    return matchMedia("(prefers-reduced-motion: reduce)").matches;
   } catch {
-    return "draw";
+    return false;
   }
 }
 
+// Set once the logo has played in this visit, so hopping between sign-in and
+// sign-up does not replay it; a fresh open of the app starts over.
+let logoPlayed = false;
+
 /**
- * The sign-in and sign-up intro. The first time on this device, the LifePark
- * name and tree are drawn large in the middle of the screen, then shrink into
- * their spot at the top; every time, the rest of the page draws in after.
- * Tap the big logo to skip it.
+ * The sign-in and sign-up intro, every time the app is opened signed out: the
+ * LifePark name and tree are drawn large in the middle of the screen, then
+ * shrink into their spot at the top, and the rest of the page draws itself in
+ * piece by piece. Tap anywhere to skip ahead.
  */
 export function AuthIntro({ children }: { children: ReactNode }) {
   const [phase, setPhase] = useState<Phase>("draw");
+  const rootRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const markRef = useRef<HTMLDivElement>(null);
   const timers = useRef<number[]>([]);
 
-  const finish = () => {
+  const skipLogo = () => {
     timers.current.forEach((t) => clearTimeout(t));
     markRef.current?.getAnimations().forEach((a) => a.cancel());
-    setPhase("done");
+    setPhase("reveal");
   };
 
   // Decide before paint on client-side navigations, too.
   useLayoutEffect(() => {
-    // Returning visitors skip the logo; reduced-motion users skip it all.
-    const start = startPhase();
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (start !== "draw") setPhase(start);
+    if (reducedMotion()) setPhase("done");
+    else if (logoPlayed) setPhase("reveal");
   }, []);
 
   useEffect(() => {
     if (phase !== "draw") return;
     const overlay = overlayRef.current;
     if (!overlay) return;
-    try {
-      localStorage.setItem(SEEN, "1");
-    } catch {}
+    logoPlayed = true;
     let cancelled = false;
     const drawing = overlay.getAnimations({ subtree: true }).map((a) => a.finished.catch(() => undefined));
     const cap = new Promise((r) => setTimeout(r, 3200));
@@ -95,21 +99,56 @@ export function AuthIntro({ children }: { children: ReactNode }) {
     return () => flight.cancel();
   }, [phase]);
 
-  useEffect(() => {
-    if (phase !== "reveal") return;
-    const t = window.setTimeout(() => setPhase("done"), REVEAL_MS);
-    return () => clearTimeout(t);
+  // Schedule the pieces of the page in the order they appear, each starting
+  // as the one before it is most of the way drawn. Done before paint, so no
+  // piece shows up early.
+  useLayoutEffect(() => {
+    if (phase !== "reveal" || !rootRef.current) return;
+    let at = REVEAL_LEAD_S;
+    for (const piece of rootRef.current.querySelectorAll<HTMLElement>("[data-intro-step]")) {
+      const kind = piece.dataset.introStep || "write";
+      const seconds = Number(piece.dataset.introFor) || DRAW_S[kind] || DRAW_S.write;
+      piece.style.setProperty("--at", `${at.toFixed(2)}s`);
+      piece.style.setProperty("--for", `${seconds}s`);
+      at += seconds * OVERLAP;
+    }
   }, [phase]);
 
+  // The page is done once its last piece has finished drawing.
+  useEffect(() => {
+    if (phase !== "reveal" || !rootRef.current) return;
+    const root = rootRef.current;
+    let cancelled = false;
+    const cap = window.setTimeout(() => !cancelled && setPhase("done"), REVEAL_CAP_MS);
+    // Animations exist only after the browser has applied the new styles.
+    const frame = requestAnimationFrame(() => {
+      const drawing = root.getAnimations({ subtree: true }).map((a) => a.finished.catch(() => undefined));
+      void Promise.all(drawing).then(() => !cancelled && setPhase("done"));
+    });
+    return () => {
+      cancelled = true;
+      clearTimeout(cap);
+      cancelAnimationFrame(frame);
+    };
+  }, [phase]);
+
+  // A tap while the page is drawing finishes it at once, and still lands on
+  // whatever was tapped.
+  const skipReveal = () => {
+    if (phase !== "reveal" || !rootRef.current) return;
+    rootRef.current.getAnimations({ subtree: true }).forEach((a) => a.finish());
+    setPhase("done");
+  };
+
   return (
-    <div data-intro={phase} suppressHydrationWarning className="flex flex-1 flex-col">
+    <div ref={rootRef} data-intro={phase} suppressHydrationWarning className="flex flex-1 flex-col" onPointerDownCapture={skipReveal}>
       <script dangerouslySetInnerHTML={{ __html: skipScript }} />
       {(phase === "draw" || phase === "move") && (
         <div
           ref={overlayRef}
           data-intro-overlay
           className="intro-overlay fixed inset-0 z-50 cursor-pointer"
-          onClick={finish}
+          onClick={skipLogo}
           role="presentation"
         >
           <div ref={markRef} className="intro-mark">

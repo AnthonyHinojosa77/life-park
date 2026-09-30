@@ -136,8 +136,7 @@ a:hover .park-sign, [role="button"]:hover .park-sign { transform: scale(1.03); }
 
 @keyframes intro-sweep-on { from { --intro-sweep: 0deg; } to { --intro-sweep: 360deg; } }
 /* Only masked while drawing, so a finished outline is always whole. */
-.intro-overlay .intro-sweep,
-[data-intro="reveal"] .intro-card-outline {
+.intro-overlay .intro-sweep {
   -webkit-mask-image: conic-gradient(from -90deg, #000 var(--intro-sweep), transparent 0);
   mask-image: conic-gradient(from -90deg, #000 var(--intro-sweep), transparent 0);
 }
@@ -171,17 +170,31 @@ a:hover .park-sign, [role="button"]:hover .park-sign { transform: scale(1.03); }
 [data-intro="reveal"] .intro-overlay,
 [data-intro="done"] .intro-overlay { display: none; }
 
-@keyframes intro-in {
-  from { opacity: 0; transform: translateY(14px); }
-  to { opacity: 1; transform: none; }
+/* Then the page draws itself in, one piece after another (timed by --at and --for,
+   set per piece by the intro): text and buttons are written out left to right,
+   and the card's outline is traced around it as its paper appears. */
+[data-intro="reveal"] [data-intro-step="write"] {
+  -webkit-mask-image: linear-gradient(90deg, #000 45%, transparent 55%);
+  mask-image: linear-gradient(90deg, #000 45%, transparent 55%);
+  -webkit-mask-size: 240% 100%;
+  mask-size: 240% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  animation: intro-write-on var(--for, 0.6s) ease-in-out var(--at, 0s) both;
 }
-/* Unhurried: the last piece (step 5) starts at 1.5s and lands by 2.5s. */
-[data-intro="reveal"] [data-intro-step] {
-  animation: intro-in 1s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-  animation-delay: calc(var(--step, 0) * 300ms);
+@keyframes intro-paper { from { background-color: transparent; } to { background-color: var(--color-card); } }
+@keyframes intro-fade { from { opacity: 0; } to { opacity: 1; } }
+[data-intro="reveal"] [data-intro-step="card"] {
+  animation: intro-paper calc(var(--for, 1.5s) * 0.6) ease-out var(--at, 0s) both;
 }
-/* The card's crayon outline traces itself around the card as it arrives. */
-[data-intro="reveal"] .intro-card-outline { animation: intro-sweep-on 1.4s ease-in-out 0.5s both; }
+[data-intro="reveal"] [data-intro-step="card"] .intro-card-dust {
+  animation: intro-fade calc(var(--for, 1.5s) * 0.6) ease-out var(--at, 0s) both;
+}
+[data-intro="reveal"] [data-intro-step="card"] .intro-card-outline {
+  -webkit-mask-image: conic-gradient(from -90deg, #000 var(--intro-sweep), transparent 0);
+  mask-image: conic-gradient(from -90deg, #000 var(--intro-sweep), transparent 0);
+  animation: intro-sweep-on var(--for, 1.5s) ease-in-out var(--at, 0s) both;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .intro-overlay { display: none; }

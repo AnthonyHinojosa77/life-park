@@ -14,33 +14,37 @@ function check(condition, message) {
   if (!condition) throw new Error(message);
 }
 
-// Signed out: everything leads to sign-in, which opens with the intro the first
-// time on a device: the logo draws itself big, shrinks into its spot at the top,
-// then the page draws in.
+// Signed out: everything leads to sign-in, which opens with the intro every
+// time the app is opened: the logo draws itself big, shrinks into its spot at
+// the top, then the page draws itself in piece by piece.
 await page.goto(base + "/", { waitUntil: "domcontentloaded" });
 check(page.url().endsWith("/sign-in"), `expected redirect to /sign-in, got ${page.url()}`);
 await page.locator("[data-intro-overlay]").waitFor({ state: "visible", timeout: 5000 });
 await page.screenshot({ path: `${dir}/auth-intro.png` });
 await page.locator("[data-intro-overlay]").waitFor({ state: "detached", timeout: 15000 });
-await page.locator('[data-intro="done"]').waitFor({ state: "attached", timeout: 8000 });
+await page.locator('[data-intro="reveal"]').waitFor({ state: "attached", timeout: 5000 });
+const revealStarted = Date.now();
+await page.locator('[data-intro="done"]').waitFor({ state: "attached", timeout: 12000 });
+const revealTook = Date.now() - revealStarted;
+check(revealTook > 3500, `page drew in too fast: ${revealTook}ms`);
 check((await page.locator("[data-intro-target]").evaluate((el) => getComputedStyle(el).opacity)) === "1", "wordmark hidden after the intro");
 const outlineMask = () => page.locator(".intro-card-outline").evaluate((el) => getComputedStyle(el).maskImage);
 check((await outlineMask()) === "none", "card outline still masked after the intro");
 await page.screenshot({ path: `${dir}/auth-sign-in.png` });
-// After that, the big logo never replays, by link or reload, but the page still draws in.
-const drawsInWithoutLogo = async (what) => {
-  // Before hydration the server's copy of the logo is still in the page, but hidden.
-  check(!(await page.locator("[data-intro-overlay]").isVisible()), `logo intro replayed on ${what}`);
-  check((await page.locator('[data-intro="reveal"]').count()) === 1, `page did not draw in on ${what}`);
-  await page.locator('[data-intro="done"]').waitFor({ state: "attached", timeout: 8000 });
-  check((await page.locator("[data-intro-overlay]").count()) === 0, `logo intro left behind on ${what}`);
-  check((await outlineMask()) === "none", `card outline still masked on ${what}`);
-};
+// Hopping to sign-up in the same visit skips the logo but still draws the page in.
 await page.getByRole("link", { name: "Create an account" }).click();
 await page.waitForURL("**/sign-up");
-await drawsInWithoutLogo("sign-up");
+check(!(await page.locator("[data-intro-overlay]").isVisible()), "logo intro replayed on the sign-up link");
+check((await page.locator('[data-intro="reveal"]').count()) === 1, "page did not draw in on sign-up");
+await page.locator('[data-intro="done"]').waitFor({ state: "attached", timeout: 12000 });
+check((await outlineMask()) === "none", "card outline still masked on sign-up");
+// Opening the app again plays the whole intro again; a tap on the logo skips it.
 await page.reload({ waitUntil: "domcontentloaded" });
-await drawsInWithoutLogo("reload");
+await page.locator("[data-intro-overlay]").waitFor({ state: "visible", timeout: 5000 });
+await page.locator("[data-intro-overlay]").click();
+await page.locator('[data-intro="reveal"]').waitFor({ state: "attached", timeout: 5000 });
+await page.locator('[data-intro="done"]').waitFor({ state: "attached", timeout: 12000 });
+check((await page.locator("[data-intro-overlay]").count()) === 0, "logo intro left behind after a tap");
 // People who ask for less motion never see it.
 const calm = await browser.newPage({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
 await calm.goto(base + "/sign-in", { waitUntil: "domcontentloaded" });

@@ -69,7 +69,7 @@ export function SignInForm({ mode, providers }: Props) {
     <div className="flex flex-col gap-5">
       {providers.length > 0 && (
         <>
-          <div className="flex flex-col gap-2.5">
+          <div data-intro-step="write" data-intro-for="0.65" className="flex flex-col gap-2.5">
             {providers.map((p) => (
               <ProviderButton
                 key={p}
@@ -80,7 +80,7 @@ export function SignInForm({ mode, providers }: Props) {
               />
             ))}
           </div>
-          <div className="flex items-center gap-3" aria-hidden="true">
+          <div data-intro-step="write" data-intro-for="0.4" className="flex items-center gap-3" aria-hidden="true">
             <span className="h-0.5 flex-1 rounded-pill bg-tan" />
             <span className="font-serif text-sm italic text-muted">or with email</span>
             <span className="h-0.5 flex-1 rounded-pill bg-tan" />
@@ -90,37 +90,43 @@ export function SignInForm({ mode, providers }: Props) {
 
       <form onSubmit={submit} className="flex flex-col gap-4">
         {mode === "sign-up" && (
+          <div data-intro-step="write">
+            <TextField
+              label="Name"
+              name="name"
+              autoComplete="name"
+              placeholder="What should we call you?"
+              required
+            />
+          </div>
+        )}
+        <div data-intro-step="write">
           <TextField
-            label="Name"
-            name="name"
-            autoComplete="name"
-            placeholder="What should we call you?"
+            label="Email"
+            name="email"
+            type="email"
+            autoComplete={mode === "sign-up" ? "email" : "username webauthn"}
+            placeholder="you@example.com"
             required
           />
-        )}
-        <TextField
-          label="Email"
-          name="email"
-          type="email"
-          autoComplete={mode === "sign-up" ? "email" : "username webauthn"}
-          placeholder="you@example.com"
-          required
-        />
-        <TextField
-          label="Password"
-          name="password"
-          type="password"
-          autoComplete={mode === "sign-up" ? "new-password" : "current-password"}
-          hint={mode === "sign-up" ? "At least 10 characters." : undefined}
-          minLength={10}
-          required
-        />
+        </div>
+        <div data-intro-step="write">
+          <TextField
+            label="Password"
+            name="password"
+            type="password"
+            autoComplete={mode === "sign-up" ? "new-password" : "current-password"}
+            hint={mode === "sign-up" ? "At least 10 characters." : undefined}
+            minLength={10}
+            required
+          />
+        </div>
         {error && (
           <p role="alert" className="rounded-chip bg-sun px-3 py-2 text-xs font-bold">
             {error}
           </p>
         )}
-        <ChalkButton tone="grass" type="submit" disabled={busy !== null} className="mt-1">
+        <ChalkButton tone="grass" type="submit" disabled={busy !== null} className="mt-1" data-intro-step="write" data-intro-for="0.6">
           {busy === "email"
             ? "One moment"
             : mode === "sign-up"
@@ -130,7 +136,7 @@ export function SignInForm({ mode, providers }: Props) {
       </form>
 
       {mode === "sign-in" && (
-        <ChalkButton tone="outline" type="button" disabled={busy !== null} onClick={passkey}>
+        <ChalkButton tone="outline" type="button" disabled={busy !== null} onClick={passkey} data-intro-step="write">
           {busy === "passkey" ? "Waiting for your device" : "Use a passkey"}
         </ChalkButton>
       )}
