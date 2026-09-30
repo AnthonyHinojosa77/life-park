@@ -262,10 +262,15 @@ try {
   await page.getByRole("button", { name: /Neighborhood: 3 neighbors/ }).waitFor();
   await page.getByRole("button", { name: "Go to Neighborhood" }).and(page.locator('[aria-current="location"]')).waitFor();
 
-  // Laptop width.
+  // Laptop width: the park lays out wide, four lawns across.
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(base + "/park", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Show the whole park" }).click();
   await page.waitForTimeout(1500);
+  const wide = await page.locator("main svg").first().boundingBox();
+  const hoodBox = await page.locator('[data-zone="person"]').first().boundingBox();
+  const mail = await page.locator('[data-zone="mail"]').first().boundingBox();
+  check(wide && hoodBox && mail && Math.abs(hoodBox.y - mail.y) < wide.height * 0.25 && mail.x > hoodBox.x + wide.width * 0.3, "the park did not lay out wide on a laptop");
   await page.screenshot({ path: `${dir}/park-7-laptop.png` });
 
   check(pageErrors.length === 0, `page errors: ${pageErrors.join(" | ")}`);

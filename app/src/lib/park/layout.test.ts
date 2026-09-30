@@ -47,13 +47,16 @@ describe("park layout", () => {
     ) as Record<ThingKind, { w: number; h: number }>;
 
   it("keeps every lawn inside the park and apart from the others, whatever is open", () => {
-    for (const s of [
-      sizes(),
-      sizes("person"),
-      sizes("file", "a", 900),
-      sizes("note", "b"),
-    ]) {
-      const world = buildWorld(s);
+    for (const [s, o] of [
+      [sizes(), "portrait"],
+      [sizes("person"), "portrait"],
+      [sizes("file", "a", 900), "landscape"],
+      [sizes("note", "b"), "landscape"],
+      [sizes(), "landscape"],
+    ] as const) {
+      const world = buildWorld(s, "Anthony's park", o);
+      if (o === "landscape") expect(world.width).toBeGreaterThan(world.height);
+      else expect(world.height).toBeGreaterThan(world.width);
       const lawns = Object.values(world.lawns);
       expect(lawns).toHaveLength(8);
       for (const l of lawns) {
@@ -103,7 +106,7 @@ describe("park layout", () => {
           expect(onLawn(l, f.x, f.y), `${l.kind} sits on a ${f.kind}`).toBe(
             false,
           );
-      expect(world.bridges).toHaveLength(2);
+      expect(world.bridges.length).toBeGreaterThanOrEqual(o === "portrait" ? 2 : 1);
       // Paths run from lawn to lawn, and nothing but the water's own things stands on a path or in the water.
       const inWater = (x: number, y: number) =>
         Math.hypot(
@@ -151,15 +154,20 @@ describe("park layout", () => {
     const again = buildWorld(sizes());
     expect(again.lawns.person).toEqual(closed.lawns.person);
     expect(again.decor.length).toBe(closed.decor.length);
-    const w = placeLawn("person", [{ id: "a", count: 40 }], true, null).w;
-    expect(w).toBeGreaterThan(closed.lawns.person.w);
+    const w = placeLawn("person", [{ id: "a", count: 40 }], true, null).h;
+    expect(w).toBeGreaterThan(closed.lawns.person.h);
   });
 
-  it("keeps a closed lawn the same size however much it holds, and grows it as it opens", () => {
+  it("shows a glimpse on a closed lawn that grows in steps with what it holds, and grows it as it opens", () => {
     const closed = (n: number) =>
       placeLawn("person", [{ id: "a", count: n }], false, null);
-    expect(closed(1000).w).toBe(closed(0).w);
-    expect(closed(1000).h).toBe(closed(0).h);
+    expect(closed(0).glimpse).toHaveLength(0);
+    expect(closed(2).glimpse).toHaveLength(2);
+    expect(closed(10).glimpse).toHaveLength(6);
+    expect(closed(1000).glimpse).toHaveLength(10);
+    expect(closed(1000).h).toBeGreaterThan(closed(2).h);
+    expect(closed(1000).h).toBe(closed(50).h);
+    for (const g of closed(1000).glimpse) expect(g.y).toBeGreaterThan(closed(1000).landmarkY + 30);
     expect(closed(0).plots).toHaveLength(0);
     const open = placeLawn(
       "person",
@@ -171,7 +179,7 @@ describe("park layout", () => {
       null,
     );
     expect(open.plots).toHaveLength(2);
-    expect(open.h).toBeGreaterThan(closed(40).h);
+    expect(open.h).toBeGreaterThan(closed(2).h);
     // With one category open, only that plot shows, with everything in it.
     const deeper = placeLawn(
       "person",

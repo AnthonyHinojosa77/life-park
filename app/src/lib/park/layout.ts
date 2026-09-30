@@ -107,7 +107,16 @@ export type Placement = {
   landmarkY: number;
   /** The category plots, when the lawn is open. */
   plots: Plot[];
+  /** Closed: a glimpse of the first few things, arranged as they would be, below the landmark. */
+  glimpse: { x: number; y: number }[];
+  glimpseRows: { y: number; x0: number; x1: number }[];
 };
+
+/** How many things a closed lawn shows, by how grown it is. */
+export function glimpseCount(count: number) {
+  const stage = stageOf(count);
+  return stage === "empty" ? 0 : stage === "sprout" ? Math.min(count, 3) : stage === "growing" ? 6 : 10;
+}
 
 /** Lays out `n` things in this lawn's arrangement, centered on 0,0; `wide` is the block's width against its height. */
 function block(kind: ThingKind, n: number, wide?: number) {
@@ -171,6 +180,16 @@ export function placeLawn(kind: ThingKind, groups: { id: string; count: number }
   const plots: Plot[] = [];
   let contentW = 0;
   let contentH = 0;
+  const total = groups.reduce((n, g) => n + g.count, 0);
+  let glimpse: { x: number; y: number }[] = [];
+  let glimpseRows: Plot["rows"] = [];
+  if (!open && total > 0) {
+    const b = block(kind, glimpseCount(total), 2.2);
+    glimpse = b.spots;
+    glimpseRows = b.rows;
+    contentW = b.w;
+    contentH = b.h;
+  }
   if (open && groups.length > 0) {
     // Plots flow two to a row, each its own size. With one category open, only
     // that plot shows, so nothing around it has to move.
@@ -223,17 +242,27 @@ export function placeLawn(kind: ThingKind, groups: { id: string; count: number }
   const top = -innerH / 2;
   const blockY = top + PAD + SIGN_ROOM + LANDMARK_ROOM + PLOT_GAP;
   for (const p of plots) p.y += blockY;
+  const glimpseY = blockY + contentH / 2;
+  for (const g of glimpse) g.y += glimpseY;
+  for (const r of glimpseRows) r.y += glimpseY;
   // Landmarks stand with their base at y = 52 in their own drawing.
-  return { w: innerW / FIT, h: innerH / FIT, signY: top + PAD + SIGN_ROOM / 2, landmarkY: top + PAD + SIGN_ROOM + LANDMARK_ROOM - 52, plots };
+  return { w: innerW / FIT, h: innerH / FIT, signY: top + PAD + SIGN_ROOM / 2, landmarkY: top + PAD + SIGN_ROOM + LANDMARK_ROOM - 52, plots, glimpse, glimpseRows };
 }
 
-/** Lawns sit in two columns, rows in this order, like blocks on a town map. */
-const rowsOfLawns: [ThingKind, ThingKind][] = [
-  ["person", "event"],
-  ["file", "mail"],
-  ["list", "recipe"],
-  ["habit", "note"],
-];
+/** Lawns sit like blocks on a town map: two columns on a phone, four on a wide screen. */
+const grids: Record<"portrait" | "landscape", ThingKind[][]> = {
+  portrait: [
+    ["person", "event"],
+    ["file", "mail"],
+    ["list", "recipe"],
+    ["habit", "note"],
+  ],
+  landscape: [
+    ["person", "event", "file", "mail"],
+    ["list", "recipe", "habit", "note"],
+  ],
+};
+export type Orientation = keyof typeof grids;
 
 export type Lawn = { kind: ThingKind; x: number; y: number; w: number; h: number; /** Half the longer side, for distances. */ r: number };
 export type DecorKind = "tree" | "pine" | "willow" | "blossom" | "bush" | "flowers" | "rock";
@@ -314,13 +343,15 @@ export function gateWidth(name: string) {
  * drawn bigger over its own spot. Lawns are spaced so none overlap, with the
  * lake, the stream, paths, furniture, and trees between them.
  */
-export function buildWorld(sizes: Record<ThingKind, { w: number; h: number }>, parkName = "Your park"): World {
+export function buildWorld(sizes: Record<ThingKind, { w: number; h: number }>, parkName = "Your park", orientation: Orientation = "portrait"): World {
+  const grid = grids[orientation];
+  const cols = grid[0].length;
   const margin = 190;
-  const colWidth = [0, 1].map((c) => Math.max(...rowsOfLawns.map((row) => sizes[row[c]].w)) + margin);
-  const rowHeight = rowsOfLawns.map(([a, b]) => Math.max(sizes[a].h, sizes[b].h) + margin);
+  const colWidth = grid[0].map((_, c) => Math.max(...grid.map((row) => sizes[row[c]].w)) + margin);
+  const rowHeight = grid.map((row) => Math.max(...row.map((k) => sizes[k].h)) + margin);
   const lawns = {} as Record<ThingKind, Lawn>;
   let y = margin;
-  rowsOfLawns.forEach((row, ri) => {
+  grid.forEach((row, ri) => {
     let x = margin;
     row.forEach((kind, ci) => {
       // A slight, stable offset keeps the blocks from looking ruled.
@@ -328,17 +359,18 @@ export function buildWorld(sizes: Record<ThingKind, { w: number; h: number }>, p
       const jx = ((h % 100) / 100 - 0.5) * margin * 0.3;
       const jy = (((h >>> 8) % 100) / 100 - 0.5) * margin * 0.3;
       const { w, h: lh } = sizes[kind];
-      lawns[kind] = { kind, x: x + colWidth[ci] / 2 + jx, y: y + rowHeight[ri] / 2 + jy + (ci === 1 ? margin * 0.25 : 0), w, h: lh, r: Math.max(w, lh) / 2 };
+      lawns[kind] = { kind, x: x + colWidth[ci] / 2 + jx, y: y + rowHeight[ri] / 2 + jy + (ci % 2 === 1 ? margin * 0.25 : 0), w, h: lh, r: Math.max(w, lh) / 2 };
       x += colWidth[ci];
     });
     y += rowHeight[ri];
     // The lake lies between the first two rows.
     if (ri === 0) y += LAKE_BAND;
   });
-  const width = colWidth[0] + colWidth[1] + margin * 2;
+  const width = colWidth.reduce((a, b) => a + b, 0) + margin * 2;
   const height = y + margin * 1.5;
   const fence = 70;
-  const midX = margin + colWidth[0];
+  // The park's middle line: between the two columns, or between the middle two of four.
+  const midX = margin + colWidth.slice(0, cols / 2).reduce((a, b) => a + b, 0);
   const gate = { x: midX, y: height - fence, w: gateWidth(parkName) };
 
   // Paths run between fixed entrances: the middle of a lawn's side facing the other lawn.
@@ -353,36 +385,51 @@ export function buildWorld(sizes: Record<ThingKind, { w: number; h: number }>, p
   };
   const paths: Curve[] = [];
   const pairs: [ThingKind, ThingKind][] = [];
-  rowsOfLawns.forEach(([a, b], ri) => {
-    pairs.push([a, b]);
-    if (ri > 0) {
-      pairs.push([rowsOfLawns[ri - 1][0], a]);
-      pairs.push([rowsOfLawns[ri - 1][1], b]);
-    }
+  grid.forEach((row, ri) => {
+    for (let c = 1; c < row.length; c++) pairs.push([row[c - 1], row[c]]);
+    if (ri > 0) row.forEach((k, c) => pairs.push([grid[ri - 1][c], k]));
   });
   for (const [a, b] of pairs) paths.push(between(a, b));
-  // In from the gate, up to the bottom row's walkway.
-  const bottomRow = paths[paths.length - 3];
+  // In from the gate, up to the bottom row's walkway nearest the middle.
+  const last = grid[grid.length - 1];
+  const bottomRow = between(last[cols / 2 - 1], last[cols / 2]);
   const gateEnd = alongCurve(bottomRow, 0.5);
   paths.push({ p: { x: gate.x, y: gate.y - 20 }, c: { x: gate.x, y: (gate.y + gateEnd.y) / 2 }, q: { x: gateEnd.x, y: gateEnd.y } });
 
-  // The lake sits in the middle, between the first two rows, and a stream
-  // winds from it down the middle of the park to a duck pond.
-  const [r0, r1] = rowsOfLawns;
-  const lakeTop = Math.max(lawns[r0[0]].y + lawns[r0[0]].h / 2, lawns[r0[1]].y + lawns[r0[1]].h / 2);
-  const lakeBottom = Math.min(lawns[r1[0]].y - lawns[r1[0]].h / 2, lawns[r1[1]].y - lawns[r1[1]].h / 2);
-  const lake: Water = { x: midX, y: (lakeTop + lakeBottom) / 2, rx: Math.min(420, Math.min(colWidth[0], colWidth[1]) * 0.42), ry: Math.min(190, (lakeBottom - lakeTop) / 2 - 30) };
-  const [r2, r3] = [rowsOfLawns[2], rowsOfLawns[3]];
-  const pondY = (Math.max(lawns[r2[0]].y + lawns[r2[0]].h / 2, lawns[r2[1]].y + lawns[r2[1]].h / 2) + Math.min(lawns[r3[0]].y - lawns[r3[0]].h / 2, lawns[r3[1]].y - lawns[r3[1]].h / 2)) / 2;
-  const streamX = (sy: number) => midX + 24 * Math.sin((sy - lake.y) / 150);
+  // The lake sits in the middle, between the first two rows. A stream winds
+  // from it to a duck pond: down the middle of a tall park, along the band to
+  // the right of a wide one.
+  const [r0, r1] = grid;
+  const lakeTop = Math.max(...r0.map((k) => lawns[k].y + lawns[k].h / 2));
+  const lakeBottom = Math.min(...r1.map((k) => lawns[k].y - lawns[k].h / 2));
+  const lake: Water = { x: midX, y: (lakeTop + lakeBottom) / 2, rx: Math.min(420, Math.min(...colWidth) * 0.42), ry: Math.min(190, (lakeBottom - lakeTop) / 2 - 30) };
   const stream: Point[] = [];
-  for (let sy = lake.y + lake.ry - 30; sy <= pondY; sy += 40) stream.push({ x: streamX(sy), y: sy });
-  const ponds: Water[] = [{ x: streamX(pondY), y: pondY, rx: 110, ry: 62 }];
-  // Bridges where the middle two rows' walkways cross the stream.
-  const bridges = [paths[1], paths[4]].map((c) => {
-    const at = alongCurve(c, 0.5);
-    return { x: streamX(at.y), y: at.y, a: at.a };
-  });
+  let pond: Water;
+  if (orientation === "portrait") {
+    const [r2, r3] = [grid[2], grid[3]];
+    const pondY = (Math.max(...r2.map((k) => lawns[k].y + lawns[k].h / 2)) + Math.min(...r3.map((k) => lawns[k].y - lawns[k].h / 2))) / 2;
+    const streamX = (sy: number) => midX + 24 * Math.sin((sy - lake.y) / 150);
+    for (let sy = lake.y + lake.ry - 30; sy <= pondY; sy += 40) stream.push({ x: streamX(sy), y: sy });
+    pond = { x: streamX(pondY), y: pondY, rx: 110, ry: 62 };
+  } else {
+    // The pond sits in the band between the last two columns, so no walkway runs through it.
+    const pondX = margin + colWidth.slice(0, cols - 1).reduce((a, b) => a + b, 0);
+    const streamY = (sx: number) => lake.y + 24 * Math.sin((sx - lake.x) / 150);
+    for (let sx = lake.x + lake.rx - 30; sx <= pondX; sx += 40) stream.push({ x: sx, y: streamY(sx) });
+    pond = { x: pondX, y: streamY(pondX), rx: 110, ry: 62 };
+  }
+  const ponds: Water[] = [pond];
+  // A bridge wherever a walkway crosses the stream.
+  const bridges: { x: number; y: number; a: number }[] = [];
+  for (const c of paths) {
+    let best: { x: number; y: number; a: number; d: number } | null = null;
+    for (let i = 0; i <= 20; i++) {
+      const at = alongCurve(c, i / 20);
+      const d = Math.min(...stream.map((p) => Math.hypot(p.x - at.x, p.y - at.y)));
+      if (!best || d < best.d) best = { ...at, d };
+    }
+    if (best && best.d < 30) bridges.push({ x: best.x, y: best.y, a: best.a });
+  }
 
   const all = Object.values(lawns);
   const inWater = (x: number, yy: number, pad: number) =>

@@ -27,6 +27,7 @@ import {
   waterPath,
   zones,
   type Curve,
+  type Orientation,
   type Placement,
   type World,
   type Zone,
@@ -230,16 +231,21 @@ export const ParkMap = forwardRef<ParkMapHandle, Props>(function ParkMap(
     for (const z of zones) out[z.kind] = groups[z.kind].map((g) => ({ id: g.id, count: g.things.length }));
     return out;
   }, [groups]);
-  // The park is laid out once from every lawn closed; it never moves when one opens.
+  // Every lawn's closed layout: its size grows in steps with what it holds, and
+  // it shows a glimpse of the first few things.
+  const closedPlacements = useMemo(() => {
+    const out = {} as Record<ThingKind, Placement>;
+    for (const z of zones) out[z.kind] = placeLawn(z.kind, groupCounts[z.kind], false, null);
+    return out;
+  }, [groupCounts]);
+  // The park is laid out from every lawn closed, two columns on a tall screen
+  // and four on a wide one; it never moves when a lawn opens.
+  const orientation: Orientation = size && size.w > size.h ? "landscape" : "portrait";
   const world = useMemo(() => {
     const sizes = {} as Record<ThingKind, { w: number; h: number }>;
-    for (const z of zones) {
-      const p = placeLawn(z.kind, [], false, null);
-      sizes[z.kind] = { w: p.w, h: p.h };
-    }
-    return buildWorld(sizes, parkName);
-  }, [parkName]);
-  const closedPlacement = useMemo(() => placeLawn("person", [], false, null), []);
+    for (const z of zones) sizes[z.kind] = { w: closedPlacements[z.kind].w, h: closedPlacements[z.kind].h };
+    return buildWorld(sizes, parkName, orientation);
+  }, [closedPlacements, parkName, orientation]);
   // The open lawn's own layout, drawn bigger over its spot.
   const openPlacement = useMemo(() => (openLawn ? placeLawn(openLawn, groupCounts[openLawn], true, openGroup) : null), [openLawn, openGroup, groupCounts]);
   const byKind = useMemo(() => {
@@ -606,7 +612,7 @@ export const ParkMap = forwardRef<ParkMapHandle, Props>(function ParkMap(
               groups={groups}
               openLawn={openLawn}
               openPlacement={openPlacement}
-              closedPlacement={closedPlacement}
+              closedPlacements={closedPlacements}
               byKind={byKind}
               now={now}
               lod={lod}
@@ -628,7 +634,7 @@ type SceneProps = {
   groups: Record<ThingKind, Group[]>;
   openLawn: ThingKind | null;
   openPlacement: Placement | null;
-  closedPlacement: Placement;
+  closedPlacements: Record<ThingKind, Placement>;
   byKind: Map<ThingKind, ParkThing[]>;
   now: number;
   lod: Lod;
@@ -645,7 +651,7 @@ type SceneProps = {
 const curveD = (c: Curve) => `M${c.p.x} ${c.p.y} Q${c.c.x} ${c.c.y} ${c.q.x} ${c.q.y}`;
 
 /** Everything in the park, in map units. Memoized: moving the camera never redraws it. */
-const Scene = memo(function Scene({ world, groups, openLawn, openPlacement, closedPlacement, byKind, now, lod, signScale, parkName, selectedThing, emptyKinds, onSelectLawn, onOpenGroup, onSelectThing, emptyAction }: SceneProps) {
+const Scene = memo(function Scene({ world, groups, openLawn, openPlacement, closedPlacements, byKind, now, lod, signScale, parkName, selectedThing, emptyKinds, onSelectLawn, onOpenGroup, onSelectThing, emptyAction }: SceneProps) {
   const far = lod === "far";
   const fenceD = (() => {
     const i = world.fence;
@@ -658,7 +664,7 @@ const Scene = memo(function Scene({ world, groups, openLawn, openPlacement, clos
     const l = world.lawns[z.kind];
     const items = byKind.get(z.kind) ?? [];
     const n = items.length;
-    const place = open && openPlacement ? openPlacement : closedPlacement;
+    const place = open && openPlacement ? openPlacement : closedPlacements[z.kind];
     const outline = lawnPath(0, 0, place.w, place.h, hash(z.kind));
     const hedge = lawnPath(0, 0, place.w - 30, place.h - 30, hash(z.kind));
     const offers = n === 0 && emptyKinds.split(",").includes(z.kind);
@@ -686,6 +692,38 @@ const Scene = memo(function Scene({ world, groups, openLawn, openPlacement, clos
             <Landmark kind={z.kind} />
           </g>
         </g>
+
+        {/* Closed: a glimpse of what is here, arranged as it would be, below the landmark. */}
+        {!open && place.glimpse.length > 0 && (
+          <g>
+            <g aria-hidden="true" pointerEvents="none">
+              <RowDressing kind={z.kind} rows={place.glimpseRows} />
+            </g>
+            {items.slice(0, place.glimpse.length).map((t, i) => {
+              const s = place.glimpse[i];
+              const pick = () => onSelectThing(t);
+              return (
+                <g
+                  key={t.id}
+                  transform={`translate(${s.x} ${s.y})`}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${t.title}, ${z.one}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    pick();
+                  }}
+                  onKeyDown={activate(pick)}
+                  className="park-thing cursor-pointer"
+                >
+                  <circle r={hit} fill="transparent" />
+                  {selectedThing === t.id && <circle r={hit + 8} fill="#fffaf0" opacity={0.6} stroke={INK} strokeWidth={2.4} strokeDasharray="8 6" />}
+                  <Figure t={t} now={now} i={i} />
+                </g>
+              );
+            })}
+          </g>
+        )}
 
         {n > 0 ? (
           <g
