@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { hash } from "@/lib/park/layout";
 import type { ParkThing } from "@/lib/things";
 import type { ThingKind } from "@/lib/kinds";
+import type { DecorKind, Furniture } from "@/lib/park/layout";
 
 /**
  * The drawings for things in the park. Each is about 90 map units across,
@@ -267,14 +268,56 @@ export function Figure({ t, now, i }: { t: ParkThing; now: number; i: number }) 
 }
 
 /** Scenery on the open meadow between lawns. */
-export function DecorFigure({ kind, s }: { kind: "tree" | "bush" | "flowers"; s: number }) {
+export function DecorFigure({ kind, s }: { kind: DecorKind; s: number }) {
   if (kind === "tree") {
     return (
       <g transform={`scale(${s})`}>
-        <ellipse cx={0} cy={24} rx={22} ry={5} fill={INK} opacity={0.12} />
-        <rect x={-4} y={2} width={8} height={22} fill="#8a5a2b" stroke={INK} strokeWidth={1.6} />
-        <circle cx={0} cy={-10} r={22} fill="#3b9152" stroke={INK} strokeWidth={2} />
-        <circle cx={-9} cy={-18} r={7} fill="#5fb56f" />
+        <ellipse cx={4} cy={26} rx={26} ry={7} fill={INK} opacity={0.12} />
+        <path d="M-5 26 L-4 4 Q0 -2 4 4 L5 26 Z" fill="#8a5a2b" stroke={INK} strokeWidth={1.6} />
+        <circle cx={-12} cy={-6} r={16} fill="#3b9152" stroke={INK} strokeWidth={1.8} />
+        <circle cx={12} cy={-6} r={16} fill="#3b9152" stroke={INK} strokeWidth={1.8} />
+        <circle cx={0} cy={-20} r={18} fill="#4fae62" stroke={INK} strokeWidth={1.8} />
+        <path d="M-22 -8 a16 16 0 0 1 12 -14 M-6 -32 a18 18 0 0 1 12 -3" fill="none" stroke="#8fd69c" strokeWidth={3} strokeLinecap="round" />
+        <circle cx={6} cy={-10} r={4} fill="#3b9152" opacity={0.7} />
+      </g>
+    );
+  }
+  if (kind === "pine") {
+    return (
+      <g transform={`scale(${s})`}>
+        <ellipse cx={3} cy={28} rx={20} ry={6} fill={INK} opacity={0.12} />
+        <rect x={-4} y={12} width={8} height={16} fill="#8a5a2b" stroke={INK} strokeWidth={1.4} />
+        <path d="M-26 14 L0 -14 L26 14 Z" fill="#2f7a45" stroke={INK} strokeWidth={1.8} strokeLinejoin="round" />
+        <path d="M-21 -2 L0 -26 L21 -2 Z" fill="#3b9152" stroke={INK} strokeWidth={1.8} strokeLinejoin="round" />
+        <path d="M-15 -16 L0 -38 L15 -16 Z" fill="#4fae62" stroke={INK} strokeWidth={1.8} strokeLinejoin="round" />
+        <path d="M-10 -20 L0 -34" stroke="#8fd69c" strokeWidth={2.4} strokeLinecap="round" />
+      </g>
+    );
+  }
+  if (kind === "willow") {
+    return (
+      <g transform={`scale(${s})`}>
+        <ellipse cx={4} cy={30} rx={28} ry={7} fill={INK} opacity={0.12} />
+        <path d="M-5 30 L-3 0 Q0 -6 3 0 L5 30 Z" fill="#8a5a2b" stroke={INK} strokeWidth={1.6} />
+        <ellipse cx={0} cy={-14} rx={30} ry={20} fill="#7fc78a" stroke={INK} strokeWidth={1.8} />
+        <g className="park-sway" fill="none" stroke="#5fb56f" strokeWidth={2.4} strokeLinecap="round">
+          <path d="M-26 -8 q-4 16 -2 30 M-16 -2 q-3 18 0 30 M-6 0 q-2 16 0 30 M6 0 q2 16 0 30 M16 -2 q3 18 0 30 M26 -8 q4 16 2 30" />
+        </g>
+        <path d="M-18 -26 q10 -8 24 -4" fill="none" stroke="#b9e6b8" strokeWidth={3} strokeLinecap="round" />
+      </g>
+    );
+  }
+  if (kind === "blossom") {
+    return (
+      <g transform={`scale(${s})`}>
+        <ellipse cx={4} cy={26} rx={24} ry={6} fill={INK} opacity={0.12} />
+        <path d="M-4 26 L-3 6 Q0 0 3 6 L4 26 Z" fill="#8a5a2b" stroke={INK} strokeWidth={1.6} />
+        <circle cx={-11} cy={-4} r={14} fill="#f4b8c8" stroke={INK} strokeWidth={1.8} />
+        <circle cx={11} cy={-4} r={14} fill="#f4b8c8" stroke={INK} strokeWidth={1.8} />
+        <circle cx={0} cy={-17} r={15} fill="#f9cfdb" stroke={INK} strokeWidth={1.8} />
+        {[[-8, -10], [6, -2], [2, -22], [-14, 2], [12, -14]].map(([x, y], k) => (
+          <circle key={k} cx={x} cy={y} r={2.4} fill="#e8698e" />
+        ))}
       </g>
     );
   }
@@ -283,6 +326,17 @@ export function DecorFigure({ kind, s }: { kind: "tree" | "bush" | "flowers"; s:
       <g transform={`scale(${s})`}>
         <ellipse cx={0} cy={10} rx={20} ry={4} fill={INK} opacity={0.1} />
         <path d="M-18 10 a10 10 0 0 1 4 -16 a11 11 0 0 1 18 -4 a10 10 0 0 1 14 20 Z" fill="#4fae62" stroke={INK} strokeWidth={1.8} />
+        <path d="M-10 -2 a8 8 0 0 1 10 -6" fill="none" stroke="#8fd69c" strokeWidth={2.4} strokeLinecap="round" />
+      </g>
+    );
+  }
+  if (kind === "rock") {
+    return (
+      <g transform={`scale(${s})`}>
+        <ellipse cx={2} cy={10} rx={18} ry={4} fill={INK} opacity={0.12} />
+        <path d="M-16 8 L-12 -4 L-2 -10 L10 -8 L16 2 L12 9 Z" fill="#b8b2a4" stroke={INK} strokeWidth={1.6} strokeLinejoin="round" />
+        <path d="M-9 -1 L-2 -6 L6 -5" fill="none" stroke="#e8e2d4" strokeWidth={2} strokeLinecap="round" />
+        <path d="M-20 10 q6 -6 12 0" fill="none" stroke="#3b9152" strokeWidth={2} strokeLinecap="round" />
       </g>
     );
   }
@@ -298,6 +352,173 @@ export function DecorFigure({ kind, s }: { kind: "tree" | "bush" | "flowers"; s:
           <path d="M0 6 V0" stroke="#3b9152" strokeWidth={1.5} />
           <circle r={3.2} fill={c as string} stroke={INK} strokeWidth={0.8} />
         </g>
+      ))}
+    </g>
+  );
+}
+
+/** Park furniture and the life around the water. */
+export function FurnitureFigure({ f }: { f: Furniture }) {
+  const s = f.s ?? 1;
+  switch (f.kind) {
+    case "bench":
+      return (
+        <g transform={`rotate(${f.a ?? 0}) scale(${s})`}>
+          <ellipse cy={10} rx={26} ry={4} fill={INK} opacity={0.12} />
+          <path d="M-20 2 V10 M20 2 V10" stroke={INK} strokeWidth={2.4} strokeLinecap="round" />
+          <rect x={-26} y={-8} width={52} height={6} rx={2} fill="#b9814a" stroke={INK} strokeWidth={1.4} />
+          <rect x={-26} y={-1} width={52} height={6} rx={2} fill="#c78f55" stroke={INK} strokeWidth={1.4} />
+        </g>
+      );
+    case "table":
+      return (
+        <g transform={`scale(${s})`}>
+          <ellipse cy={22} rx={36} ry={6} fill={INK} opacity={0.12} />
+          <rect x={-34} y={-14} width={68} height={8} rx={2} fill="#c78f55" stroke={INK} strokeWidth={1.4} />
+          <rect x={-28} y={-2} width={56} height={10} rx={2} fill="#b9814a" stroke={INK} strokeWidth={1.4} />
+          <rect x={-34} y={12} width={68} height={8} rx={2} fill="#c78f55" stroke={INK} strokeWidth={1.4} />
+          <path d="M-20 -6 L-26 12 M20 -6 L26 12" stroke={INK} strokeWidth={2} strokeLinecap="round" />
+          <circle cx={-8} cy={3} r={4} fill="#fffaf0" stroke={INK} strokeWidth={1} />
+          <circle cx={10} cy={3} r={4} fill="#e05a4f" stroke={INK} strokeWidth={1} />
+        </g>
+      );
+    case "playground":
+      return (
+        <g transform={`scale(${s})`}>
+          <ellipse cx={0} cy={44} rx={120} ry={22} fill="#e9d9a8" stroke="#d3bd82" strokeWidth={3} />
+          {/* A swing set. */}
+          <g transform="translate(-60 0)">
+            <path d="M-34 40 L-24 -30 L-14 40 M34 40 L24 -30 L14 40" fill="none" stroke="#3f78c9" strokeWidth={4} strokeLinecap="round" />
+            <path d="M-26 -30 H26" stroke="#3f78c9" strokeWidth={5} strokeLinecap="round" />
+            <g className="park-sway">
+              <path d="M-12 -28 V14 M-2 -28 V14 M6 -28 V16 M16 -28 V16" stroke={INK} strokeWidth={1.4} />
+              <rect x={-15} y={13} width={16} height={5} rx={1.5} fill="#e05a4f" stroke={INK} strokeWidth={1.2} />
+              <rect x={3} y={15} width={16} height={5} rx={1.5} fill="#efb33e" stroke={INK} strokeWidth={1.2} />
+            </g>
+          </g>
+          {/* A slide. */}
+          <g transform="translate(50 0)">
+            <rect x={-28} y={-26} width={22} height={62} rx={3} fill="#e05a4f" stroke={INK} strokeWidth={1.6} />
+            <path d="M-24 -22 H-10 M-24 -12 H-10 M-24 -2 H-10 M-24 8 H-10 M-24 18 H-10" stroke="#fffaf0" strokeWidth={2} />
+            <path d="M-6 -26 Q30 -10 46 36 L26 40 Q14 6 -6 -8 Z" fill="#efb33e" stroke={INK} strokeWidth={1.6} strokeLinejoin="round" />
+            <path d="M-6 -26 Q30 -10 46 36" fill="none" stroke="#fff4c2" strokeWidth={2.4} />
+          </g>
+          {/* A sandbox with a bucket. */}
+          <g transform="translate(-4 34)">
+            <ellipse rx={30} ry={11} fill="#f3dfae" stroke={INK} strokeWidth={1.4} />
+            <rect x={8} y={-10} width={9} height={9} rx={1} fill="#3f78c9" stroke={INK} strokeWidth={1} />
+          </g>
+        </g>
+      );
+    case "cart":
+      return (
+        <g transform={`scale(${s})`}>
+          <ellipse cy={26} rx={34} ry={6} fill={INK} opacity={0.12} />
+          <circle cx={-16} cy={22} r={7} fill="#fffaf0" stroke={INK} strokeWidth={1.6} />
+          <circle cx={16} cy={22} r={7} fill="#fffaf0" stroke={INK} strokeWidth={1.6} />
+          <rect x={-30} y={-6} width={60} height={26} rx={4} fill="#fffaf0" stroke={INK} strokeWidth={1.6} />
+          <path d="M-30 6 H30" stroke="#e05a4f" strokeWidth={3} />
+          <path d="M-36 -8 L36 -8 L30 -26 L-30 -26 Z" fill="#fffaf0" stroke={INK} strokeWidth={1.6} strokeLinejoin="round" />
+          {[-28, -14, 0, 14].map((x, k) => (
+            <path key={x} d={`M${x} -26 L${x + 14} -26 L${x + 16} -8 L${x - 2} -8 Z`} fill={k % 2 ? "#e05a4f" : "#7fb0ea"} opacity={0.85} />
+          ))}
+          <g transform="translate(0 -40)">
+            <path d="M-6 6 L0 18 L6 6 Z" fill="#f3c94b" stroke={INK} strokeWidth={1.2} />
+            <circle cy={2} r={6} fill="#f9cfdb" stroke={INK} strokeWidth={1.2} />
+            <circle cx={-1} cy={-6} r={5} fill="#fffaf0" stroke={INK} strokeWidth={1.2} />
+          </g>
+        </g>
+      );
+    case "flowerbed":
+      return (
+        <g transform={`scale(${s})`}>
+          <ellipse cx={0} cy={0} rx={46} ry={22} fill="#9b6a43" stroke={INK} strokeWidth={1.8} />
+          <ellipse cx={0} cy={0} rx={40} ry={17} fill="#7d5234" opacity={0.5} />
+          {[[-30, -2, "#e05a4f"], [-16, 6, "#efb33e"], [-4, -6, "#a868d1"], [10, 6, "#e05a4f"], [24, -3, "#fffaf0"], [-20, -8, "#ef8a45"], [16, -9, "#efb33e"], [30, 8, "#a868d1"]].map(([x, y, c], k) => (
+            <g key={k} transform={`translate(${x} ${y})`}>
+              <path d="M0 6 V-2" stroke="#3b9152" strokeWidth={1.6} />
+              {[0, 72, 144, 216, 288].map((a) => (
+                <circle key={a} cx={Math.cos((a * Math.PI) / 180) * 3} cy={-4 + Math.sin((a * Math.PI) / 180) * 3} r={2.2} fill={c as string} />
+              ))}
+              <circle cy={-4} r={1.6} fill="#f3c94b" />
+            </g>
+          ))}
+        </g>
+      );
+    case "dock":
+      return (
+        <g transform={`scale(${s})`}>
+          <rect x={-50} y={-12} width={130} height={24} rx={3} fill="#c78f55" stroke={INK} strokeWidth={1.6} />
+          {[-38, -22, -6, 10, 26, 42, 58].map((x) => (
+            <path key={x} d={`M${x} -12 V12`} stroke="#8a5a2b" strokeWidth={1.4} />
+          ))}
+          <circle cx={74} cy={-14} r={4} fill="#8a5a2b" stroke={INK} strokeWidth={1.2} />
+          <circle cx={74} cy={14} r={4} fill="#8a5a2b" stroke={INK} strokeWidth={1.2} />
+        </g>
+      );
+    case "boat":
+      return (
+        <g className="park-duck" transform={`scale(${s})`}>
+          <path d="M-30 -4 Q0 -12 30 -4 L22 10 Q0 14 -22 10 Z" fill="#d9544a" stroke={INK} strokeWidth={1.8} strokeLinejoin="round" />
+          <path d="M-24 -2 Q0 -8 24 -2" fill="none" stroke="#fffaf0" strokeWidth={2} />
+          <rect x={-12} y={-2} width={24} height={4} rx={1} fill="#c78f55" stroke={INK} strokeWidth={1} />
+          <path d="M-16 0 L-40 12 M16 0 L40 12" stroke="#8a5a2b" strokeWidth={2.4} strokeLinecap="round" />
+        </g>
+      );
+    case "duck":
+      return (
+        <g className="park-duck" transform={`scale(${s})`}>
+          <ellipse cx={-6} cy={2} rx={11} ry={7} fill="#fffaf0" stroke={INK} strokeWidth={1.6} />
+          <circle cx={4} cy={-6} r={5} fill="#fffaf0" stroke={INK} strokeWidth={1.6} />
+          <path d="M8 -7 l6 1.5 l-6 1.5" fill="#efb33e" stroke={INK} strokeWidth={0.8} />
+          <path d="M-22 6 q-6 3 -10 0 M-22 -2 q-6 -3 -10 0" fill="none" stroke="#8fbcd6" strokeWidth={1.4} />
+        </g>
+      );
+    case "lily":
+      return (
+        <g transform={`scale(${s})`}>
+          {[[0, 0], [22, 10], [-18, 12], [8, -16]].map(([x, y], k) => (
+            <g key={k} transform={`translate(${x} ${y})`}>
+              <path d="M0 0 L9 -3 A9 9 0 1 1 8 4 Z" fill="#5fb56f" stroke={INK} strokeWidth={1} />
+              {k === 0 && <circle cx={-2} cy={-4} r={3} fill="#f9cfdb" stroke={INK} strokeWidth={0.8} />}
+            </g>
+          ))}
+        </g>
+      );
+    case "reeds":
+      return (
+        <g className="park-sway" transform={`scale(${s})`} fill="none" strokeLinecap="round">
+          <path d="M-12 12 q-2 -18 2 -34 M-4 12 q1 -20 -3 -38 M4 12 q3 -18 -1 -32 M12 12 q-1 -16 4 -30" stroke="#3b9152" strokeWidth={2.4} />
+          <ellipse cx={-3} cy={-30} rx={3} ry={8} fill="#8a5a2b" />
+          <ellipse cx={12} cy={-24} rx={2.5} ry={7} fill="#8a5a2b" />
+        </g>
+      );
+    case "kite":
+      return (
+        <g transform={`scale(${s})`}>
+          <path d="M0 60 Q-30 40 -6 12" fill="none" stroke={INK} strokeWidth={1.2} strokeDasharray="4 4" />
+          <g className="park-sway">
+            <path d="M0 -24 L18 0 L0 24 L-18 0 Z" fill="#e05a4f" stroke={INK} strokeWidth={1.6} strokeLinejoin="round" />
+            <path d="M0 -24 V24 M-18 0 H18" stroke={INK} strokeWidth={1} />
+            <path d="M-6 6 L0 0 L6 6" fill="#efb33e" />
+            <path d="M0 24 q-8 10 -2 20 q6 8 -2 16" fill="none" stroke="#e05a4f" strokeWidth={2} />
+          </g>
+        </g>
+      );
+  }
+}
+
+/** A wooden footbridge over the stream, turned to follow its path. */
+export function Bridge({ a }: { a: number }) {
+  return (
+    <g transform={`rotate(${a})`}>
+      <rect x={-40} y={-30} width={80} height={60} rx={6} fill="#c78f55" stroke={INK} strokeWidth={1.8} />
+      {[-30, -18, -6, 6, 18, 30].map((x) => (
+        <path key={x} d={`M${x} -30 V30`} stroke="#8a5a2b" strokeWidth={1.4} />
+      ))}
+      <path d="M-40 -30 Q0 -42 40 -30 M-40 30 Q0 42 40 30" fill="none" stroke={INK} strokeWidth={3} strokeLinecap="round" />
+      {[-32, -16, 0, 16, 32].map((x) => (
+        <path key={x} d={`M${x} -30 V-40 M${x} 30 V40`} stroke={INK} strokeWidth={2} strokeLinecap="round" />
       ))}
     </g>
   );

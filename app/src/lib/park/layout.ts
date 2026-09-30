@@ -215,19 +215,33 @@ const rowsOfLawns: [ThingKind, ThingKind][] = [
 ];
 
 export type Lawn = { kind: ThingKind; x: number; y: number; w: number; h: number; /** Half the longer side, for distances. */ r: number };
-export type Decor = { kind: "tree" | "bush" | "flowers"; x: number; y: number; s: number };
+export type DecorKind = "tree" | "pine" | "willow" | "blossom" | "bush" | "flowers" | "rock";
+export type Decor = { kind: DecorKind; x: number; y: number; s: number };
+export type FurnitureKind = "bench" | "table" | "playground" | "cart" | "flowerbed" | "dock" | "boat" | "duck" | "lily" | "reeds" | "kite";
+export type Furniture = { kind: FurnitureKind; x: number; y: number; /** Degrees, for things that face along a path. */ a?: number; s?: number };
+export type Water = { x: number; y: number; rx: number; ry: number };
 export type World = {
   width: number;
   height: number;
   lawns: Record<ThingKind, Lawn>;
   paths: [ThingKind, ThingKind][];
-  ponds: { x: number; y: number; rx: number; ry: number }[];
+  /** The lake in the middle of the park. */
+  lake: Water;
+  /** The stream from the lake, as points down its middle, ending in the duck pond. */
+  stream: { x: number; y: number }[];
+  ponds: Water[];
+  /** Where the paths cross the stream. */
+  bridges: { x: number; y: number; a: number }[];
   decor: Decor[];
+  furniture: Furniture[];
   /** Lamp posts along the paths. */
   lamps: { x: number; y: number }[];
   /** The park's entrance, at the bottom. */
   gate: { x: number; y: number };
 };
+
+/** Room for the lake between the first two rows of lawns. */
+const LAKE_BAND = 460;
 
 /** A small stable number from a string, for picking colors and slight variations. */
 export function hash(s: string) {
@@ -266,6 +280,8 @@ export function buildWorld(sizes: Record<ThingKind, { w: number; h: number }>): 
       x += colWidth[ci];
     });
     y += rowHeight[ri];
+    // The lake lies between the first two rows.
+    if (ri === 0) y += LAKE_BAND;
   });
   const width = colWidth[0] + colWidth[1] + margin * 2;
   const height = y + margin * 1.6;
@@ -278,51 +294,137 @@ export function buildWorld(sizes: Record<ThingKind, { w: number; h: number }>): 
       paths.push([rowsOfLawns[ri - 1][1], b]);
     }
   });
-
-  // Ponds sit between rows, in the middle of the park.
-  const midX = margin + colWidth[0];
-  const ponds = rowsOfLawns.slice(0, -1).flatMap((row, ri) => {
-    if (ri % 2 === 1) return [];
-    const below = rowsOfLawns[ri + 1];
-    const bottom = Math.max(lawns[row[0]].y + lawns[row[0]].h / 2, lawns[row[1]].y + lawns[row[1]].h / 2);
-    const top = Math.min(lawns[below[0]].y - lawns[below[0]].h / 2, lawns[below[1]].y - lawns[below[1]].h / 2);
-    return [{ x: midX, y: (bottom + top) / 2, rx: 78, ry: 40 }];
-  });
-
-  // A lamp post at the middle of every path, just off it.
-  const lamps = paths.map(([a, b]) => {
+  /** Where a path between two lawns passes, at `t` along it (the path bends a little). */
+  const along = (a: ThingKind, b: ThingKind, t: number) => {
     const p = lawns[a];
     const q = lawns[b];
-    const dx = q.x - p.x;
-    const dy = q.y - p.y;
-    const len = Math.hypot(dx, dy) || 1;
-    return { x: (p.x + q.x) / 2 + (-dy / len) * 34, y: (p.y + q.y) / 2 + (dx / len) * 34 };
+    const bend = ((hash(a + b) % 60) - 30) / 220;
+    const mx = (p.x + q.x) / 2 + (q.y - p.y) * bend;
+    const my = (p.y + q.y) / 2 - (q.x - p.x) * bend;
+    const u = 1 - t;
+    return {
+      x: u * u * p.x + 2 * u * t * mx + t * t * q.x,
+      y: u * u * p.y + 2 * u * t * my + t * t * q.y,
+      a: (Math.atan2(2 * u * (my - p.y) + 2 * t * (q.y - my), 2 * u * (mx - p.x) + 2 * t * (q.x - mx)) * 180) / Math.PI,
+    };
+  };
+
+  // The lake sits in the middle, between the first two rows, and a stream
+  // winds from it down the middle of the park to a duck pond.
+  const midX = margin + colWidth[0];
+  const [r0, r1] = rowsOfLawns;
+  const lakeTop = Math.max(lawns[r0[0]].y + lawns[r0[0]].h / 2, lawns[r0[1]].y + lawns[r0[1]].h / 2);
+  const lakeBottom = Math.min(lawns[r1[0]].y - lawns[r1[0]].h / 2, lawns[r1[1]].y - lawns[r1[1]].h / 2);
+  const lake: Water = { x: midX, y: (lakeTop + lakeBottom) / 2, rx: Math.min(420, Math.min(colWidth[0], colWidth[1]) * 0.42), ry: Math.min(190, (lakeBottom - lakeTop) / 2 - 30) };
+  const [r2, r3] = [rowsOfLawns[2], rowsOfLawns[3]];
+  const pondY = (Math.max(lawns[r2[0]].y + lawns[r2[0]].h / 2, lawns[r2[1]].y + lawns[r2[1]].h / 2) + Math.min(lawns[r3[0]].y - lawns[r3[0]].h / 2, lawns[r3[1]].y - lawns[r3[1]].h / 2)) / 2;
+  const streamX = (sy: number) => midX + 46 * Math.sin((sy - lake.y) / 150);
+  const stream: { x: number; y: number }[] = [];
+  for (let sy = lake.y + lake.ry - 30; sy <= pondY; sy += 40) stream.push({ x: streamX(sy), y: sy });
+  const ponds: Water[] = [{ x: streamX(pondY), y: pondY, rx: 84, ry: 44 }];
+  // Bridges where the middle two paths cross the stream.
+  const bridges = [paths.find(([a, b]) => a === r1[0] && b === r1[1])!, paths.find(([a, b]) => a === r2[0] && b === r2[1])!].map(([a, b]) => {
+    const at = along(a, b, 0.5);
+    return { x: streamX(at.y), y: at.y, a: at.a };
+  });
+
+  // A lamp post at the middle of every path, just off it, and a bench a way
+  // along, on the other side; both only where the path is out in the open.
+  const all = Object.values(lawns);
+  const offPath = (a: ThingKind, b: ThingKind, t: number, side: number) => {
+    const at = along(a, b, t);
+    const rad = (at.a * Math.PI) / 180;
+    const spot = { x: at.x - Math.sin(rad) * 40 * side, y: at.y + Math.cos(rad) * 40 * side, a: at.a };
+    return all.every((l) => !onLawn(l, spot.x, spot.y, 30)) ? spot : null;
+  };
+  const lamps = paths.flatMap(([a, b]) => {
+    const spot = offPath(a, b, 0.5, 1);
+    return spot ? [{ x: spot.x, y: spot.y }] : [];
+  });
+  const furniture: Furniture[] = [];
+  paths.forEach(([a, b], i) => {
+    const spot = [i % 2 ? 0.34 : 0.66, 0.5, i % 2 ? 0.66 : 0.34].map((t) => offPath(a, b, t, -1)).find((x) => x);
+    if (spot) furniture.push({ kind: "bench", x: spot.x, y: spot.y, a: spot.a });
   });
 
   const gate = { x: (margin + colWidth[0] + colWidth[1] + margin) / 2, y: height - margin * 0.7 };
 
-  // Trees and bushes scattered on open meadow, never on a lawn, a path, a lamp, the gate, or a pond.
+  // Around the lake: a dock, a boat, ducks, lily pads, reeds, a cart, picnic tables, flower beds, and a playground.
+  furniture.push({ kind: "dock", x: lake.x - lake.rx + 10, y: lake.y + 20, a: 0 });
+  furniture.push({ kind: "boat", x: lake.x + lake.rx * 0.3, y: lake.y - lake.ry * 0.25 });
+  furniture.push({ kind: "duck", x: lake.x - lake.rx * 0.35, y: lake.y - lake.ry * 0.4 });
+  furniture.push({ kind: "duck", x: lake.x + lake.rx * 0.55, y: lake.y + lake.ry * 0.45 });
+  furniture.push({ kind: "duck", x: lake.x - lake.rx * 0.1, y: lake.y + lake.ry * 0.6 });
+  furniture.push({ kind: "duck", x: ponds[0].x + 10, y: ponds[0].y });
+  furniture.push({ kind: "lily", x: lake.x + lake.rx * 0.65, y: lake.y - lake.ry * 0.55 });
+  furniture.push({ kind: "lily", x: lake.x - lake.rx * 0.6, y: lake.y + lake.ry * 0.5 });
+  furniture.push({ kind: "lily", x: ponds[0].x - 40, y: ponds[0].y + 8 });
+  furniture.push({ kind: "reeds", x: lake.x + lake.rx * 0.92, y: lake.y + lake.ry * 0.35 });
+  furniture.push({ kind: "reeds", x: lake.x - lake.rx * 0.8, y: lake.y - lake.ry * 0.7 });
+  furniture.push({ kind: "reeds", x: ponds[0].x + 70, y: ponds[0].y - 20 });
+  furniture.push({ kind: "cart", x: lake.x + lake.rx * 0.6, y: lake.y - lake.ry - 70 });
+  furniture.push({ kind: "table", x: lake.x + lake.rx + 110, y: lake.y - 30 });
+  furniture.push({ kind: "table", x: lake.x + lake.rx + 150, y: lake.y + 90 });
+  furniture.push({ kind: "flowerbed", x: lake.x - lake.rx - 90, y: lake.y - lake.ry * 0.6 });
+  furniture.push({ kind: "flowerbed", x: lake.x + lake.rx + 60, y: lake.y + lake.ry + 40 });
+  furniture.push({ kind: "flowerbed", x: gate.x - 190, y: gate.y - 20 });
+  furniture.push({ kind: "flowerbed", x: gate.x + 190, y: gate.y - 20 });
+  furniture.push({ kind: "playground", x: margin + colWidth[0] * 0.24, y: lake.y + 30 });
+  furniture.push({ kind: "kite", x: margin + colWidth[0] * 0.24 + 150, y: lake.y - 150 });
+
+  // Trees and bushes on open meadow, thicker toward the edge of the park, never on
+  // anything else. Willows lean over the water.
   const decor: Decor[] = [];
-  const all = Object.values(lawns);
-  const clear = (x: number, y: number, pad: number) =>
-    all.every((l) => !onLawn(l, x, y, pad)) &&
-    ponds.every((p) => Math.hypot((x - p.x) / (p.rx + pad), (y - p.y) / (p.ry + pad)) > 1) &&
-    lamps.every((l) => Math.hypot(x - l.x, y - l.y) > pad) &&
-    Math.hypot(x - gate.x, y - gate.y) > 180 &&
-    paths.every(([a, b]) => distanceToSegment(x, y, lawns[a], lawns[b]) > 40 + pad);
-  const step = 150;
+  const inWater = (x: number, yy: number, pad: number) =>
+    Math.hypot((x - lake.x) / (lake.rx + pad), (yy - lake.y) / (lake.ry + pad)) <= 1 ||
+    ponds.some((p) => Math.hypot((x - p.x) / (p.rx + pad), (yy - p.y) / (p.ry + pad)) <= 1) ||
+    stream.some((p) => Math.hypot(x - p.x, yy - p.y) < 34 + pad);
+  const clear = (x: number, yy: number, pad: number) =>
+    all.every((l) => !onLawn(l, x, yy, pad)) &&
+    !inWater(x, yy, pad) &&
+    lamps.every((l) => Math.hypot(x - l.x, yy - l.y) > pad) &&
+    furniture.every((f) => Math.hypot(x - f.x, yy - f.y) > (f.kind === "playground" ? 150 : 70) + pad * 0.4) &&
+    Math.hypot(x - gate.x, yy - gate.y) > 200 &&
+    paths.every(([a, b]) => distanceToSegment(x, yy, lawns[a], lawns[b]) > 40 + pad);
+  const step = 130;
   for (let gx = step / 2; gx < width; gx += step) {
     for (let gy = step / 2; gy < height; gy += step) {
       const h = hash(`${gx},${gy}`);
-      if (h % 3 === 0) continue;
+      const edge = Math.min(gx, gy, width - gx, height - gy);
+      if (h % 10 < (edge < 230 ? 1 : 3)) continue;
       const x = gx + ((h % 97) / 97 - 0.5) * step * 0.8;
       const yy = gy + (((h >>> 7) % 89) / 89 - 0.5) * step * 0.8;
-      if (!clear(x, yy, 50)) continue;
-      const pick = (h >>> 13) % 10;
-      decor.push({ kind: pick < 4 ? "tree" : pick < 7 ? "bush" : "flowers", x, y: yy, s: 0.85 + ((h >>> 17) % 30) / 100 });
+      if (!clear(x, yy, 46)) continue;
+      const pick = (h >>> 13) % 20;
+      const nearWater = inWater(x, yy, 110);
+      const kind: DecorKind = nearWater && pick < 8 ? "willow" : pick < 7 ? "tree" : pick < 11 ? "pine" : pick < 13 ? "blossom" : pick < 16 ? "bush" : pick < 19 ? "flowers" : "rock";
+      decor.push({ kind, x, y: yy, s: 0.8 + ((h >>> 17) % 45) / 100 });
     }
   }
-  return { width, height, lawns, paths, ponds, decor, lamps, gate };
+  return { width, height, lawns, paths, lake, stream, ponds, bridges, decor, furniture, lamps, gate };
+}
+
+/** A pond or lake outline: a soft, uneven oval. */
+export function waterPath(w: Water, seed: number, points = 14) {
+  const pts = Array.from({ length: points }, (_, i) => {
+    const a = (i / points) * Math.PI * 2;
+    const wobble = 0.86 + (((seed >>> ((i * 3) % 29)) & 7) / 7) * 0.14;
+    return { x: w.x + Math.cos(a) * w.rx * wobble, y: w.y + Math.sin(a) * w.ry * (0.9 + wobble * 0.1) };
+  });
+  return smoothLoop(pts);
+}
+
+/** The stream as a smooth open curve down its points. */
+export function streamPath(points: { x: number; y: number }[]) {
+  if (points.length < 2) return "";
+  let d = `M${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+  for (let i = 1; i < points.length; i++) {
+    const p = points[i - 1];
+    const q = points[i];
+    const cx = (p.x + q.x) / 2;
+    d += ` C${p.x.toFixed(1)} ${((p.y + q.y) / 2).toFixed(1)} ${cx.toFixed(1)} ${q.y.toFixed(1)} ${q.x.toFixed(1)} ${q.y.toFixed(1)}`;
+  }
+  return d;
 }
 
 function distanceToSegment(x: number, y: number, p: { x: number; y: number }, q: { x: number; y: number }) {

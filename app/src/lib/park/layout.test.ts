@@ -37,14 +37,23 @@ describe("park layout", () => {
           expect(apart, `${a.kind} touches ${b.kind}`).toBe(true);
         }
       }
-      for (const p of world.ponds) {
-        for (const l of lawns) expect(onLawn(l, p.x, p.y, p.rx * 0.5)).toBe(false);
+      for (const p of [world.lake, ...world.ponds]) {
+        for (const l of lawns) {
+          expect(onLawn(l, p.x, p.y, p.rx * 0.5)).toBe(false);
+          expect(onLawn(l, p.x - p.rx, p.y, 20), `${l.kind} touches the water`).toBe(false);
+          expect(onLawn(l, p.x + p.rx, p.y, 20), `${l.kind} touches the water`).toBe(false);
+          expect(onLawn(l, p.x, p.y - p.ry, 20), `${l.kind} touches the water`).toBe(false);
+          expect(onLawn(l, p.x, p.y + p.ry, 20), `${l.kind} touches the water`).toBe(false);
+        }
       }
+      for (const pt of world.stream) for (const l of lawns) expect(onLawn(l, pt.x, pt.y, 20), `${l.kind} sits on the stream`).toBe(false);
+      for (const f of world.furniture) for (const l of lawns) expect(onLawn(l, f.x, f.y), `${l.kind} sits on a ${f.kind}`).toBe(false);
+      expect(world.bridges).toHaveLength(2);
       for (const d of world.decor) {
         for (const l of lawns) expect(onLawn(l, d.x, d.y)).toBe(false);
       }
       expect(world.gate.y).toBeLessThan(world.height);
-      expect(world.lamps).toHaveLength(world.paths.length);
+      expect(world.lamps.length).toBeGreaterThan(0);
     }
   });
 

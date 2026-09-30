@@ -14,11 +14,11 @@ import {
   type PointerEvent,
 } from "react";
 import type { ThingKind } from "@/lib/kinds";
-import { buildWorld, countLabel, hash, lawnPath, placeLawn, SAMPLE_SCALE, stageOf, zones, type Placement, type World, type Zone } from "@/lib/park/layout";
+import { buildWorld, countLabel, hash, lawnPath, placeLawn, SAMPLE_SCALE, stageOf, streamPath, waterPath, zones, type Placement, type World, type Zone } from "@/lib/park/layout";
 import type { Group } from "@/lib/park/groups";
 import type { ParkThing } from "@/lib/things";
 import { countByKind } from "@/lib/kinds";
-import { DecorFigure, Figure, Gate, INK, Lamp, Landmark, RowDressing } from "./park-figures";
+import { Bridge, DecorFigure, Figure, FurnitureFigure, Gate, INK, Lamp, Landmark, RowDressing } from "./park-figures";
 
 type Props = {
   things: ParkThing[];
@@ -59,8 +59,12 @@ const LAWN = "#bfe3b4";
 const LAWN_STRIPE = "#b0d9a4";
 const LAWN_EDGE = "#7fbf83";
 const MEADOW = "#d7e8c8";
+const MEADOW_DARK = "#c9dfb6";
 const PATH = "#efe3c4";
 const PATH_EDGE = "#dccb9f";
+const WATER = "#a9d3ea";
+const WATER_DEEP = "#8fc3e2";
+const SHORE = "#efe0b8";
 const MAX_ZOOM = 2.6;
 
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
@@ -465,6 +469,14 @@ export const ParkMap = forwardRef<ParkMapHandle, Props>(function ParkMap(
             <pattern id="mowed" width="64" height="64" patternUnits="userSpaceOnUse" patternTransform="rotate(-18)">
               <rect width="32" height="64" fill={LAWN_STRIPE} opacity={0.55} />
             </pattern>
+            <pattern id="gravel" width="18" height="18" patternUnits="userSpaceOnUse">
+              <circle cx="4" cy="5" r="1.1" fill="#cdb98a" />
+              <circle cx="13" cy="12" r="1.3" fill="#cdb98a" />
+              <circle cx="9" cy="15" r="0.9" fill="#e6d6ad" />
+            </pattern>
+            <pattern id="ripples" width="90" height="60" patternUnits="userSpaceOnUse">
+              <path d="M6 20 q8 -6 16 0 t16 0 M48 44 q8 -6 16 0 t16 0" fill="none" stroke="#c7e4f3" strokeWidth={2} strokeLinecap="round" />
+            </pattern>
             <clipPath id="picnic-clip">
               <path d="M-38 -22 L36 -24 L38 22 L-36 24 Z" />
             </clipPath>
@@ -534,11 +546,16 @@ const Scene = memo(function Scene({ world, placements, groups, openLawn, openGro
   return (
     <>
       <rect x={-2000} y={-2000} width={world.width + 4000} height={world.height + 4000} fill={MEADOW} />
+      {/* Soft darker patches keep the meadow from looking flat. */}
+      {Array.from({ length: 14 }, (_, i) => {
+        const h = hash(`patch${i}`);
+        return <ellipse key={i} cx={(h % 1000) / 1000 * world.width} cy={((h >>> 10) % 1000) / 1000 * world.height} rx={180 + (h % 200)} ry={110 + ((h >>> 5) % 120)} fill={MEADOW_DARK} opacity={0.55} />;
+      })}
       <rect x={-2000} y={-2000} width={world.width + 4000} height={world.height + 4000} fill="url(#meadow)" />
 
-      {/* Paths between lawns, and in from the gate: a darker edge under a cream walkway. */}
-      {[PATH_EDGE, PATH].map((color, layer) => (
-        <g key={color} fill="none" stroke={color} strokeWidth={layer === 0 ? 50 : 40} strokeLinecap="round">
+      {/* Paths between lawns, and in from the gate: a darker edge under a gravel walkway. */}
+      {[PATH_EDGE, PATH, "url(#gravel)"].map((color, layer) => (
+        <g key={layer} fill="none" stroke={color} strokeWidth={layer === 0 ? 50 : 40} strokeLinecap="round">
           {world.paths.map(([a, b]) => {
             const p = world.lawns[a];
             const q = world.lawns[b];
@@ -551,29 +568,52 @@ const Scene = memo(function Scene({ world, placements, groups, openLawn, openGro
         </g>
       ))}
 
-      {world.ponds.map((p, i) => (
-        <g key={i} aria-hidden="true">
-          <ellipse cx={p.x} cy={p.y} rx={p.rx + 8} ry={p.ry + 7} fill="#b9d3a6" />
-          <ellipse cx={p.x} cy={p.y} rx={p.rx} ry={p.ry} fill="#bcdcef" stroke="#8fbcd6" strokeWidth={3} />
-          <path d={`M${p.x - 44} ${p.y - 8} q8 -6 16 0 t16 0 M${p.x + 6} ${p.y + 14} q8 -6 16 0 t16 0`} fill="none" stroke="#8fbcd6" strokeWidth={2} />
-          <g className="park-duck">
-            <ellipse cx={p.x - 6} cy={p.y + 2} rx={11} ry={7} fill="#fffaf0" stroke={INK} strokeWidth={1.6} />
-            <circle cx={p.x + 4} cy={p.y - 6} r={5} fill="#fffaf0" stroke={INK} strokeWidth={1.6} />
-            <path d={`M${p.x + 8} ${p.y - 7} l6 1.5 l-6 1.5`} fill="#efb33e" stroke={INK} strokeWidth={0.8} />
+      {/* The lake and the duck pond, with a sandy shore, then the stream between them. */}
+      {[world.lake, ...world.ponds].map((w, i) => {
+        const d = waterPath(w, hash(`water${i}`));
+        return (
+          <g key={i} aria-hidden="true">
+            <path d={d} fill={SHORE} stroke="#dccb9f" strokeWidth={4} transform={`translate(${w.x} ${w.y}) scale(1.08) translate(${-w.x} ${-w.y})`} />
+            <path d={d} fill={WATER} stroke={WATER_DEEP} strokeWidth={3} />
+            <path d={d} fill={WATER_DEEP} opacity={0.5} transform={`translate(${w.x} ${w.y}) scale(0.72) translate(${-w.x} ${-w.y})`} />
+            <path d={d} fill="url(#ripples)" />
           </g>
+        );
+      })}
+      <path d={streamPath(world.stream)} fill="none" stroke={SHORE} strokeWidth={44} strokeLinecap="round" />
+      <path d={streamPath(world.stream)} fill="none" stroke={WATER} strokeWidth={30} strokeLinecap="round" />
+      <path d={streamPath(world.stream)} fill="none" stroke="#c7e4f3" strokeWidth={4} strokeLinecap="round" strokeDasharray="14 26" opacity={0.8} />
+      {world.bridges.map((b, i) => (
+        <g key={i} transform={`translate(${b.x} ${b.y})`} aria-hidden="true" pointerEvents="none">
+          <Bridge a={b.a} />
         </g>
       ))}
 
-      {world.decor.map((d, i) => (
-        <g key={i} transform={`translate(${d.x} ${d.y})`} aria-hidden="true" pointerEvents="none">
-          <DecorFigure kind={d.kind} s={d.s} />
-        </g>
-      ))}
-      {world.lamps.map((l, i) => (
-        <g key={i} transform={`translate(${l.x} ${l.y})`} aria-hidden="true" pointerEvents="none">
-          <Lamp />
-        </g>
-      ))}
+      {/* Everything standing on the meadow, drawn back to front. */}
+      {[
+        ...world.decor.map((d) => ({ y: d.y, el: <DecorFigure kind={d.kind} s={d.s} />, x: d.x })),
+        ...world.lamps.map((l) => ({ y: l.y, el: <Lamp />, x: l.x })),
+        ...world.furniture.map((f) => ({ y: f.y, el: <FurnitureFigure f={f} />, x: f.x })),
+      ]
+        .sort((a, b) => a.y - b.y)
+        .map((d, i) => (
+          <g key={i} transform={`translate(${d.x} ${d.y})`} aria-hidden="true" pointerEvents="none">
+            {d.el}
+          </g>
+        ))}
+      {/* A low picket fence around the grounds, open at the gate. */}
+      {(() => {
+        const inset = 70;
+        const gap = 150;
+        const d = `M${world.gate.x + gap / 2} ${world.height - inset} H${world.width - inset - 40} Q${world.width - inset} ${world.height - inset} ${world.width - inset} ${world.height - inset - 40} V${inset + 40} Q${world.width - inset} ${inset} ${world.width - inset - 40} ${inset} H${inset + 40} Q${inset} ${inset} ${inset} ${inset + 40} V${world.height - inset - 40} Q${inset} ${world.height - inset} ${inset + 40} ${world.height - inset} H${world.gate.x - gap / 2}`;
+        return (
+          <g fill="none" aria-hidden="true" pointerEvents="none">
+            <path d={d} stroke="#e6d6ad" strokeWidth={10} strokeLinecap="round" />
+            <path d={d} stroke="#b9814a" strokeWidth={3} />
+            <path d={d} stroke="#8a5a2b" strokeWidth={7} strokeDasharray="4 30" strokeLinecap="round" />
+          </g>
+        );
+      })()}
       <g transform={`translate(${world.gate.x} ${world.gate.y})`} aria-hidden="true" pointerEvents="none">
         <Gate name={parkName} />
       </g>
