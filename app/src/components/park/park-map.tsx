@@ -118,7 +118,7 @@ function worldView(world: World, size: { w: number; h: number }, insets: Insets)
   const w = world.width - world.fence * 2;
   const h = world.height - world.fence * 2;
   const k = Math.min(MAX_ZOOM, Math.max(openW / w, openH / h));
-  return { x: world.width / 2 - (openW / 2 - size.w / 2) / k, y: world.height / 2 - (insets.top + openH / 2 - size.h / 2) / k, k };
+  return { x: world.width / 2, y: world.height / 2, k };
 }
 
 const activate = (fn: () => void) => (e: KeyboardEvent) => {
@@ -258,14 +258,18 @@ export const ParkMap = forwardRef<ParkMapHandle, Props>(function ParkMap(
   const openFrame = useMemo(() => {
     if (!openLawn || !openPlacement) return null;
     const l = world.lawns[openLawn];
-    const inset = world.fence + 30;
-    const roomW = world.width - inset * 2;
-    const roomH = world.height - inset * 2;
+    // Room from the fence, with more where the panels and the zoom buttons sit over the map.
+    const left = world.fence + 30;
+    const right = world.fence + 30 + world.bands.right;
+    const top = world.fence + 30 + world.bands.top;
+    const bottom = world.fence + 30 + world.bands.bottom;
+    const roomW = world.width - left - right;
+    const roomH = world.height - top - bottom;
     const s = Math.min(1, roomW / openPlacement.w, roomH / openPlacement.h);
     const w = openPlacement.w * s;
     const h = openPlacement.h * s;
-    const x = Math.min(world.width - inset - w / 2, Math.max(inset + w / 2, l.x));
-    const y = Math.min(world.height - inset - h / 2, Math.max(inset + h / 2, l.y));
+    const x = Math.min(world.width - right - w / 2, Math.max(left + w / 2, l.x));
+    const y = Math.min(world.height - bottom - h / 2, Math.max(top + h / 2, l.y));
     return { x, y, s, w, h };
   }, [openLawn, openPlacement, world]);
   const byKind = useMemo(() => {
@@ -288,20 +292,16 @@ export const ParkMap = forwardRef<ParkMapHandle, Props>(function ParkMap(
       if (!size) return c;
       const fit = worldView(world, size, insets).k;
       const k = Math.min(MAX_ZOOM, Math.max(fit, c.k));
-      // The open part of the screen (between the panels) never shows past the
-      // fence: its edges stay inside the grounds, or the grounds sit centered
-      // in it when they are smaller.
+      // The screen never shows past the fence: its edges stay inside the
+      // grounds, or the grounds sit centered on it when they are smaller, so
+      // whatever shows beyond the fence is the same on every side.
       const f = world.fence;
       const hw = size.w / 2 / k;
       const hh = size.h / 2 / k;
-      const openW = (size.w - insets.right) / k;
-      const openH = (size.h - insets.top - insets.bottom) / k;
-      const fencedW = world.width - f * 2;
-      const fencedH = world.height - f * 2;
       return {
         k,
-        x: openW >= fencedW ? world.width / 2 + hw - openW / 2 : Math.min(world.width - f - hw + insets.right / k, Math.max(f + hw, c.x)),
-        y: openH >= fencedH ? world.height / 2 + hh - insets.top / k - openH / 2 : Math.min(world.height - f - hh + insets.bottom / k, Math.max(f + hh - insets.top / k, c.y)),
+        x: hw >= world.width / 2 - f ? world.width / 2 : Math.min(world.width - f - hw, Math.max(f + hw, c.x)),
+        y: hh >= world.height / 2 - f ? world.height / 2 : Math.min(world.height - f - hh, Math.max(f + hh, c.y)),
       };
     },
     [size, world, insets],

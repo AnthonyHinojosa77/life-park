@@ -294,7 +294,12 @@ export type World = {
   gate: { x: number; y: number; w: number };
   /** How far in from the edge the fence runs. */
   fence: number;
+  /** Extra grounds inside the fence on the sides the floating panels and zoom buttons cover. */
+  bands: { top: number; bottom: number; right: number };
 };
+
+/** Extra grounds inside the fence under the header, the bottom panel, and the zoom buttons. */
+const BANDS = { top: 440, bottom: 330, right: 150 };
 
 /** A small stable number from a string, for picking colors and slight variations. */
 export function hash(s: string) {
@@ -350,7 +355,7 @@ export function buildWorld(sizes: Record<ThingKind, { w: number; h: number }>, p
   const colWidth = grid[0].map((_, c) => Math.max(...grid.map((row) => sizes[row[c]].w)) + margin);
   const rowHeight = grid.map((row) => Math.max(...row.map((k) => sizes[k].h)) + margin);
   const lawns = {} as Record<ThingKind, Lawn>;
-  let y = margin;
+  let y = margin + BANDS.top;
   grid.forEach((row, ri) => {
     let x = margin;
     row.forEach((kind, ci) => {
@@ -366,8 +371,8 @@ export function buildWorld(sizes: Record<ThingKind, { w: number; h: number }>, p
     // The lake lies between the first two rows.
     if (ri === 0) y += LAKE_BAND;
   });
-  const width = colWidth.reduce((a, b) => a + b, 0) + margin * 2;
-  const height = y + margin * 1.5;
+  const width = colWidth.reduce((a, b) => a + b, 0) + margin * 2 + BANDS.right;
+  const height = y + margin * 1.5 + BANDS.bottom;
   const fence = 70;
   // The park's middle line: between the two columns, or between the middle two of four.
   const midX = margin + colWidth.slice(0, cols / 2).reduce((a, b) => a + b, 0);
@@ -520,7 +525,7 @@ export function buildWorld(sizes: Record<ThingKind, { w: number; h: number }>, p
       decor.push({ kind, x, y: yy, s: 0.8 + ((h >>> 17) % 45) / 100, m: ((h >>> 5) & 1) === 1, c: (h >>> 21) % 3 });
     }
   }
-  return { width, height, lawns, paths, lake, stream, ponds, bridges, decor, furniture, lamps, gate, fence };
+  return { width, height, lawns, paths, lake, stream, ponds, bridges, decor, furniture, lamps, gate, fence, bands: BANDS };
 }
 
 /** Room for the lake between the first two rows of lawns. */

@@ -55,8 +55,9 @@ describe("park layout", () => {
       [sizes(), "landscape"],
     ] as const) {
       const world = buildWorld(s, "Anthony's park", o);
-      if (o === "landscape") expect(world.width).toBeGreaterThan(world.height);
-      else expect(world.height).toBeGreaterThan(world.width);
+      // Wide: four across in two rows (mail beside person); tall: two across in four rows (mail below person).
+      if (o === "landscape") expect(Math.abs(world.lawns.mail.y - world.lawns.person.y)).toBeLessThan(200);
+      else expect(world.lawns.mail.y).toBeGreaterThan(world.lawns.person.y + 400);
       const lawns = Object.values(world.lawns);
       expect(lawns).toHaveLength(8);
       for (const l of lawns) {
