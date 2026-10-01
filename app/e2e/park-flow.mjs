@@ -207,6 +207,25 @@ try {
   await page.getByRole("button", { name: /^Family: 1 neighbor/ }).waitFor();
   await page.waitForTimeout(800); // the lawn grows and the camera settles
   await page.screenshot({ path: `${dir}/park-5c-open.png` });
+  // The open lawn stays inside the fence, and the screen never shows past the park's edge.
+  const inside = await page.evaluate(() => {
+    const svg = document.querySelector("main svg");
+    const lawn = document.querySelector('[data-zone="person"][data-open]');
+    const fence = document.querySelector("main svg g[fill='none'] path");
+    if (!svg || !lawn || !fence) return "missing";
+    const l = lawn.getBoundingClientRect();
+    const f = fence.getBoundingClientRect();
+    const box = svg.getBoundingClientRect();
+    // The part of the screen between the floating panels and beside the zoom buttons.
+    const top = document.querySelector("main > div:nth-of-type(1)")?.getBoundingClientRect().bottom ?? box.top;
+    const bottom = document.querySelector("main > div:nth-of-type(3)")?.getBoundingClientRect().top ?? box.bottom;
+    const v = { left: box.left, right: box.right - 64, top, bottom, width: box.width - 64, height: bottom - top };
+    const lawnIn = l.left >= f.left - 2 && l.right <= f.right + 2 && l.top >= f.top - 2 && l.bottom <= f.bottom + 2;
+    // The fence box must cover the open part of the screen on any axis where it is bigger than it.
+    const screenIn = (f.width < v.width || (f.left <= v.left + 1 && f.right >= v.right - 1)) && (f.height < v.height || (f.top <= v.top + 1 && f.bottom >= v.bottom - 1));
+    return lawnIn && screenIn ? "ok" : `lawn ${JSON.stringify([l.left, l.top, l.right, l.bottom].map(Math.round))} fence ${JSON.stringify([f.left, f.top, f.right, f.bottom].map(Math.round))} screen ${JSON.stringify([v.left, v.top, v.right, v.bottom].map(Math.round))}`;
+  });
+  check(inside === "ok", `the open lawn or the screen left the park: ${inside}`);
   // Opening a category shows everything in it, on the map and in the list.
   await page.getByRole("button", { name: /^Everyone else: 2 neighbors/ }).click();
   await page.locator('[data-zone="person"] [data-plot="everyone"][data-open]').waitFor();

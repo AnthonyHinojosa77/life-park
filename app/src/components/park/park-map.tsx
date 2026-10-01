@@ -111,8 +111,14 @@ function lawnView(world: World, kind: ThingKind, size: { w: number; h: number },
   return fitView(l.x, l.y, w * 1.08, h * 1.08, size, insets);
 }
 
+/** The whole park: the fenced grounds filling the open part of the screen, with nothing past the fence showing. */
 function worldView(world: World, size: { w: number; h: number }, insets: Insets): Camera {
-  return fitView(world.width / 2, world.height / 2, world.width * 1.02, world.height * 1.02, size, insets);
+  const openW = Math.max(160, size.w - insets.right);
+  const openH = Math.max(200, size.h - insets.top - insets.bottom);
+  const w = world.width - world.fence * 2;
+  const h = world.height - world.fence * 2;
+  const k = Math.min(MAX_ZOOM, Math.max(openW / w, openH / h));
+  return { x: world.width / 2 - (openW / 2 - size.w / 2) / k, y: world.height / 2 - (insets.top + openH / 2 - size.h / 2) / k, k };
 }
 
 const activate = (fn: () => void) => (e: KeyboardEvent) => {
@@ -248,6 +254,20 @@ export const ParkMap = forwardRef<ParkMapHandle, Props>(function ParkMap(
   }, [closedPlacements, parkName, orientation]);
   // The open lawn's own layout, drawn bigger over its spot.
   const openPlacement = useMemo(() => (openLawn ? placeLawn(openLawn, groupCounts[openLawn], true, openGroup) : null), [openLawn, openGroup, groupCounts]);
+  // The open lawn is drawn inside the fence: moved in from the edge, and scaled down when it could not fit.
+  const openFrame = useMemo(() => {
+    if (!openLawn || !openPlacement) return null;
+    const l = world.lawns[openLawn];
+    const inset = world.fence + 30;
+    const roomW = world.width - inset * 2;
+    const roomH = world.height - inset * 2;
+    const s = Math.min(1, roomW / openPlacement.w, roomH / openPlacement.h);
+    const w = openPlacement.w * s;
+    const h = openPlacement.h * s;
+    const x = Math.min(world.width - inset - w / 2, Math.max(inset + w / 2, l.x));
+    const y = Math.min(world.height - inset - h / 2, Math.max(inset + h / 2, l.y));
+    return { x, y, s, w, h };
+  }, [openLawn, openPlacement, world]);
   const byKind = useMemo(() => {
     const m = new Map<ThingKind, ParkThing[]>();
     for (const t of things) m.set(t.kind, [...(m.get(t.kind) ?? []), t]);
@@ -267,14 +287,21 @@ export const ParkMap = forwardRef<ParkMapHandle, Props>(function ParkMap(
     (c: Camera): Camera => {
       if (!size) return c;
       const fit = worldView(world, size, insets).k;
-      const k = Math.min(MAX_ZOOM, Math.max(fit * 0.9, c.k));
-      // Keep some of the park on screen wherever you drag.
-      const mx = size.w / 2 / k;
-      const my = size.h / 2 / k;
+      const k = Math.min(MAX_ZOOM, Math.max(fit, c.k));
+      // The open part of the screen (between the panels) never shows past the
+      // fence: its edges stay inside the grounds, or the grounds sit centered
+      // in it when they are smaller.
+      const f = world.fence;
+      const hw = size.w / 2 / k;
+      const hh = size.h / 2 / k;
+      const openW = (size.w - insets.right) / k;
+      const openH = (size.h - insets.top - insets.bottom) / k;
+      const fencedW = world.width - f * 2;
+      const fencedH = world.height - f * 2;
       return {
         k,
-        x: Math.min(world.width - Math.min(mx, world.width / 2) * 0.2, Math.max(Math.min(mx, world.width / 2) * 0.2, c.x)),
-        y: Math.min(world.height - Math.min(my, world.height / 2) * 0.2, Math.max(Math.min(my, world.height / 2) * 0.2, c.y)),
+        x: openW >= fencedW ? world.width / 2 + hw - openW / 2 : Math.min(world.width - f - hw + insets.right / k, Math.max(f + hw, c.x)),
+        y: openH >= fencedH ? world.height / 2 + hh - insets.top / k - openH / 2 : Math.min(world.height - f - hh + insets.bottom / k, Math.max(f + hh - insets.top / k, c.y)),
       };
     },
     [size, world, insets],
@@ -323,23 +350,16 @@ export const ParkMap = forwardRef<ParkMapHandle, Props>(function ParkMap(
         if (!size) return;
         // A jump wins over the refit that closing a lawn would otherwise make.
         if (opts?.closing) skipRefit.current = true;
-        const stillOpen = !opts?.closing && kind === openLawn && openPlacement ? openPlacement : undefined;
-        glide(lawnView(world, kind, size, insets, stillOpen));
+        if (!opts?.closing && kind === openLawn && openFrame) glide(fitView(openFrame.x, openFrame.y, openFrame.w * 1.08, openFrame.h * 1.08, size, insets));
+        else glide(lawnView(world, kind, size, insets));
       },
       overview: () => {
         if (!size) return;
-        if (openLawn && openPlacement) {
-          const l = world.lawns[openLawn];
-          const x0 = Math.min(0, l.x - openPlacement.w / 2);
-          const y0 = Math.min(0, l.y - openPlacement.h / 2);
-          const x1 = Math.max(world.width, l.x + openPlacement.w / 2);
-          const y1 = Math.max(world.height, l.y + openPlacement.h / 2);
-          glide(fitView((x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) * 1.02, (y1 - y0) * 1.02, size, insets));
-        } else glide(worldView(world, size, insets));
+        glide(worldView(world, size, insets));
       },
       zoomBy: (f) => camRef.current && glide({ ...camRef.current, k: camRef.current.k * f }, 280),
     }),
-    [size, world, glide, insets, openLawn, openPlacement],
+    [size, world, glide, insets, openLawn, openFrame],
   );
 
   // Measure the screen area, and start on the first lawn once it is known.
@@ -380,26 +400,29 @@ export const ParkMap = forwardRef<ParkMapHandle, Props>(function ParkMap(
       return;
     }
     skipRefit.current = false;
-    const l = world.lawns[openLawn];
-    const plot = openGroup && openPlacement ? openPlacement.plots.find((p) => p.id === openGroup) : null;
+    if (!openFrame || !openPlacement) return;
+    const f = openFrame;
+    const plot = openGroup ? openPlacement.plots.find((p) => p.id === openGroup) : null;
     if (plot) {
-      const fit = fitView(l.x + plot.x, l.y + plot.y, plot.w * 1.12, plot.h * 1.12 + 40, size, insets);
+      const px = f.x + plot.x * f.s;
+      const py = f.y + plot.y * f.s;
+      const fit = fitView(px, py, plot.w * f.s * 1.12, plot.h * f.s * 1.12 + 40, size, insets);
       if (fit.k >= 0.6) glide(fit);
       else {
         // Too much to fit at a readable size: show the top of it close enough to read, and let the person pan.
         const k = 0.6;
         const openW = Math.max(160, size.w - insets.right);
         const openH = Math.max(200, size.h - insets.top - insets.bottom);
-        const topY = l.y + plot.y - plot.h / 2;
-        glide({ k, x: l.x + plot.x - (openW / 2 - size.w / 2) / k, y: topY + openH / 2 / k - 30 - (insets.top + openH / 2 - size.h / 2) / k });
+        const topY = py - (plot.h * f.s) / 2;
+        glide({ k, x: px - (openW / 2 - size.w / 2) / k, y: topY + openH / 2 / k - 30 - (insets.top + openH / 2 - size.h / 2) / k });
       }
-    } else glide(lawnView(world, openLawn, size, insets, openPlacement ?? undefined));
-  }, [openLawn, openGroup, world, openPlacement, size, glide, insets]);
+    } else glide(fitView(f.x, f.y, f.w * 1.08, f.h * 1.08, size, insets));
+  }, [openLawn, openGroup, world, openPlacement, openFrame, size, glide, insets]);
 
   // A picked thing slides into the open part of the screen, so its card never covers it.
   useEffect(() => {
-    if (!selectedThing || !openLawn || !openPlacement || !size || !camRef.current) return;
-    const l = world.lawns[openLawn];
+    if (!selectedThing || !openLawn || !openPlacement || !openFrame || !size || !camRef.current) return;
+    const f = openFrame;
     for (const plot of openPlacement.plots) {
       const group = groups[openLawn].find((g) => g.id === plot.id);
       if (!group) continue;
@@ -409,10 +432,10 @@ export const ParkMap = forwardRef<ParkMapHandle, Props>(function ParkMap(
       const c = camRef.current;
       const openW = Math.max(160, size.w - insets.right);
       const openH = Math.max(200, size.h - insets.top - insets.bottom);
-      glide({ k: c.k, x: l.x + plot.x + s.x - (openW / 2 - size.w / 2) / c.k, y: l.y + plot.y + s.y - (insets.top + openH / 2 - size.h / 2) / c.k }, 400);
+      glide({ k: c.k, x: f.x + (plot.x + s.x) * f.s - (openW / 2 - size.w / 2) / c.k, y: f.y + (plot.y + s.y) * f.s - (insets.top + openH / 2 - size.h / 2) / c.k }, 400);
       return;
     }
-  }, [selectedThing, openLawn, openPlacement, groups, world, size, insets, glide]);
+  }, [selectedThing, openLawn, openPlacement, openFrame, groups, size, insets, glide]);
 
   // Tell the parent which lawn is in the middle of the open space as the map moves.
   useEffect(() => {
@@ -612,6 +635,7 @@ export const ParkMap = forwardRef<ParkMapHandle, Props>(function ParkMap(
               groups={groups}
               openLawn={openLawn}
               openPlacement={openPlacement}
+              openFrame={openFrame}
               closedPlacements={closedPlacements}
               byKind={byKind}
               now={now}
@@ -634,6 +658,7 @@ type SceneProps = {
   groups: Record<ThingKind, Group[]>;
   openLawn: ThingKind | null;
   openPlacement: Placement | null;
+  openFrame: { x: number; y: number; s: number; w: number; h: number } | null;
   closedPlacements: Record<ThingKind, Placement>;
   byKind: Map<ThingKind, ParkThing[]>;
   now: number;
@@ -651,7 +676,7 @@ type SceneProps = {
 const curveD = (c: Curve) => `M${c.p.x} ${c.p.y} Q${c.c.x} ${c.c.y} ${c.q.x} ${c.q.y}`;
 
 /** Everything in the park, in map units. Memoized: moving the camera never redraws it. */
-const Scene = memo(function Scene({ world, groups, openLawn, openPlacement, closedPlacements, byKind, now, lod, signScale, parkName, selectedThing, emptyKinds, onSelectLawn, onOpenGroup, onSelectThing, emptyAction }: SceneProps) {
+const Scene = memo(function Scene({ world, groups, openLawn, openPlacement, openFrame, closedPlacements, byKind, now, lod, signScale, parkName, selectedThing, emptyKinds, onSelectLawn, onOpenGroup, onSelectThing, emptyAction }: SceneProps) {
   const far = lod === "far";
   const fenceD = (() => {
     const i = world.fence;
@@ -676,7 +701,7 @@ const Scene = memo(function Scene({ world, groups, openLawn, openPlacement, clos
     const { dx, dy } = spacingOf(z.kind);
     const hit = Math.min(40, dx / 2, dy / 2);
     return (
-      <g key={z.kind} data-zone={z.kind} data-stage={stageOf(n)} data-open={open || undefined} transform={`translate(${l.x} ${l.y})`}>
+      <g key={z.kind} data-zone={z.kind} data-stage={stageOf(n)} data-open={open || undefined} transform={open && openFrame ? `translate(${openFrame.x} ${openFrame.y}) scale(${openFrame.s})` : `translate(${l.x} ${l.y})`}>
         {open && <path d={outline} fill={INK} opacity={0.14} transform="translate(0 14)" />}
         {/* Only the sign and the landmark open a lawn; the grass itself does nothing once it is open. */}
         <g onClick={open ? undefined : n > 0 ? toggle : act} className={!open && (n > 0 || offers) ? "cursor-pointer" : undefined}>
@@ -877,11 +902,9 @@ const Scene = memo(function Scene({ world, groups, openLawn, openPlacement, clos
       {zones
         .filter((z) => z.kind !== openLawn)
         .map((z) => {
-          const under =
-            openLawn && openPlacement
-              ? Math.abs(world.lawns[z.kind].x - world.lawns[openLawn].x) < (world.lawns[z.kind].w + openPlacement.w) / 2 &&
-                Math.abs(world.lawns[z.kind].y - world.lawns[openLawn].y) < (world.lawns[z.kind].h + openPlacement.h) / 2
-              : false;
+          const under = openFrame
+            ? Math.abs(world.lawns[z.kind].x - openFrame.x) < (world.lawns[z.kind].w + openFrame.w) / 2 && Math.abs(world.lawns[z.kind].y - openFrame.y) < (world.lawns[z.kind].h + openFrame.h) / 2
+            : false;
           return under ? (
             <g key={z.kind} opacity={0.2}>
               {lawn(z, false)}
