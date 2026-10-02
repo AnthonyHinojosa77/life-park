@@ -16,3 +16,8 @@ Treat a report of something looking wrong as evidence to investigate. Re-read th
 
 Use the existing `/learning-loop` only when Anthony explicitly asks to record a durable learning or when the current authorized project rules require it. Do not infer permission to edit global memory, unrelated repositories, or commit changes from an observation alone.
 
+<!-- ai-agent-system:begin -->
+@AGENTS.md
+
+Use the repository's actual commands, architecture, and more specific instructions when performing work.
+<!-- ai-agent-system:end -->
