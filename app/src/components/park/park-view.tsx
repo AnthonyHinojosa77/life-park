@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ChalkOutline } from "@/components/ui/chalk";
 import { ParkIcon } from "@/components/ui/icons";
+import { connectGitHub } from "@/lib/connect-github";
 import { connectGoogle } from "@/lib/connect-google";
-import { googleServices, type GoogleServiceId } from "@/lib/google/services";
+import { googleServices } from "@/lib/google/services";
+import { lawnFor, serviceName, type ImportService } from "@/lib/import-services";
 import { countByKind, type ThingKind } from "@/lib/kinds";
 import { groupThings, type Group } from "@/lib/park/groups";
 import { countLabel, nextZone, progress, zones, type Zone } from "@/lib/park/layout";
@@ -17,31 +19,24 @@ type Props = {
   name: string;
   initialThings: ParkThing[];
   /** Connected services not imported yet; imported as soon as the park opens. */
-  pending: GoogleServiceId[];
+  pending: ImportService[];
   /** Connected services last brought in over 12 hours ago; refreshed quietly in the background. */
-  stale?: GoogleServiceId[];
+  stale?: ImportService[];
   /** Every Google service the person allowed. */
-  connected: GoogleServiceId[];
+  connected: ImportService[];
   /** Whether Google sign-in is set up on this site at all. */
   googleAvailable: boolean;
   /** Set when the person just came back from Google without allowing access. */
   connectFailed?: boolean;
+  /** Whether GitHub is set up on this site at all. */
+  githubAvailable?: boolean;
+  /** Set when the person just came back from GitHub and it didn't work. */
+  githubNotice?: string | null;
 };
 
-type Status = { service: GoogleServiceId; state: "waiting" | "working" | "done" | "error"; count?: number; error?: string };
+type Status = { service: ImportService; state: "waiting" | "working" | "done" | "error"; count?: number; error?: string };
 
-const serviceName = (id: GoogleServiceId) => googleServices.find((s) => s.id === id)?.label ?? id;
 const zoneOf = (kind: ThingKind) => zones.find((z) => z.kind === kind)!;
-/** The lawn each Google service fills. */
-const lawnFor: Record<GoogleServiceId, ThingKind> = {
-  calendar: "event",
-  contacts: "person",
-  tasks: "list",
-  gmail: "mail",
-  drive: "file",
-  docs: "file",
-  sheets: "file",
-};
 // A new chat id is made at the moment of the tap, so server and phone always agree on the page.
 const chatWith = (starter: string) => `/chats/${crypto.randomUUID()}?prompt=${encodeURIComponent(starter)}`;
 
@@ -64,6 +59,13 @@ function describe(t: ParkThing) {
   if (Array.isArray(t.detail.items)) bits.push(`${t.detail.items.length} items`);
   if (t.detail.type === "doc") bits.push("Google Doc");
   if (t.detail.type === "sheet") bits.push("Google Sheet");
+  if (t.kind === "repo") {
+    if (typeof t.detail.language === "string") bits.push(t.detail.language);
+    if (t.detail.private === true) bits.push("Private");
+    if (t.detail.archived === true) bits.push("Archived");
+    if (typeof t.detail.stars === "number" && t.detail.stars > 0) bits.push(`★ ${t.detail.stars}`);
+    if (typeof t.detail.description === "string") bits.push(t.detail.description);
+  }
   return bits.join(" · ");
 }
 
@@ -76,6 +78,7 @@ const sourceNames: Record<string, string> = {
   drive: "from My Drive",
   docs: "from Google Docs",
   sheets: "from Google Sheets",
+  github: "from GitHub",
 };
 
 /** One chip for every small choice over the map: a lawn to jump to, a category, a quick action. */
@@ -114,7 +117,7 @@ function Float({ className = "", children, label }: { className?: string; childr
   );
 }
 
-export function ParkView({ name, initialThings, pending, stale = [], connected, googleAvailable, connectFailed }: Props) {
+export function ParkView({ name, initialThings, pending, stale = [], connected, googleAvailable, connectFailed, githubAvailable = false, githubNotice = null }: Props) {
   const router = useRouter();
   const mapRef = useRef<ParkMapHandle>(null);
   const [things, setThings] = useState(initialThings);
@@ -127,7 +130,7 @@ export function ParkView({ name, initialThings, pending, stale = [], connected, 
   const [thing, setThing] = useState<ParkThing | null>(null);
   const [here, setHere] = useState<ThingKind | null>(null);
   const [connectError, setConnectError] = useState<string | null>(
-    connectFailed ? "Google didn't connect. You can try again any time." : null,
+    connectFailed ? "Google didn't connect. You can try again any time." : githubNotice,
   );
   const [now] = useState(() => Date.now());
   const started = useRef(false);
@@ -166,7 +169,7 @@ export function ParkView({ name, initialThings, pending, stale = [], connected, 
   // Open on the first lawn with something on it, so there is always something to see.
   const [startAt] = useState<ThingKind>(() => zones.find((z) => counts[z.kind] > 0)?.kind ?? "person");
 
-  async function runImports(services: GoogleServiceId[]) {
+  async function runImports(services: ImportService[]) {
     setShowStatus(true);
     setStatuses(services.map((service) => ({ service, state: "waiting" })));
     for (const service of services) {
@@ -195,7 +198,7 @@ export function ParkView({ name, initialThings, pending, stale = [], connected, 
   }
 
   /** Brings overdue services up to date without any panel; the park just updates. */
-  async function refreshQuietly(services: GoogleServiceId[]) {
+  async function refreshQuietly(services: ImportService[]) {
     for (const service of services) {
       await fetch("/api/import", {
         method: "POST",
@@ -249,6 +252,7 @@ export function ParkView({ name, initialThings, pending, stale = [], connected, 
   }
 
   function emptyAction(z: Zone) {
+    if (z.kind === "repo") return githubAvailable ? connectGitHub : null;
     if (z.kind === "mail" || z.kind === "file") return googleAvailable ? () => void connect() : null;
     return () => router.push(chatWith(z.starter));
   }
@@ -452,6 +456,11 @@ export function ParkView({ name, initialThings, pending, stale = [], connected, 
               <Button size="sm" onClick={() => router.push(chatWith(`Tell me about ${thing.title}: `))}>
                 Ask LifePark
               </Button>
+              {typeof thing.detail.link === "string" && thing.detail.link.startsWith("https://") && (
+                <Button size="sm" variant="soft" onClick={() => window.open(thing.detail.link as string, "_blank", "noopener")}>
+                  {thing.kind === "repo" ? "Open on GitHub" : "Open"}
+                </Button>
+              )}
               <Button size="sm" variant="soft" onClick={() => setThing(null)}>
                 Close
               </Button>
@@ -465,9 +474,17 @@ export function ParkView({ name, initialThings, pending, stale = [], connected, 
                 {zoneOf(lawn).name} <span className="font-sans text-xs font-extrabold text-muted">{countLabel(zoneOf(lawn), lawnCount)}</span>
               </h2>
               <div className="flex gap-1">
-                <Button variant="soft" size="sm" onClick={() => router.push(chatWith(zoneOf(lawn).starter))}>
-                  Add
-                </Button>
+                {lawn === "repo" ? (
+                  githubAvailable && (
+                    <Button variant="soft" size="sm" onClick={connectGitHub}>
+                      Choose
+                    </Button>
+                  )
+                ) : (
+                  <Button variant="soft" size="sm" onClick={() => router.push(chatWith(zoneOf(lawn).starter))}>
+                    Add
+                  </Button>
+                )}
                 <Button variant="ghost" size="sm" onClick={() => toggleLawn(lawn)}>
                   Close
                 </Button>
@@ -510,7 +527,7 @@ export function ParkView({ name, initialThings, pending, stale = [], connected, 
               </Float>
             )}
             {connected.length > 0 && !importing && (
-              <Chip onClick={() => void runImports(connected)}>Refresh from Google</Chip>
+              <Chip onClick={() => void runImports(connected)}>{connected.includes("github") && connected.length > 1 ? "Refresh" : connected.includes("github") ? "Refresh from GitHub" : "Refresh from Google"}</Chip>
             )}
           </>
         )}

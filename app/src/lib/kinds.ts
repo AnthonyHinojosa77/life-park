@@ -2,7 +2,7 @@
  * The kinds of things LifePark keeps. Each has its own place in the park.
  * Kept free of database code so screens in the browser can use it too.
  */
-export const thingKinds = ["person", "event", "habit", "recipe", "note", "list", "file", "mail"] as const;
+export const thingKinds = ["person", "event", "habit", "recipe", "note", "list", "file", "mail", "repo"] as const;
 export type ThingKind = (typeof thingKinds)[number];
 
 /** How many of each kind there are. Kinds with none are included as 0. */

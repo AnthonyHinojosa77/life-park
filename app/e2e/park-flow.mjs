@@ -9,6 +9,8 @@ import os from "node:os";
 import path from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { chromium } from "playwright";
+import { generateKeyPairSync } from "node:crypto";
+import { createMockGitHub } from "./mock-github.mjs";
 import { createMockGoogle } from "./mock-google.mjs";
 import { submitAndWaitFor } from "./helpers.mjs";
 
@@ -24,6 +26,11 @@ function check(ok, message) {
 
 const google = createMockGoogle();
 await new Promise((r) => google.listen(3125, r));
+// A stand-in GitHub where the person hasn't installed LifePark yet.
+const keys = generateKeyPairSync("rsa", { modulusLength: 2048 });
+const github = createMockGitHub({ publicKey: keys.publicKey.export({ type: "spki", format: "pem" }).toString(), installed: false });
+github.appBase = base;
+await new Promise((r) => github.listen(3129, r));
 const openrouter = spawn("node", ["e2e/mock-openrouter.mjs", "3126"], { stdio: "ignore" });
 
 function startServer() {
@@ -38,6 +45,12 @@ function startServer() {
       GOOGLE_CLIENT_ID: "stand-in-client",
       GOOGLE_CLIENT_SECRET: "stand-in-secret",
       GOOGLE_API_BASE: "http://127.0.0.1:3125",
+      GITHUB_APP_SLUG: "lifepark-test",
+      GITHUB_APP_CLIENT_ID: "test-github-client",
+      GITHUB_APP_CLIENT_SECRET: "test-github-secret",
+      GITHUB_APP_PRIVATE_KEY: keys.privateKey.export({ type: "pkcs1", format: "pem" }).toString(),
+      GITHUB_API_BASE: "http://127.0.0.1:3129",
+      GITHUB_WEB_BASE: "http://127.0.0.1:3129",
       OPENROUTER_API_KEY: "stand-in",
       OPENROUTER_BASE_URL: "http://127.0.0.1:3126/api/v1",
     },
@@ -126,7 +139,7 @@ try {
   // Coming back without allowing access still lands on the park, now empty with signs.
   await page.goto(base + "/park?connect=failed", { waitUntil: "networkidle" });
   await page.getByText("Google didn't connect").waitFor();
-  await page.getByText(/^0 of 8 lawns growing/).waitFor();
+  await page.getByText(/^0 of 9 lawns growing/).waitFor();
   await page.getByRole("button", { name: /Neighborhood: Who's in your life/ }).waitFor();
   await page.getByRole("button", { name: "Connect Google" }).waitFor();
   await page.screenshot({ path: `${dir}/park-3-empty.png`, fullPage: true });
@@ -146,7 +159,7 @@ try {
   await page.screenshot({ path: `${dir}/park-4-chat-saved.png` });
   await page.getByRole("link", { name: "Added to your park: Grandma's chili" }).click();
   await page.waitForURL("**/park");
-  await page.getByText(/^1 of 8 lawns growing/).waitFor();
+  await page.getByText(/^1 of 9 lawns growing/).waitFor();
   // The park opens on the first lawn with something on it.
   await page.getByRole("button", { name: "Go to Orchard" }).and(page.locator('[aria-current="location"]')).waitFor();
   await page.getByRole("button", { name: /Orchard: 1 recipe/ }).click();
@@ -190,7 +203,7 @@ try {
   ]) {
     await page.getByText(line).waitFor();
   }
-  await page.getByText(/^6 of 8 lawns growing/).waitFor();
+  await page.getByText(/^6 of 9 lawns growing/).waitFor();
   await page.getByRole("button", { name: "Dismiss" }).click();
   await page.waitForTimeout(1500); // let the sprouting finish before the picture
   await page.screenshot({ path: `${dir}/park-5-filled.png`, fullPage: true });
@@ -279,6 +292,35 @@ try {
   await page.getByRole("button", { name: /Neighborhood: 3 neighbors/ }).waitFor();
   await page.getByRole("button", { name: "Go to Neighborhood" }).and(page.locator('[aria-current="location"]')).waitFor();
 
+  // GitHub: the empty Workshop's sign connects it. Not installed yet, so the
+  // person installs the app on GitHub, comes back, and their repositories move in.
+  await flyTo("Workshop");
+  await page.getByRole("button", { name: /Workshop: Your code lives here/ }).click();
+  await page.waitForURL("**/park?github=connected", { timeout: 20000 });
+  await page.getByText("✓ GitHub: 3 added").waitFor({ timeout: 30000 });
+  await page.getByRole("button", { name: "Dismiss" }).click();
+  await page.getByRole("button", { name: /Workshop: 3 repositories/ }).click();
+  const workshop = page.getByRole("region", { name: "Workshop" });
+  await workshop.getByRole("button", { name: /^TypeScript 1$/ }).waitFor();
+  await workshop.getByRole("button", { name: /^Archived 1$/ }).waitFor();
+  await page.getByRole("button", { name: "anthony/life-park, repository" }).click();
+  const repoCard = page.getByRole("region", { name: "anthony/life-park" });
+  await repoCard.getByText(/TypeScript · Private · ★ 3 · My park/).waitFor();
+  await repoCard.getByRole("button", { name: "Open on GitHub" }).waitFor();
+  await page.screenshot({ path: `${dir}/park-8-workshop.png` });
+  await repoCard.getByRole("button", { name: "Close" }).click();
+  // Settings shows the connection and can disconnect it, which empties the Workshop.
+  await page.goto(base + "/settings", { waitUntil: "networkidle" });
+  await page.getByText("Connected to anthony · 3 repositories in the Workshop.").waitFor();
+  await page.getByRole("button", { name: "Disconnect" }).click();
+  await page.getByRole("button", { name: "Connect GitHub" }).waitFor();
+  await page.goto(base + "/park", { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: /Workshop: Your code lives here/ }).waitFor();
+  // A callback that didn't start here is turned away.
+  await page.goto(base + "/api/github/callback?code=mock-code&state=forged", { waitUntil: "networkidle" });
+  check(page.url().endsWith("/park?github=failed"), "a forged GitHub callback was accepted");
+  await page.getByText("GitHub didn't connect").waitFor();
+
   // Laptop width: the park lays out wide, four lawns across.
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(base + "/park", { waitUntil: "networkidle" });
@@ -297,4 +339,5 @@ try {
   await stopServer(server).catch(() => {});
   openrouter.kill();
   google.close();
+  github.close();
 }

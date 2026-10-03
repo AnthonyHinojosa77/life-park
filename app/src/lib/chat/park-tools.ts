@@ -40,7 +40,7 @@ export function parkTools(userId: string) {
         "Look up things saved in the user's park, to answer questions about their life (birthdays, plans, recipes, lists, mail, files).",
       inputSchema: z.object({
         query: z.string().max(100).optional().describe("Words to look for in titles and details"),
-        kind: z.enum([...chatKinds, "file", "mail"]).optional(),
+        kind: z.enum([...chatKinds, "file", "mail", "repo"]).optional(),
       }),
       execute: async ({ query, kind }) => {
         const words = (query ?? "").toLowerCase().split(/\s+/).filter(Boolean);

@@ -45,7 +45,13 @@ It fails if a normal person cannot get value in the first few minutes without le
 
 ### Keeping the park current (2026-09-29)
 
-- LifePark refreshes every connected Google service by itself every night, and again quietly whenever the park is opened more than 12 hours after its last refresh.
+- LifePark refreshes every connected Google service and GitHub by itself every night, and again quietly whenever the park is opened more than 12 hours after its last refresh.
+
+### GitHub (2026-10-03)
+
+- People can bring their GitHub repositories into the park, onto a ninth lawn, the Workshop: one shed per repository, flagged in its language's color, grouped by language with archived ones apart, and a card that opens the repository on GitHub.
+- It uses a LifePark GitHub App with read-only "Metadata" access. People install it on GitHub, choose which repositories it may see (all or a few, private ones included), and can change that choice or disconnect any time from Settings.
+- An installation is only accepted after the person confirms it is theirs by signing in with GitHub; an installation id in a link alone is never trusted.
 
 ### The park
 
@@ -147,6 +153,7 @@ Listed so nothing is a surprise. Claude handles everything else.
 - **Apple Developer account.** $99 a year, needed for Sign in with Apple.
 - **Payments account (Stripe).** Needed before charging anyone. It has to be in Anthony's name.
 - **Domain purchase.** lifepark.app.
+- **GitHub App.** Register LifePark's GitHub App in Anthony's GitHub account and put its four values in Vercel (steps and a browser-agent prompt in docs/maintainer/GITHUB_APP.md). Until then the Workshop shows a sign and Settings says GitHub isn't set up.
 - **Speechify key.** Optional. The device voice works without it.
 - **Vercel token.** Optional. Without it, adding the permanent database is one click in Vercel.
 

@@ -24,6 +24,7 @@ export const zones: Zone[] = [
   { kind: "note", name: "Bench walk", one: "note", many: "notes", sign: "Leave a note", starter: "Remember this for me: ", accent: "#6d7f92" },
   { kind: "file", name: "Library", one: "file", many: "files", sign: "Shelve a file", starter: "Keep track of this document: ", accent: "#1f9e9a" },
   { kind: "mail", name: "Post office", one: "letter", many: "letters", sign: "Mail arrives here", starter: "Keep an eye on this email: ", accent: "#2f6fb8" },
+  { kind: "repo", name: "Workshop", one: "repository", many: "repositories", sign: "Your code lives here", starter: "Tell me about my project ", accent: "#7a4fb8" },
 ];
 
 export type Stage = "empty" | "sprout" | "growing" | "bloom";
@@ -52,6 +53,7 @@ export const arrangements: Record<ThingKind, Arrangement> = {
   recipe: { shape: "rows", dx: 86, dy: 96, stagger: true, wide: 1.6, loose: 0.1 },
   file: { shape: "rows", dx: 46, dy: 78, stagger: false, wide: 1.9, loose: 0 },
   mail: { shape: "rows", dx: 68, dy: 96, stagger: false, wide: 1.7, loose: 0.05 },
+  repo: { shape: "rows", dx: 96, dy: 104, stagger: true, wide: 1.6, loose: 0.08 },
   list: { shape: "scatter", gap: 118 },
   note: { shape: "scatter", gap: 112 },
 };
@@ -256,9 +258,10 @@ const grids: Record<"portrait" | "landscape", ThingKind[][]> = {
     ["file", "mail"],
     ["list", "recipe"],
     ["habit", "note"],
+    ["repo"],
   ],
   landscape: [
-    ["person", "event", "file", "mail"],
+    ["person", "event", "file", "mail", "repo"],
     ["list", "recipe", "habit", "note"],
   ],
 };
@@ -352,30 +355,37 @@ export function buildWorld(sizes: Record<ThingKind, { w: number; h: number }>, p
   const grid = grids[orientation];
   const cols = grid[0].length;
   const margin = 190;
-  const colWidth = grid[0].map((_, c) => Math.max(...grid.map((row) => sizes[row[c]].w)) + margin);
+  // Column widths come from the full rows; a shorter row sits centered under them.
+  const full = grid.filter((row) => row.length === cols);
+  const colWidth = grid[0].map((_, c) => Math.max(...full.map((row) => sizes[row[c]].w)) + margin);
+  const contentW = colWidth.reduce((a, b) => a + b, 0);
   const rowHeight = grid.map((row) => Math.max(...row.map((k) => sizes[k].h)) + margin);
+  // The park's middle line: between the middle two columns, or down the middle column of an odd number.
+  const midX = cols % 2 === 0 ? margin + colWidth.slice(0, cols / 2).reduce((a, b) => a + b, 0) : margin + contentW / 2;
   const lawns = {} as Record<ThingKind, Lawn>;
   let y = margin + BANDS.top;
   grid.forEach((row, ri) => {
-    let x = margin;
+    const short = row.length < cols;
+    const widths = short ? row.map((k) => sizes[k].w + margin) : colWidth;
+    // A shorter row is centered on the middle line, kept inside the grounds.
+    const rowW = widths.reduce((a, b) => a + b, 0);
+    let x = short ? Math.min(margin + contentW - rowW, Math.max(margin, midX - rowW / 2)) : margin;
     row.forEach((kind, ci) => {
       // A slight, stable offset keeps the blocks from looking ruled.
       const h = hash(kind);
-      const jx = ((h % 100) / 100 - 0.5) * margin * 0.3;
+      const jx = short ? 0 : ((h % 100) / 100 - 0.5) * margin * 0.3;
       const jy = (((h >>> 8) % 100) / 100 - 0.5) * margin * 0.3;
       const { w, h: lh } = sizes[kind];
-      lawns[kind] = { kind, x: x + colWidth[ci] / 2 + jx, y: y + rowHeight[ri] / 2 + jy + (ci % 2 === 1 ? margin * 0.25 : 0), w, h: lh, r: Math.max(w, lh) / 2 };
-      x += colWidth[ci];
+      lawns[kind] = { kind, x: x + widths[ci] / 2 + jx, y: y + rowHeight[ri] / 2 + jy + (!short && ci % 2 === 1 ? margin * 0.25 : 0), w, h: lh, r: Math.max(w, lh) / 2 };
+      x += widths[ci];
     });
     y += rowHeight[ri];
     // The lake lies between the first two rows.
     if (ri === 0) y += LAKE_BAND;
   });
-  const width = colWidth.reduce((a, b) => a + b, 0) + margin * 2 + BANDS.right;
+  const width = contentW + margin * 2 + BANDS.right;
   const height = y + margin * 1.5 + BANDS.bottom;
   const fence = 70;
-  // The park's middle line: between the two columns, or between the middle two of four.
-  const midX = margin + colWidth.slice(0, cols / 2).reduce((a, b) => a + b, 0);
   const gate = { x: midX, y: height - fence, w: gateWidth(parkName) };
 
   // Paths run between fixed entrances: the middle of a lawn's side facing the other lawn.
@@ -392,14 +402,26 @@ export function buildWorld(sizes: Record<ThingKind, { w: number; h: number }>, p
   const pairs: [ThingKind, ThingKind][] = [];
   grid.forEach((row, ri) => {
     for (let c = 1; c < row.length; c++) pairs.push([row[c - 1], row[c]]);
-    if (ri > 0) row.forEach((k, c) => pairs.push([grid[ri - 1][c], k]));
+    if (ri === 0) return;
+    const above = grid[ri - 1];
+    if (row.length === above.length) row.forEach((k, c) => pairs.push([above[c], k]));
+    else {
+      // Rows of different lengths: every lawn joins the nearest one across the gap, both ways.
+      const nearest = (k: ThingKind, among: ThingKind[]) => among.reduce((best, o) => (Math.abs(lawns[o].x - lawns[k].x) < Math.abs(lawns[best].x - lawns[k].x) ? o : best));
+      const joined = new Set<string>();
+      for (const k of row) joined.add(`${nearest(k, above)}|${k}`);
+      for (const a of above) joined.add(`${a}|${nearest(a, row)}`);
+      for (const j of joined) pairs.push(j.split("|") as [ThingKind, ThingKind]);
+    }
   });
   for (const [a, b] of pairs) paths.push(between(a, b));
-  // In from the gate, up to the bottom row's walkway nearest the middle.
+  // In from the gate: up to a lawn standing on the middle line, or to the bottom row's middle walkway.
   const last = grid[grid.length - 1];
-  const bottomRow = between(last[cols / 2 - 1], last[cols / 2]);
-  const gateEnd = alongCurve(bottomRow, 0.5);
-  paths.push({ p: { x: gate.x, y: gate.y - 20 }, c: { x: gate.x, y: (gate.y + gateEnd.y) / 2 }, q: { x: gateEnd.x, y: gateEnd.y } });
+  const centered = last.length === 1 ? last[0] : last.find((k) => Math.abs(lawns[k].x - midX) < 120);
+  const gateEnd = centered
+    ? { x: lawns[centered].x, y: lawns[centered].y + lawns[centered].h / 2 - 24 }
+    : alongCurve(between(last[Math.floor(last.length / 2) - 1], last[Math.floor(last.length / 2)]), 0.5);
+  paths.push({ p: { x: gate.x, y: gate.y - 20 }, c: { x: (gate.x + gateEnd.x) / 2, y: (gate.y + gateEnd.y) / 2 }, q: { x: gateEnd.x, y: gateEnd.y } });
 
   // The lake sits in the middle, between the first two rows. A stream winds
   // from it to a duck pond: down the middle of a tall park, along the band to
@@ -570,8 +592,8 @@ export function progress(counts: Record<ThingKind, number>) {
 
 /** The first empty lawn worth filling next, or null when every lawn is growing. */
 export function nextZone(counts: Record<ThingKind, number>) {
-  // Mail and files only arrive from connected accounts, so chat never nudges toward them.
-  return zones.find((z) => z.kind !== "mail" && z.kind !== "file" && (counts[z.kind] ?? 0) === 0) ?? null;
+  // Mail, files, and repositories only arrive from connected accounts, so chat never nudges toward them.
+  return zones.find((z) => z.kind !== "mail" && z.kind !== "file" && z.kind !== "repo" && (counts[z.kind] ?? 0) === 0) ?? null;
 }
 
 /**

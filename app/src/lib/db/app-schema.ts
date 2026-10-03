@@ -126,3 +126,21 @@ export const connections = pgTable(
   },
   (t) => [primaryKey({ columns: [t.userId, t.service] })],
 );
+
+/**
+ * GitHub App installations someone has confirmed are theirs. Each one gives
+ * LifePark read-only access to the repositories its owner chose on GitHub.
+ */
+export const githubInstallations = pgTable(
+  "github_installations",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    installationId: text("installation_id").notNull(),
+    /** The GitHub account or organization it was installed on. */
+    accountLogin: text("account_login").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.installationId] })],
+);

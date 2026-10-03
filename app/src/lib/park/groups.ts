@@ -169,4 +169,22 @@ const rules: Record<ThingKind, (things: ParkThing[], now: number) => Group[]> = 
   note(list, now) {
     return byAge(list, now, ["This week", "This month", "Older"]);
   },
+  repo(list) {
+    const [archived, live] = pick(list, (t) => t.detail.archived === true);
+    const byLanguage = new Map<string, ParkThing[]>();
+    for (const t of live) {
+      const lang = typeof t.detail.language === "string" && t.detail.language ? t.detail.language : "Other";
+      byLanguage.set(lang, [...(byLanguage.get(lang) ?? []), t]);
+    }
+    const langs = [...byLanguage.entries()].filter(([l]) => l !== "Other").sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
+    const own = langs.slice(0, 6);
+    const rest = [...langs.slice(6).flatMap(([, l]) => l), ...(byLanguage.get("Other") ?? [])];
+    // Most recently worked on first, within each.
+    const recent = (l: ParkThing[]) => [...l].sort((a, b) => (b.date ? Date.parse(b.date) : 0) - (a.date ? Date.parse(a.date) : 0));
+    return [
+      ...own.map(([lang, l]) => ({ id: `lang-${slug(lang)}`, name: lang, things: recent(l) })),
+      { id: "other", name: own.length ? "Other languages" : "Projects", things: recent(rest) },
+      { id: "archived", name: "Archived", things: recent(archived) },
+    ];
+  },
 };

@@ -8,6 +8,7 @@ import { auth } from "@/lib/auth";
 import { requireSession } from "@/lib/session";
 import { resetRules, saveRules } from "@/lib/rules";
 import { getSettings, parseSettings, saveSettings } from "@/lib/settings";
+import { disconnectGitHub } from "@/lib/github/import";
 
 export async function updateRules(content: string) {
   const session = await requireSession();
@@ -59,4 +60,13 @@ export async function deleteMyAccount(confirmation: string) {
   await auth.api.signOut({ headers: h }).catch(() => null);
   await deleteAccount(session.user.id);
   redirect("/sign-up");
+}
+
+/** Disconnects GitHub: forgets the installations and takes the repositories out of the park. */
+export async function disconnectGitHubAction() {
+  const session = await requireSession();
+  await disconnectGitHub(session.user.id);
+  revalidatePath("/settings");
+  revalidatePath("/park");
+  return { ok: true };
 }

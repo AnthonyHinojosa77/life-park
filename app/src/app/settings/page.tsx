@@ -3,6 +3,10 @@ import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { DeleteAccount } from "@/components/settings/delete-account";
+import { GitHubConnection } from "@/components/settings/github-connection";
+import { githubAvailable } from "@/lib/github/app";
+import { githubInstallationsOf } from "@/lib/github/import";
+import { listConnections } from "@/lib/things";
 import { Preferences } from "@/components/settings/preferences";
 import { RulesEditor } from "@/components/settings/rules-editor";
 import { isOwner } from "@/lib/owner";
@@ -13,7 +17,12 @@ export const metadata: Metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
   const { session, settings } = await requireOnboarded();
-  const rules = await getRules(session.user.id);
+  const [rules, installs, connections] = await Promise.all([
+    getRules(session.user.id),
+    githubInstallationsOf(session.user.id),
+    listConnections(session.user.id),
+  ]);
+  const github = connections.find((c) => c.service === "github");
   const owner = isOwner(session.user.email);
 
   return (
@@ -26,6 +35,15 @@ export default async function SettingsPage() {
           <Preferences
             navigation={settings.navigation}
             voice={settings.voice}
+          />
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <h2 className="font-serif text-2xl">GitHub</h2>
+          <GitHubConnection
+            available={githubAvailable()}
+            accounts={installs.map((i) => i.accountLogin)}
+            repoCount={installs.length && github?.status === "connected" ? github.itemCount : 0}
           />
         </section>
 

@@ -69,7 +69,7 @@ let server = await startServer();
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
 const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
 const errors = [];
-page.on("pageerror", (e) => errors.push(e.message));
+page.on("pageerror", (e) => errors.push(`${e.message} ${(e.stack ?? "").split("\n").slice(1, 4).join(" ")}`));
 
 try {
   await page.goto(base + "/sign-up", { waitUntil: "networkidle" });
@@ -145,6 +145,7 @@ try {
   if (errors.length) throw new Error(`page errors: ${errors.join(" | ")}`);
   console.log("park shots ok");
 } catch (e) {
+  if (errors.length) console.error("page errors:", errors.join(" | "));
   await page.screenshot({ path: `${dir}/shots-failed.png` }).catch(() => {});
   throw e;
 } finally {

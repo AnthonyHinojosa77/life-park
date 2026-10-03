@@ -59,7 +59,7 @@ describe("park layout", () => {
       if (o === "landscape") expect(Math.abs(world.lawns.mail.y - world.lawns.person.y)).toBeLessThan(200);
       else expect(world.lawns.mail.y).toBeGreaterThan(world.lawns.person.y + 400);
       const lawns = Object.values(world.lawns);
-      expect(lawns).toHaveLength(8);
+      expect(lawns).toHaveLength(zones.length);
       for (const l of lawns) {
         expect(l.x - l.w / 2).toBeGreaterThan(0);
         expect(l.y - l.h / 2).toBeGreaterThan(0);
@@ -147,6 +147,16 @@ describe("park layout", () => {
       }
       expect(world.gate.y).toBeLessThan(world.height);
       expect(world.lamps.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("lays out with lawns of very different sizes, tall or wide", () => {
+    for (const o of ["portrait", "landscape"] as const) {
+      const s = Object.fromEntries(zones.map((z, i) => [z.kind, { w: 400 + (i % 3) * 420, h: 380 + (i % 2) * 300 }])) as Record<ThingKind, { w: number; h: number }>;
+      const world = buildWorld(s, "Anthony's park", o);
+      expect(Object.values(world.lawns)).toHaveLength(zones.length);
+      // The gate path ends on the last row.
+      expect(world.paths[world.paths.length - 1].q.y).toBeGreaterThan(world.lawns.person.y);
     }
   });
 
@@ -280,7 +290,7 @@ describe("park layout", () => {
   });
 
   it("tracks progress and nudges toward the next empty lawn chat can fill", () => {
-    expect(progress(none)).toEqual({ grown: 0, total: 8 });
+    expect(progress(none)).toEqual({ grown: 0, total: 9 });
     expect(nextZone(none)?.kind).toBe("person");
     const some = counts({ person: 3, event: 1, mail: 4 });
     expect(progress(some).grown).toBe(3);

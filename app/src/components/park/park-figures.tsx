@@ -230,6 +230,69 @@ function Book({ t, i }: { t: ParkThing; i: number }) {
   );
 }
 
+/** GitHub's colors for the most common languages, for a shed's flag. */
+const languageColors: Record<string, string> = {
+  TypeScript: "#3178c6",
+  JavaScript: "#f1e05a",
+  Python: "#3572a5",
+  Go: "#00add8",
+  Rust: "#dea584",
+  Java: "#b07219",
+  "C#": "#178600",
+  "C++": "#f34b7d",
+  C: "#555555",
+  Ruby: "#701516",
+  PHP: "#4f5d95",
+  Swift: "#f05138",
+  Kotlin: "#a97bff",
+  HTML: "#e34c26",
+  CSS: "#563d7c",
+  Shell: "#89e051",
+  Dart: "#00b4ab",
+  Jupyter: "#da5b0b",
+  "Jupyter Notebook": "#da5b0b",
+};
+
+/**
+ * A repository is a little workshop shed: a flag in its language's color, a
+ * padlock if it is private, stars on the door if people starred it, and
+ * boarded-up windows once it is archived.
+ */
+function Shed({ t }: { t: ParkThing }) {
+  const h = hash(t.id);
+  const lang = typeof t.detail.language === "string" ? t.detail.language : "";
+  const flag = languageColors[lang] ?? brights[h % brights.length];
+  const archived = t.detail.archived === true;
+  const wall = archived ? "#d9d2c3" : walls[(h >>> 3) % walls.length];
+  const roof = archived ? "#9a948a" : roofs[(h >>> 6) % roofs.length];
+  const stars = typeof t.detail.stars === "number" ? t.detail.stars : 0;
+  return (
+    <g opacity={archived ? 0.75 : 1}>
+      <Shadow w={34} />
+      <rect x={-22} y={-6} width={44} height={34} rx={2} fill={wall} stroke={INK} strokeWidth={LINE} />
+      <path d="M-28 -4 L-22 -22 L22 -22 L28 -4 Z" fill={roof} stroke={INK} strokeWidth={LINE} strokeLinejoin="round" />
+      <rect x={-7} y={8} width={14} height={20} rx={1.5} fill="#b9814a" stroke={INK} strokeWidth={1.8} />
+      <path d="M-7 14 H7 M-7 20 H7" stroke="#8a5a2b" strokeWidth={1} />
+      <rect x={10} y={2} width={8} height={8} fill={archived ? "#b9814a" : "#cfe6f5"} stroke={INK} strokeWidth={1.4} />
+      {archived && <path d="M9 4 L19 9 M9 9 L19 4" stroke={INK} strokeWidth={1.4} />}
+      {/* The flag on the roof, in the language's color. */}
+      <path d="M-14 -22 V-44" stroke={INK} strokeWidth={1.8} strokeLinecap="round" />
+      <path className="park-flag" d="M-13 -44 L4 -39 L-13 -34 Z" fill={flag} stroke={INK} strokeWidth={1.2} strokeLinejoin="round" />
+      {t.detail.private === true && (
+        <g transform="translate(-16 12)">
+          <path d="M-3 0 V-3 A3 3 0 0 1 3 -3 V0" fill="none" stroke={INK} strokeWidth={1.4} />
+          <rect x={-4.5} y={0} width={9} height={7} rx={1.5} fill="#efb33e" stroke={INK} strokeWidth={1.2} />
+        </g>
+      )}
+      {stars > 0 && (
+        <g transform="translate(0 -14)">
+          <path d="M0 -5 L1.5 -1.5 L5 -1.5 L2.2 0.8 L3.2 4.5 L0 2.3 L-3.2 4.5 L-2.2 0.8 L-5 -1.5 L-1.5 -1.5 Z" fill="#f3c94b" stroke={INK} strokeWidth={0.9} strokeLinejoin="round" />
+        </g>
+      )}
+    </g>
+  );
+}
+
 /** A photo is a print leaning on the shelf, with a little scene on it. */
 function Photo({ t, i }: { t: ParkThing; i: number }) {
   const h = hash(t.id);
@@ -285,6 +348,8 @@ export function Figure({ t, now, i }: { t: ParkThing; now: number; i: number }) 
       return <Book t={t} i={i} />;
     case "mail":
       return <Mailbox t={t} i={i} />;
+    case "repo":
+      return <Shed t={t} />;
   }
 }
 
@@ -591,6 +656,8 @@ export function Landmark({ kind }: { kind: ThingKind }) {
         return [<Library key="f" />, 104, 0];
       case "mail":
         return [<PostOffice key="m" />, 96, 2];
+      case "repo":
+        return [<Workshop key="w" />, 100, 2];
     }
   })();
   return (
@@ -799,6 +866,48 @@ function Library() {
   );
 }
 
+/** The Workshop: a timber maker's shop with a big gear sign, a workbench, and a toolbox. */
+function Workshop() {
+  return (
+    <>
+      <rect x={-74} y={-30} width={148} height={82} rx={3} fill="#c78f55" stroke={INK} strokeWidth={LINE} />
+      {[-52, -26, 0, 26, 52].map((x) => (
+        <path key={x} d={`M${x} -30 V52`} stroke="#a8794f" strokeWidth={1.4} />
+      ))}
+      <path d="M-82 -28 L0 -76 L82 -28 Z" fill="#7a4fb8" stroke={INK} strokeWidth={LINE} strokeLinejoin="round" />
+      <path d="M-62 -34 L0 -68 L62 -34" fill="none" stroke="#fffaf0" strokeWidth={2} opacity={0.5} />
+      {/* Wide double doors, one open. */}
+      <rect x={-26} y={4} width={52} height={48} fill="#3a2a1d" stroke={INK} strokeWidth={LINE} />
+      <rect x={-26} y={4} width={26} height={48} fill="#a8794f" stroke={INK} strokeWidth={1.6} />
+      <path d="M-26 4 L0 52 M0 4 L-26 52" stroke="#8a5a2b" strokeWidth={1.4} />
+      <rect x={4} y={34} width={18} height={6} fill="#efb33e" stroke={INK} strokeWidth={1} />
+      {/* The gear sign. */}
+      <g transform="translate(0 -46)">
+        {Array.from({ length: 8 }, (_, k) => (
+          <rect key={k} x={-3.5} y={-17} width={7} height={8} rx={1} fill="#fffaf0" stroke={INK} strokeWidth={1.2} transform={`rotate(${k * 45})`} />
+        ))}
+        <circle r={12} fill="#fffaf0" stroke={INK} strokeWidth={1.6} />
+        <circle r={4.5} fill="#7a4fb8" stroke={INK} strokeWidth={1.2} />
+      </g>
+      {[-54, 54].map((x) => (
+        <rect key={x} x={x - 10} y={-4} width={20} height={18} rx={2} fill="#cfe6f5" stroke={INK} strokeWidth={1.5} />
+      ))}
+      {/* A workbench and a toolbox out front. */}
+      <g transform="translate(-104 34)">
+        <rect x={-22} y={-6} width={44} height={7} rx={1.5} fill="#b9814a" stroke={INK} strokeWidth={1.6} />
+        <path d="M-17 1 V18 M17 1 V18" stroke={INK} strokeWidth={2.4} strokeLinecap="round" />
+        <rect x={-12} y={-14} width={10} height={8} rx={1} fill="#4a82de" stroke={INK} strokeWidth={1} />
+        <path d="M6 -6 L14 -16" stroke={INK} strokeWidth={2} strokeLinecap="round" />
+      </g>
+      <g transform="translate(100 40)">
+        <rect x={-15} y={-6} width={30} height={16} rx={2} fill="#d9544a" stroke={INK} strokeWidth={1.6} />
+        <path d="M-7 -6 V-11 H7 V-6" fill="none" stroke={INK} strokeWidth={1.6} />
+        <path d="M-15 0 H15" stroke={INK} strokeWidth={1} opacity={0.5} />
+      </g>
+    </>
+  );
+}
+
 function PostOffice() {
   return (
     <>
@@ -852,6 +961,14 @@ export function RowDressing({ kind, rows }: { kind: ThingKind; rows: { y: number
             <rect x={r.x0 - 16} y={r.y + 30} width={r.x1 - r.x0 + 32} height={10} rx={2} fill="#b9814a" stroke={INK} strokeWidth={1.6} />
             <rect x={r.x0 - 16} y={r.y + 40} width={r.x1 - r.x0 + 32} height={4} fill="#8a5a2b" />
           </g>
+        ))}
+      </>
+    );
+  if (kind === "repo")
+    return (
+      <>
+        {rows.map((r, i) => (
+          <rect key={i} x={r.x0 - 14} y={r.y + 30} width={r.x1 - r.x0 + 28} height={14} rx={7} fill="#e6d6ad" stroke="#cdb98a" strokeWidth={2.5} />
         ))}
       </>
     );
