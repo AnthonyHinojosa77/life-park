@@ -19,6 +19,7 @@ describe("auth addresses", () => {
     expect(origins).toContain("https://work-park-git-main-team.vercel.app");
     expect(origins).toContain("https://work-park-abc123-team.vercel.app");
     expect(origins).toContain("https://life-park-app.vercel.app");
+    expect(origins).toContain("https://lifepark.cohegen.net");
     expect(origins).toContain("https://appleid.apple.com");
     expect(new Set(origins).size).toBe(origins.length);
   });
@@ -29,6 +30,17 @@ describe("auth addresses", () => {
 
   it("lets an explicit setting win", () => {
     expect(authBaseURL({ ...production, BETTER_AUTH_URL: "https://lifepark.app" })).toBe("https://lifepark.app");
+  });
+
+  it("uses the CoheGen domain for sign-in and passkeys when configured, retaining old launch addresses", () => {
+    const env = { ...production, BETTER_AUTH_URL: "https://lifepark.cohegen.net" };
+    expect(authBaseURL(env)).toBe("https://lifepark.cohegen.net");
+    expect(trustedAppOrigins(env)).toContain("https://work-park.vercel.app");
+    expect(trustedAppOrigins(env)).toContain("https://life-park-app.vercel.app");
+  });
+
+  it("does not trust the production suite domain on preview deployments", () => {
+    expect(trustedAppOrigins({ ...production, VERCEL_ENV: "preview" })).not.toContain("https://lifepark.cohegen.net");
   });
 
   it("falls back to localhost for development", () => {

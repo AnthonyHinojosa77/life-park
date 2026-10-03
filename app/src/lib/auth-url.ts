@@ -3,7 +3,7 @@ type Env = Record<string, string | undefined>;
 const https = (host: string | undefined) => (host ? `https://${host}` : undefined);
 
 /** Every public address the live site answers on. Vercel reports only one of them. */
-export const publicAddresses = ["work-park.vercel.app", "life-park-app.vercel.app"];
+export const publicAddresses = ["work-park.vercel.app", "life-park-app.vercel.app", "lifepark.cohegen.net"];
 
 /**
  * The address sign-in cookies and passkeys belong to. On Vercel, production

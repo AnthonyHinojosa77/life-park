@@ -4,6 +4,7 @@ import { ChalkDust, ChalkOutline } from "@/components/ui/chalk";
 import { Wordmark } from "@/components/wordmark";
 import { AuthIntro } from "./auth-intro";
 import { isPreview } from "@/lib/preview";
+import { CoheGenLink } from "@/components/cohegen-link";
 
 type Props = {
   title: string;
@@ -51,6 +52,7 @@ export function AuthShell({ title, footer, children }: Props) {
             {footer.linkText}
           </Link>
         </p>
+        <div data-intro-step="write" data-intro-for="0.5"><CoheGenLink /></div>
       </main>
     </AuthIntro>
   );
