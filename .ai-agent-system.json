@@ -1,5 +1,5 @@
 {
-  "content_sha256": "b97fd467d72bbe12dd5ec116d7fcb170f3b26cdbe48e304377420e4ecd9f4c5f",
+  "content_sha256": "6c505836e98da761645e0ddcff77fadd3c176141a37e01801e6f0d9284bd3874",
   "files": {
     ".agents/skills/babysit-pr/SKILL.md": "c5f47e8313368cf787a2150807481971c85cd43c8be8cca0d45443c3d1990364",
     ".agents/skills/babysit-pr/agents/openai.yaml": "a1499d95abd8447558c535fe5554adcc3c9b988a0a39264a6283d430effe1e94",
@@ -13,7 +13,7 @@
     ".claude/skills/capability-check/SKILL.md": "d3770ce8a5d62572592a6f3ecc32cbdb0bfdccbf79bca97641850dde4d48f63a",
     ".claude/skills/file-pr/SKILL.md": "78c2884b858598506e304fd8d24d8af2b828c55c34cd0c95f0d6af6026f2f810",
     ".claude/skills/html-communication/SKILL.md": "a4b1cb0668cbe955b5693f1c385eb4b51b6f2527f29e5db26bafd828fa17d3b1",
-    "AGENTS.md": "b05ba4110d033c79a9e2771c8881b41f4f0b0d21cc35d376f283aecd3ffb9cb3",
+    "AGENTS.md": "9b55326888fb326500e982c1e15d8d74fc42d3adedd94dc9b601dfe5bb926df6",
     "CLAUDE.md": "ed54fe91e9651d2a9cd58ea0f69b84e3642f877b037db86e6a6ee4b22c3ba806"
   },
   "profile": "public-safe",
