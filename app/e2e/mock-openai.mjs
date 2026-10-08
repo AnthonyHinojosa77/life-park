@@ -69,6 +69,16 @@ export function createMockOpenAI({ base, clientId, redirectUri, clientSecret }) 
       res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ keys: [{ ...jwk, kid: "mock-key", alg: "RS256", use: "sig" }] }));
       return;
     }
+    if (url.pathname === "/api/accounts/oauth/userinfo") {
+      // Answers for any access token, so a sign-in without an ID token only fails
+      // if LifePark refuses to fall back to this.
+      if (req.headers.authorization !== "Bearer mock-access-token") return fail(res, 401, "userinfo needs the access token");
+      const { identity } = server;
+      res.writeHead(200, { "content-type": "application/json" }).end(
+        JSON.stringify({ sub: identity.sub, email: identity.email, email_verified: true, name: identity.name }),
+      );
+      return;
+    }
     if (url.pathname === "/api/accounts/authorize") {
       const q = url.searchParams;
       server.authorizeRequests.push(Object.fromEntries(q));

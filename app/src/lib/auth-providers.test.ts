@@ -57,6 +57,8 @@ describe("signInErrorMessage", () => {
     expect(signInErrorMessage("account_not_linked", "chatgpt")).toMatch(/already has a LifePark account.*add ChatGPT in Settings/);
     expect(signInErrorMessage("account_not_linked", "google")).not.toMatch(/Settings/);
     expect(signInErrorMessage("account_not_linked", "nonsense")).not.toMatch(/Settings/);
+    expect(signInErrorMessage("unable_to_link_account", "chatgpt")).toMatch(/add ChatGPT in Settings/);
+    expect(signInErrorMessage("unable_to_link_account", "google")).toMatch(/didn't go through/);
   });
 
   it("names the provider that shared no email", () => {

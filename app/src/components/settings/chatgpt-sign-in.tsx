@@ -35,7 +35,13 @@ export function ChatGPTSignIn({ linked, result, reason }: Props) {
     });
     if (error) {
       setBusy(false);
-      setError(error.status === 429 ? "Too many tries in a row. Wait a few seconds and try again." : "Couldn't reach ChatGPT. Try again in a moment.");
+      setError(
+        error.status === 429
+          ? "Too many tries in a row. Wait a few seconds and try again."
+          : error.status === 404
+            ? "ChatGPT sign-in isn't available right now. Try again later."
+            : "Couldn't reach ChatGPT. Try again in a moment.",
+      );
     }
   }
 

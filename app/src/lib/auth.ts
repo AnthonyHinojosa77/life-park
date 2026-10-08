@@ -82,6 +82,8 @@ export const auth = betterAuth({
         before: async (account, ctx) =>
           (await allowChatGPTAccount(account, ctx)) ? { data: withoutChatGPTTokens(account) } : false,
       },
+      // Every update that can reach a ChatGPT row names its provider; the token
+      // refresh updates that don't need a refresh token, which ChatGPT rows never keep.
       update: { before: async (account) => ({ data: withoutChatGPTTokens(account) }) },
     },
   },

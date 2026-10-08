@@ -10,8 +10,8 @@ available to selected commercial partners through a limited trial"
 
 - One tap to sign up or sign in with their ChatGPT account. LifePark receives
   their name, email, picture, and an account ID that never changes, and keeps
-  those like it does for Google. It never sees their ChatGPT chats, memories, or
-  plan, and doesn't keep OpenAI's sign-in tokens.
+  those like it does for Google. It never sees their ChatGPT chats or plan, and
+  doesn't keep OpenAI's sign-in tokens.
 - Someone who already has a LifePark account with the same email isn't joined to
   it automatically, because OpenAI warns that a matching email alone doesn't prove
   it's the same person. The sign-in page tells them to sign in the way they did

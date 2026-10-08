@@ -34,8 +34,12 @@ export function signInErrorMessage(code: string | undefined, from?: string): str
   if (!code) return null;
   const provider = isProvider(from) ? from : undefined;
   switch (code) {
-    case "account_not_linked":
     case "unable_to_link_account":
+      // For ChatGPT this is LifePark refusing to join an existing account by email;
+      // for Google or Apple it only happens when saving fails.
+      if (provider !== "chatgpt") return "That sign-in didn't go through. Try again, or pick another way.";
+    // falls through
+    case "account_not_linked":
       // Only ChatGPT can be added from Settings; Google is connected from the park instead.
       return provider === "chatgpt"
         ? "That email already has a LifePark account. Sign in the way you did before, then add ChatGPT in Settings."
