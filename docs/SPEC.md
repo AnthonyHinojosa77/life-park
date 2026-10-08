@@ -53,6 +53,13 @@ It fails if a normal person cannot get value in the first few minutes without le
 - It uses a LifePark GitHub App with read-only "Metadata" access. People install it on GitHub, choose which repositories it may see (all or a few, private ones included), and can change that choice or disconnect any time from Settings.
 - An installation is only accepted after the person confirms it is theirs by signing in with GitHub; an installation id in a link alone is never trusted.
 
+### Sign in with ChatGPT (2026-10-08)
+
+- People can sign up or sign in with their ChatGPT account (Anthony asked for it). OpenAI shares only name, email, picture, and a permanent account ID; never chats.
+- OpenAI offers it only to partners it approves, so the button stays hidden until OpenAI issues LifePark a client ID (docs/maintainer/CHATGPT_SIGNIN.md).
+- A ChatGPT sign-in joins an existing account by itself only when OpenAI and LifePark have both verified the email; otherwise the person adds ChatGPT from Settings after signing in the old way.
+- Paying for LifePark's AI with a ChatGPT plan is not part of it. OpenAI offers that to open-source and selected private apps through a separate sign-up.
+
 ### The park
 
 - Each kind of information is its own thing in the park. People are neighbors with houses, habits are garden plots, and recipes are an orchard. Things grow as they are added and used.
@@ -132,7 +139,7 @@ These are Claude's defaults. Any of them can be overturned by saying so.
 - **Model access stays on OpenRouter** behind the scenes, so the one model can be swapped without code changes.
 - **Reminders arrive as phone notifications** through the home-screen app, plus an optional morning summary.
 - **Voice** keeps Speechify with the device voice as fallback, and hands-free mode stays.
-- **Accounts** keep Google, Apple, passkey, and email with password. GitHub and Microsoft sign-in are dropped from the sign-in screen, since normal people rarely use them.
+- **Accounts** keep Google, Apple, ChatGPT, passkey, and email with password. GitHub and Microsoft sign-in are dropped from the sign-in screen, since normal people rarely use them.
 
 ## Out of scope for the first release
 
@@ -154,6 +161,7 @@ Listed so nothing is a surprise. Claude handles everything else.
 - **Payments account (Stripe).** Needed before charging anyone. It has to be in Anthony's name.
 - **Domain purchase.** lifepark.app.
 - **GitHub App.** Register LifePark's GitHub App in Anthony's GitHub account and put its four values in Vercel (steps and a browser-agent prompt in docs/maintainer/GITHUB_APP.md). Until then the Workshop shows a sign and Settings says GitHub isn't set up.
+- **Sign in with ChatGPT access.** Apply through OpenAI's interest form and put the client ID in Vercel (steps in docs/maintainer/CHATGPT_SIGNIN.md). Until then the ChatGPT button stays hidden.
 - **Speechify key.** Optional. The device voice works without it.
 - **Vercel token.** Optional. Without it, adding the permanent database is one click in Vercel.
 

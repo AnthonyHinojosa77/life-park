@@ -1,4 +1,4 @@
-import { count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq } from "drizzle-orm";
 import { db } from "./db";
 import { things } from "./db/app-schema";
 import { account, user } from "./db/schema";
@@ -10,6 +10,16 @@ import { account, user } from "./db/schema";
  */
 export async function deleteAccount(userId: string) {
   await db.delete(user).where(eq(user.id, userId));
+}
+
+/** Whether a person can sign in with the given provider, such as "chatgpt". */
+export async function hasSignIn(userId: string, providerId: string) {
+  const rows = await db
+    .select({ id: account.id })
+    .from(account)
+    .where(and(eq(account.userId, userId), eq(account.providerId, providerId)))
+    .limit(1);
+  return rows.length > 0;
 }
 
 /** Finds a person by email, ignoring case. */

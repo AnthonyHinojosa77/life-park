@@ -45,6 +45,7 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 - [~] 2.7 Ask about your own life: "When is Sam's birthday?" or "What did I cook last week?" Built: the assistant can look things up in the park. Not yet checked with the real model.
 
 - [~] 2.9 GitHub repositories in the Workshop, read-only through a LifePark GitHub App, refreshed nightly. Built and tested against a stand-in GitHub; waiting on Anthony to register the app (docs/maintainer/GITHUB_APP.md).
+- [~] 2.10 Sign in with ChatGPT: a Continue with ChatGPT button on sign-in and sign-up, and Add ChatGPT sign-in in Settings, identity only. Built and tested against a stand-in OpenAI, including tampered sign-ins, a confidential client, and OpenAI being down; waiting on OpenAI to approve LifePark and issue a client ID (docs/maintainer/CHATGPT_SIGNIN.md).
 - [ ] 2.8 AI conversations lawn. A LifePark connector for ChatGPT and Claude that files conversation summaries into the park, with a one-time setup guide for each app's nightly scheduled task. Gemini through a scheduled Google Takeout export to Drive. No scraping and no stored AI-app logins, per OpenAI's and Anthropic's terms.
 
 **Design check-in 1 (before Milestone 3):** the personal calendar and the detailed park. For the park, Anthony chose to judge it live in the app instead of mockups (2026-09-27). The calendar check-in with month cover photos still happens before 2.5 and 2.6 are built.
@@ -100,6 +101,7 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 
 ## Decisions log
 
+- 2026-10-08: Sign in with ChatGPT joins Google, Apple, passkey, and email (Anthony asked for it). Identity only: OpenAI offers paying for an app's AI with a ChatGPT plan only to open-source apps and selected private clients. OpenAI's tokens are not kept, and an existing account is joined automatically only when both sides verified the email.
 - 2026-10-03: GitHub repositories join the park on a ninth lawn, the Workshop, through a GitHub App with read-only access to the repositories each person chooses (Anthony asked for GitHub; the App over plain GitHub sign-in because sign-in can only reach private repositories with write access).
 - 2026-09-29: AI conversations get their own lawn, filled automatically through a LifePark connector plus each AI app's own scheduled task, and Google Takeout for Gemini (Anthony). Browser-extension scraping and stored logins are ruled out by OpenAI's and Anthropic's terms.
 - 2026-09-29: LifePark refreshes connected sources by itself nightly and when the park is opened (Anthony).

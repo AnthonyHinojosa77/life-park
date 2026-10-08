@@ -2,10 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { ChatGPTSignIn } from "@/components/settings/chatgpt-sign-in";
 import { DeleteAccount } from "@/components/settings/delete-account";
 import { GitHubConnection } from "@/components/settings/github-connection";
 import { githubAvailable } from "@/lib/github/app";
 import { githubInstallationsOf } from "@/lib/github/import";
+import { hasSignIn } from "@/lib/account";
+import { configuredProviders } from "@/lib/auth-providers";
 import { listConnections } from "@/lib/things";
 import { Preferences } from "@/components/settings/preferences";
 import { RulesEditor } from "@/components/settings/rules-editor";
@@ -15,12 +18,15 @@ import { requireOnboarded } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Settings" };
 
-export default async function SettingsPage() {
+export default async function SettingsPage({ searchParams }: PageProps<"/settings">) {
   const { session, settings } = await requireOnboarded();
-  const [rules, installs, connections] = await Promise.all([
+  const { chatgpt } = await searchParams;
+  const chatgptAvailable = configuredProviders().includes("chatgpt");
+  const [rules, installs, connections, chatgptLinked] = await Promise.all([
     getRules(session.user.id),
     githubInstallationsOf(session.user.id),
     listConnections(session.user.id),
+    chatgptAvailable ? hasSignIn(session.user.id, "chatgpt") : false,
   ]);
   const github = connections.find((c) => c.service === "github");
   const owner = isOwner(session.user.email);
@@ -65,6 +71,12 @@ export default async function SettingsPage() {
           <p className="text-sm font-semibold text-ink-soft">
             Signed in as {session.user.email}.
           </p>
+          {chatgptAvailable && (
+            <ChatGPTSignIn
+              linked={chatgptLinked}
+              result={chatgpt === "added" || chatgpt === "failed" ? chatgpt : undefined}
+            />
+          )}
           <div className="flex flex-wrap items-center gap-3">
             <SignOutButton />
             {owner && (

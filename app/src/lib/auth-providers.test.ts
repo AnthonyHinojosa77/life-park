@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { configuredProviders } from "./auth-providers";
+import { configuredProviders, signInErrorMessage } from "./auth-providers";
 
 describe("configuredProviders", () => {
   it("returns nothing when no credentials are set", () => {
@@ -40,5 +40,24 @@ describe("configuredProviders", () => {
         APPLE_PRIVATE_KEY: "d",
       }),
     ).toEqual(["apple"]);
+  });
+
+  it("offers ChatGPT with just a client ID, since OpenAI also issues public clients", () => {
+    expect(configuredProviders({ CHATGPT_CLIENT_ID: "oaiapp_x" })).toEqual(["chatgpt"]);
+    expect(configuredProviders({ CHATGPT_CLIENT_SECRET: "s" })).toEqual([]);
+  });
+});
+
+describe("signInErrorMessage", () => {
+  it("says nothing when there was no error", () => {
+    expect(signInErrorMessage(undefined)).toBeNull();
+  });
+
+  it("points someone with an existing account to Settings", () => {
+    expect(signInErrorMessage("account_not_linked")).toMatch(/already has a LifePark account/);
+  });
+
+  it("has a plain message for anything else", () => {
+    expect(signInErrorMessage("invalid_code")).toMatch(/didn't go through/);
   });
 });

@@ -11,7 +11,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { chromium } from "playwright";
 import { generateKeyPairSync } from "node:crypto";
 import { createMockGitHub } from "./mock-github.mjs";
-import { createMockGoogle } from "./mock-google.mjs";
+import { createMockGoogle, samBirthday } from "./mock-google.mjs";
 import { submitAndWaitFor } from "./helpers.mjs";
 
 const [dir = "."] = process.argv.slice(2);
@@ -248,7 +248,8 @@ try {
   // Tapping one thing opens its card on the map.
   await page.getByRole("button", { name: "Sam Rivera, neighbor" }).click();
   const card = page.getByRole("region", { name: "Sam Rivera" });
-  await card.getByText("Birthday Nov 3").waitFor();
+  const birthday = new Date(2000, samBirthday.month - 1, samBirthday.day).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  await card.getByText(`Birthday ${birthday}`).waitFor();
   await card.getByText("Planted from Google Contacts").waitFor();
   await page.screenshot({ path: `${dir}/park-6b-card.png` });
   await card.getByRole("button", { name: "Close" }).click();

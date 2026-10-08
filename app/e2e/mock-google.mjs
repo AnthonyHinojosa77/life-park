@@ -6,8 +6,11 @@ import { fileURLToPath } from "node:url";
 
 const soon = (days) => new Date(Date.now() + days * 86400000).toISOString();
 
+/** Sam's birthday stays about six months away, so it never counts as coming up soon. */
+export const samBirthday = { month: ((new Date().getMonth() + 6) % 12) + 1, day: 3 };
+
 const people = [
-  { resourceName: "people/c1", names: [{ displayName: "Sam Rivera" }], birthdays: [{ date: { month: 11, day: 3 } }] },
+  { resourceName: "people/c1", names: [{ displayName: "Sam Rivera" }], birthdays: [{ date: samBirthday }] },
   { resourceName: "people/c2", names: [{ displayName: "Mom" }], birthdays: [{ date: { year: 1965, month: 5, day: 12 } }] },
   { resourceName: "people/c3", names: [{ displayName: "Priya Shah" }] },
   { resourceName: "people/c4" },

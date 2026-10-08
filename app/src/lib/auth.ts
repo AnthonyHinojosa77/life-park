@@ -7,6 +7,7 @@ import { importPKCS8, SignJWT } from "jose";
 import { db } from "./db";
 import { configuredProviders } from "./auth-providers";
 import { authBaseURL, trustedAppOrigins } from "./auth-url";
+import { chatgptSignIn, withoutChatGPTTokens } from "./chatgpt-sign-in";
 
 const baseURL = authBaseURL();
 const host = new URL(baseURL).hostname;
@@ -71,12 +72,22 @@ export const auth = betterAuth({
   socialProviders: socialProviders(),
   account: {
     // People who sign in with Apple or email can still connect a Google account,
-    // even though its email address differs from theirs.
+    // even though its email address differs from theirs. ChatGPT is not on the
+    // trusted list: a ChatGPT sign-in joins an existing account by itself only
+    // when OpenAI and LifePark have both verified the email; otherwise the
+    // person signs in the old way and adds ChatGPT from Settings.
     accountLinking: { enabled: true, trustedProviders: ["google", "apple"], allowDifferentEmails: true },
+  },
+  databaseHooks: {
+    account: {
+      create: { before: async (account) => ({ data: withoutChatGPTTokens(account) }) },
+      update: { before: async (account) => ({ data: withoutChatGPTTokens(account) }) },
+    },
   },
   trustedOrigins: trustedAppOrigins(),
   plugins: [
     passkey({ rpID: host, rpName: "LifePark", origin: baseURL }),
+    ...(configuredProviders().includes("chatgpt") ? [chatgptSignIn()] : []),
     nextCookies(),
   ],
 });

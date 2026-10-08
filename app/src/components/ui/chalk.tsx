@@ -56,11 +56,12 @@ export function ChalkDust({ className = "" }: { className?: string }) {
   );
 }
 
-type Tone = "google" | "apple" | "grass" | "outline";
+type Tone = "google" | "apple" | "chatgpt" | "grass" | "outline";
 
 const labels: Record<Tone, string> = {
   google: "text-[#2b2b2b]",
   apple: "text-white",
+  chatgpt: "text-white",
   grass: "text-white",
   outline: "text-ink",
 };
@@ -92,7 +93,8 @@ function Scribble({ tone }: { tone: Tone }) {
     );
   }
   // Deep enough that the light label stays readable (about 4.5:1 contrast).
-  const fill = tone === "apple" ? "#2e2e2e" : "#3a7f43";
+  // ChatGPT's approved button is black with a white logo and label.
+  const fill = tone === "apple" ? "#2e2e2e" : tone === "chatgpt" ? "#111111" : "#3a7f43";
   return <rect x="4" y="5" width="292" height="46" rx="10" fill={fill} filter="url(#chalk-fill)" />;
 }
 

@@ -1,7 +1,7 @@
 // @vitest-environment node
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createMockGoogle } from "../../../e2e/mock-google.mjs";
+import { createMockGoogle, samBirthday } from "../../../e2e/mock-google.mjs";
 
 process.env.PGLITE_DIR = "memory";
 // Stand-in credentials so the Google provider exists; no real Google call is made.
@@ -62,7 +62,7 @@ describe("google import", () => {
     expect(counts.file).toBe(4);
 
     const sam = park.find((t) => t.title === "Sam Rivera");
-    expect(sam?.detail.birthday).toEqual({ month: 11, day: 3, year: null });
+    expect(sam?.detail.birthday).toEqual({ ...samBirthday, year: null });
     const groceries = park.find((t) => t.title === "Groceries");
     expect((groceries?.detail.items as unknown[]).length).toBe(2);
     const mail = park.find((t) => t.title === "Dinner Friday?");
