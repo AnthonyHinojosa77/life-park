@@ -57,7 +57,7 @@ It fails if a normal person cannot get value in the first few minutes without le
 
 - People can sign up or sign in with their ChatGPT account (Anthony asked for it). OpenAI shares only name, email, picture, and a permanent account ID; never chats.
 - OpenAI offers it only to partners it approves, so the button stays hidden until OpenAI issues LifePark a client ID (docs/maintainer/CHATGPT_SIGNIN.md).
-- A ChatGPT sign-in joins an existing account by itself only when OpenAI and LifePark have both verified the email; otherwise the person adds ChatGPT from Settings after signing in the old way.
+- A ChatGPT sign-in never joins an existing account by itself, since OpenAI says a matching email isn't proof of ownership; the person signs in the old way and adds ChatGPT from Settings.
 - Paying for LifePark's AI with a ChatGPT plan is not part of it. OpenAI offers that to open-source and selected private apps through a separate sign-up.
 
 ### The park

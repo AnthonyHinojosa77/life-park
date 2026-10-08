@@ -1,21 +1,29 @@
 "use client";
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useRef, useState } from "react";
+import { ChatGPTMark } from "@/components/auth/chatgpt-mark";
+import { ChalkButton } from "@/components/ui/chalk";
 import { authClient } from "@/lib/auth-client";
+import { chatgptLinkErrorMessage } from "@/lib/auth-providers";
 
 type Props = {
   linked: boolean;
   /** How the last attempt to add ChatGPT went, from `?chatgpt=` on the way back. */
   result?: "added" | "failed";
+  /** Why it failed, from `?error=`. */
+  reason?: string;
 };
 
 /** Adds ChatGPT as another way to sign in to this same account. */
-export function ChatGPTSignIn({ linked, result }: Props) {
+export function ChatGPTSignIn({ linked, result, reason }: Props) {
+  const ref = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(
-    result === "failed" ? "ChatGPT wasn't added. That ChatGPT account may already belong to another LifePark account." : null,
-  );
+  const [error, setError] = useState<string | null>(result === "failed" ? chatgptLinkErrorMessage(reason) : null);
+
+  // Coming back from ChatGPT lands at the top of Settings; bring the outcome into view.
+  useEffect(() => {
+    if (result) ref.current?.scrollIntoView({ block: "center" });
+  }, [result]);
 
   async function add() {
     setBusy(true);
@@ -27,12 +35,12 @@ export function ChatGPTSignIn({ linked, result }: Props) {
     });
     if (error) {
       setBusy(false);
-      setError("Couldn't reach ChatGPT. Try again in a moment.");
+      setError(error.status === 429 ? "Too many tries in a row. Wait a few seconds and try again." : "Couldn't reach ChatGPT. Try again in a moment.");
     }
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div ref={ref} className="flex flex-col gap-3">
       {linked ? (
         <p className="text-sm font-semibold text-ink-soft">
           {result === "added" ? "ChatGPT added. " : ""}You can also sign in with ChatGPT. LifePark only sees your ChatGPT
@@ -41,11 +49,12 @@ export function ChatGPTSignIn({ linked, result }: Props) {
       ) : (
         <>
           <p className="text-sm font-semibold text-ink-soft">
-            Sign in with your ChatGPT account too. LifePark only sees your ChatGPT name, email, and picture, never your chats.
+            Add ChatGPT as another way to sign in to this account. LifePark only sees your ChatGPT name, email, and picture,
+            never your chats.
           </p>
-          <Button size="sm" className="self-start" disabled={busy} onClick={add}>
-            {busy ? "One moment" : "Add ChatGPT sign-in"}
-          </Button>
+          <ChalkButton tone="chatgpt" type="button" className="max-w-sm" disabled={busy} onClick={add} icon={<ChatGPTMark />}>
+            {busy ? "One moment" : "Continue with ChatGPT"}
+          </ChalkButton>
         </>
       )}
       {error && (

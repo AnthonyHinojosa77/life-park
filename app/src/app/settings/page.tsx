@@ -20,7 +20,7 @@ export const metadata: Metadata = { title: "Settings" };
 
 export default async function SettingsPage({ searchParams }: PageProps<"/settings">) {
   const { session, settings } = await requireOnboarded();
-  const { chatgpt } = await searchParams;
+  const { chatgpt, error } = await searchParams;
   const chatgptAvailable = configuredProviders().includes("chatgpt");
   const [rules, installs, connections, chatgptLinked] = await Promise.all([
     getRules(session.user.id),
@@ -75,6 +75,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
             <ChatGPTSignIn
               linked={chatgptLinked}
               result={chatgpt === "added" || chatgpt === "failed" ? chatgpt : undefined}
+              reason={typeof error === "string" ? error : undefined}
             />
           )}
           <div className="flex flex-wrap items-center gap-3">

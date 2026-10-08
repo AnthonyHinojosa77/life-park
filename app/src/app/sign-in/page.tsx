@@ -5,11 +5,14 @@ import { SignInForm } from "@/components/auth/sign-in-form";
 import { configuredProviders, signInErrorMessage } from "@/lib/auth-providers";
 import { getSession } from "@/lib/session";
 
+/** The first value of a search parameter. */
+const one = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
+
 export const metadata: Metadata = { title: "Sign in" };
 
 export default async function SignInPage({ searchParams }: PageProps<"/sign-in">) {
   if (await getSession()) redirect("/chats");
-  const { error } = await searchParams;
+  const { error, from } = await searchParams;
   return (
     <AuthShell
       title="Welcome"
@@ -18,7 +21,7 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
       <SignInForm
         mode="sign-in"
         providers={configuredProviders()}
-        notice={signInErrorMessage(typeof error === "string" ? error : undefined)}
+        notice={signInErrorMessage(one(error), one(from))}
       />
     </AuthShell>
   );

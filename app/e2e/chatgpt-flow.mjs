@@ -116,6 +116,17 @@ async function signedOut() {
   await page.goto(base + "/chats", { waitUntil: "networkidle" });
   return page.url().endsWith("/sign-in");
 }
+/** Whether the element is fully on screen. */
+const inView = (locator) => locator.evaluate((el) => {
+  const r = el.getBoundingClientRect();
+  return r.top >= 0 && r.bottom <= innerHeight;
+});
+async function signInWithPassword() {
+  await page.getByLabel("Email").fill(emailPerson);
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.waitForURL("**/chats");
+}
 async function finishOnboarding() {
   await page.getByRole("button", { name: "Let's build your park" }).click();
   await page.getByRole("button", { name: "See my park" }).click();
@@ -159,12 +170,15 @@ try {
   for (const [mode, words] of [
     ["bad-nonce", "didn't go through"],
     ["bad-audience", "didn't go through"],
+    ["bad-issuer", "didn't go through"],
     ["bad-signature", "didn't go through"],
+    ["expired", "didn't go through"],
+    ["no-id-token", "didn't go through"],
     ["deny", "Sign-in was cancelled"],
   ]) {
     openai.mode = mode;
     await continueWithChatGPT();
-    await page.waitForURL(/\/sign-in\?error=/, { timeout: 20000 });
+    await page.waitForURL(/\/sign-in\?from=chatgpt&error=/, { timeout: 20000 });
     await page.getByRole("alert").filter({ hasText: words }).waitFor();
     check(await signedOut(), `signed in despite ${mode}`);
   }
@@ -176,6 +190,31 @@ try {
   await page.goto(`${base}/api/auth/callback/chatgpt?code=forged&state=forged`, { waitUntil: "networkidle" });
   check(await signedOut(), "a forged callback signed someone in");
 
+  // A genuine, unexpired ID token posted straight to LifePark, skipping OpenAI's page, is refused.
+  const genuine = await openai.issueIdToken("nonce-from-somewhere-else");
+  for (const [route, body] of [
+    ["sign-in/social", { provider: "chatgpt", idToken: { token: genuine } }],
+    ["link-social", { provider: "chatgpt", idToken: { token: genuine } }],
+  ]) {
+    let status = 429;
+    for (let i = 0; i < 3 && status === 429; i++) {
+      if (i) await page.waitForTimeout(11000); // three sign-in tries per 10 seconds
+      status = await page.evaluate(
+        async ([route, body]) => (await fetch(`/api/auth/${route}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })).status,
+        [route, body],
+      );
+    }
+    check(status === 400, `posting an ID token to ${route} answered ${status}`);
+  }
+  check(await signedOut(), "a posted ID token signed someone in");
+
+  // A different ChatGPT account with the same (verified) email doesn't get into Casey's account.
+  openai.identity = { sub: "user-chatgpt-3", email: "chatgpt-person@example.com", name: "Not Casey" };
+  await continueWithChatGPT();
+  await page.waitForURL(/\/sign-in\?from=chatgpt&error=unable_to_link_account/, { timeout: 20000 });
+  await page.getByRole("alert").filter({ hasText: "then add ChatGPT in Settings" }).waitFor();
+  check(await signedOut(), "a second ChatGPT account joined an existing account by email");
+
   // Someone with a password account and the same email isn't merged silently.
   await page.goto(base + "/sign-up", { waitUntil: "networkidle" });
   await page.getByLabel("Name").fill("Lee");
@@ -186,21 +225,36 @@ try {
   await signOut();
   openai.identity = { sub: "user-chatgpt-2", email: emailPerson, name: "Lee on ChatGPT" };
   await continueWithChatGPT();
-  await page.waitForURL(/\/sign-in\?error=account_not_linked/, { timeout: 20000 });
+  await page.waitForURL(/\/sign-in\?from=chatgpt&error=account_not_linked/, { timeout: 20000 });
   await page.getByRole("alert").filter({ hasText: "already has a LifePark account" }).waitFor();
   await page.screenshot({ path: `${dir}/chatgpt-4-already-have-account.png` });
 
-  // They sign in the old way and add ChatGPT from Settings, then it works.
-  await page.getByLabel("Email").fill(emailPerson);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await page.waitForURL("**/chats");
+  // They sign in the old way and add ChatGPT from Settings. A cancel, or a ChatGPT
+  // email OpenAI hasn't confirmed, each say so; then it works.
+  await signInWithPassword();
   await page.goto(base + "/settings", { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: "Add ChatGPT sign-in" }).scrollIntoViewIfNeeded();
+  const addButton = chatgptButton();
+  await addButton.scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${dir}/chatgpt-5-settings.png` });
-  await page.getByRole("button", { name: "Add ChatGPT sign-in" }).click();
+  for (const [mode, identity, words] of [
+    ["deny", openai.identity, "because the sign-in was cancelled"],
+    ["ok", { ...openai.identity, emailVerified: false }, "hasn't confirmed that account's email"],
+  ]) {
+    openai.mode = mode;
+    openai.identity = identity;
+    await addButton.click();
+    await page.waitForURL(/\/settings\?chatgpt=failed&error=/, { timeout: 20000 });
+    const alert = page.getByRole("alert").filter({ hasText: words });
+    await alert.waitFor();
+    check(await inView(alert), `the "${words}" message is off screen`);
+  }
+  openai.mode = "ok";
+  openai.identity = { ...openai.identity, emailVerified: true };
+  await addButton.click();
   await page.waitForURL("**/settings?chatgpt=added", { timeout: 20000 });
   await page.getByText("ChatGPT added.").waitFor();
+  check(await inView(page.getByText("ChatGPT added.")), "the ChatGPT added message is off screen");
+  await page.screenshot({ path: `${dir}/chatgpt-6-added.png` });
   await signOut();
   await continueWithChatGPT();
   await page.waitForURL("**/chats", { timeout: 20000 });
@@ -209,10 +263,7 @@ try {
   await signOut();
 
   // A ChatGPT account already used by someone else can't be added to a second account.
-  await page.getByLabel("Email").fill(emailPerson);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await page.waitForURL("**/chats");
+  await signInWithPassword();
   openai.identity = { sub: "user-chatgpt-1", email: "chatgpt-person@example.com", name: "Casey ChatGPT" };
   // Lee already has ChatGPT, so Settings has no Add button; ask the server directly.
   const linkTry = await page.evaluate(async () => {
@@ -224,16 +275,17 @@ try {
     return (await res.json()).url;
   });
   await page.goto(linkTry, { waitUntil: "networkidle" });
-  check(page.url().includes("chatgpt=failed"), `a second account took over a ChatGPT sign-in: ${page.url()}`);
-  await page.getByText("ChatGPT wasn't added.").waitFor();
+  check(page.url().includes("chatgpt=failed&error=account_already_linked_to_different_user"), `a second account took over a ChatGPT sign-in: ${page.url()}`);
+  await page.getByText("already signs in to a different LifePark account").waitFor();
   await signOut();
   check(openai.problems.length === 0, `stand-in OpenAI refused LifePark: ${openai.problems.join("; ")}`);
   if (pageErrors.length) throw new Error(`page errors:\n${pageErrors.join("\n")}`);
 
   // A confidential client sends its secret in the Basic header only.
   await stopServer(server);
-  openai.clientSecret = "shh-test-secret";
-  server = await startServer({ CHATGPT_CLIENT_SECRET: "shh-test-secret" });
+  // Characters that must be form-encoded in the Basic header.
+  openai.clientSecret = "shh+test/secret=";
+  server = await startServer({ CHATGPT_CLIENT_SECRET: "shh+test/secret=" });
   await page.goto(base + "/sign-in", { waitUntil: "networkidle" });
   await continueWithChatGPT();
   await page.waitForURL("**/chats", { timeout: 20000 });
@@ -242,7 +294,7 @@ try {
   // OpenAI refuses a wrong secret, and LifePark says so instead of signing in.
   openai.clientSecret = "rotated-secret";
   await continueWithChatGPT();
-  await page.waitForURL(/\/sign-in\?error=/, { timeout: 20000 });
+  await page.waitForURL(/\/sign-in\?from=chatgpt&error=/, { timeout: 20000 });
   check(await signedOut(), "signed in with a rejected client secret");
   openai.problems.length = 0;
   await stopServer(server);
@@ -256,7 +308,7 @@ try {
   await page.waitForURL("**/chats", { timeout: 20000 });
   await signOut();
   await chatgptButton().click();
-  await page.getByRole("alert").filter({ hasText: "Couldn't reach ChatGPT" }).waitFor();
+  await page.getByRole("alert").filter({ hasText: "ChatGPT sign-in isn't available right now" }).waitFor();
   check(server.log.includes("Sign in with ChatGPT is off until the next restart"), "no log line about ChatGPT being off");
   await stopServer(server);
   server = null;

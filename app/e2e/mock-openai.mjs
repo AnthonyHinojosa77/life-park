@@ -11,8 +11,9 @@ import { exportJWK, SignJWT } from "jose";
 /**
  * @param {{ base: string, clientId: string, redirectUri: string, clientSecret?: string }} opts
  * Set `server.identity` to choose who signs in next, `server.mode` to break
- * one thing on purpose ("deny", "bad-nonce", "bad-audience", "bad-signature"),
- * and `server.clientSecret` to act as a confidential client.
+ * one thing on purpose ("deny", "bad-nonce", "bad-audience", "bad-issuer",
+ * "bad-signature", "expired", "no-id-token"), and `server.clientSecret` to act
+ * as a confidential client. `server.issueIdToken()` mints a valid one.
  */
 export function createMockOpenAI({ base, clientId, redirectUri, clientSecret }) {
   const keys = generateKeyPairSync("rsa", { modulusLength: 2048 });
@@ -26,7 +27,8 @@ export function createMockOpenAI({ base, clientId, redirectUri, clientSecret }) 
 
   async function idToken(nonce) {
     const { mode, identity } = server;
-    return new SignJWT({
+    const now = Math.floor(Date.now() / 1000);
+    const token = await new SignJWT({
       email: identity.email,
       email_verified: identity.emailVerified ?? true,
       ...(identity.name ? { name: identity.name } : {}),
@@ -34,12 +36,13 @@ export function createMockOpenAI({ base, clientId, redirectUri, clientSecret }) 
       nonce: mode === "bad-nonce" ? "someone-elses-nonce" : nonce,
     })
       .setProtectedHeader({ alg: "RS256", kid: "mock-key" })
-      .setIssuer(base)
+      .setIssuer(mode === "bad-issuer" ? "https://auth.example.com" : base)
       .setAudience(mode === "bad-audience" ? "oaiapp_someone_else" : clientId)
       .setSubject(identity.sub)
-      .setIssuedAt()
-      .setExpirationTime("10m")
+      .setIssuedAt(mode === "expired" ? now - 3600 : now)
+      .setExpirationTime(mode === "expired" ? now - 1800 : now + 600)
       .sign(mode === "bad-signature" ? stranger.privateKey : keys.privateKey);
+    return token;
   }
 
   const server = http.createServer(async (req, res) => {
@@ -97,7 +100,9 @@ export function createMockOpenAI({ base, clientId, redirectUri, clientSecret }) 
       if (form.get("grant_type") !== "authorization_code") return fail(res, 400, "grant_type must be authorization_code");
       if (form.has("client_secret")) return fail(res, 401, "the client secret belongs only in the Basic header");
       if (server.clientSecret) {
-        const expected = "Basic " + Buffer.from(`${clientId}:${server.clientSecret}`).toString("base64");
+        // RFC 6749: both halves are form-encoded before base64, as OpenAI's own example does.
+        const formEncode = (v) => new URLSearchParams({ v }).toString().slice(2);
+        const expected = "Basic " + Buffer.from(`${formEncode(clientId)}:${formEncode(server.clientSecret)}`).toString("base64");
         if (auth !== expected) return fail(res, 401, "confidential client must authenticate with client_secret_basic");
       } else if (auth) {
         return fail(res, 401, "public client must not send credentials");
@@ -109,13 +114,25 @@ export function createMockOpenAI({ base, clientId, redirectUri, clientSecret }) 
       if (form.get("redirect_uri") !== grant.redirectUri) return fail(res, 400, "redirect_uri differs from the authorize request");
       const challenge = createHash("sha256").update(form.get("code_verifier") ?? "").digest("base64url");
       if (challenge !== grant.challenge) return fail(res, 400, "code_verifier does not match the challenge");
-      // Identity-only clients get an ID token and nothing else they need.
-      res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ id_token: await idToken(grant.nonce), token_type: "Bearer" }));
+      // OpenAI may also send access and refresh tokens; LifePark must not keep them.
+      const tokens = { access_token: "mock-access-token", refresh_token: "mock-refresh-token", token_type: "Bearer", expires_in: 3600 };
+      if (server.mode !== "no-id-token") tokens.id_token = await idToken(grant.nonce);
+      res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(tokens));
       return;
     }
     res.writeHead(404).end();
   });
 
+  /** A valid ID token for the current identity, as if from a real sign-in. */
+  server.issueIdToken = async (nonce) => {
+    const mode = server.mode;
+    server.mode = "ok";
+    try {
+      return await idToken(nonce);
+    } finally {
+      server.mode = mode;
+    }
+  };
   server.identity = { sub: "user-chatgpt-1", email: "chatgpt-person@example.com", name: "Casey ChatGPT" };
   server.mode = "ok";
   server.clientSecret = clientSecret;

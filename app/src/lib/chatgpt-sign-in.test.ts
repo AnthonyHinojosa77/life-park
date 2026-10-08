@@ -45,6 +45,15 @@ describe("chatgptSignIn", () => {
     expect(ctx.logger.error).toHaveBeenCalledWith(expect.stringContaining("Sign in with ChatGPT is off"));
   });
 
+  it("stays off when discovery names a different issuer", async () => {
+    const issuer = await serve((_, res) =>
+      res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(discovery("https://auth.example.com"))),
+    );
+    const ctx = fakeContext();
+    expect(await (chatgptSignIn({ CHATGPT_CLIENT_ID: "oaiapp_test", CHATGPT_ISSUER: issuer }).init as Init)(ctx)).toEqual({});
+    expect(ctx.logger.error).toHaveBeenCalledWith(expect.stringContaining("expected"));
+  });
+
   it("refuses to run without OpenAI's signing keys", async () => {
     let issuer = "";
     issuer = await serve((_, res) => {

@@ -24,17 +24,43 @@ export function configuredProviders(env: Env = process.env): SocialProvider[] {
   return out;
 }
 
-/** What to tell someone when a Google, Apple, or ChatGPT sign-in comes back with `?error=`. */
-export function signInErrorMessage(code: string | undefined): string | null {
+const isProvider = (id: string | undefined): id is SocialProvider => !!id && id in providerLabels;
+
+/**
+ * What to tell someone when a Google, Apple, or ChatGPT sign-in comes back with
+ * `?error=`. `from` is the provider they tapped.
+ */
+export function signInErrorMessage(code: string | undefined, from?: string): string | null {
   if (!code) return null;
+  const provider = isProvider(from) ? from : undefined;
   switch (code) {
     case "account_not_linked":
-      return "That email already has a LifePark account. Sign in the way you did before, then add this sign-in in Settings.";
+    case "unable_to_link_account":
+      // Only ChatGPT can be added from Settings; Google is connected from the park instead.
+      return provider === "chatgpt"
+        ? "That email already has a LifePark account. Sign in the way you did before, then add ChatGPT in Settings."
+        : "That email already has a LifePark account. Sign in the way you did before.";
     case "access_denied":
       return "Sign-in was cancelled. Pick a way to sign in when you're ready.";
     case "oauth_provider_not_found":
-      return "That sign-in isn't available right now. Try another way.";
+      return "That sign-in isn't available right now. Pick another way.";
+    case "email_not_found":
+      return `${provider ? providerLabels[provider] : "That account"} didn't share an email address, and LifePark needs one. Pick another way to sign in.`;
     default:
       return "That sign-in didn't go through. Try again, or pick another way.";
+  }
+}
+
+/** What to tell someone when adding ChatGPT from Settings comes back with `?error=`. */
+export function chatgptLinkErrorMessage(code: string | undefined): string {
+  switch (code) {
+    case "access_denied":
+      return "ChatGPT wasn't added because the sign-in was cancelled.";
+    case "account_already_linked_to_different_user":
+      return "That ChatGPT account already signs in to a different LifePark account.";
+    case "unable_to_link_account":
+      return "ChatGPT wasn't added because OpenAI hasn't confirmed that account's email address.";
+    default:
+      return "ChatGPT wasn't added. Try again in a moment.";
   }
 }

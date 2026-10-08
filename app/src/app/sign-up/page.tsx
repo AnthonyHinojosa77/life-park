@@ -5,11 +5,14 @@ import { SignInForm } from "@/components/auth/sign-in-form";
 import { configuredProviders, signInErrorMessage } from "@/lib/auth-providers";
 import { getSession } from "@/lib/session";
 
+/** The first value of a search parameter. */
+const one = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
+
 export const metadata: Metadata = { title: "Create account" };
 
 export default async function SignUpPage({ searchParams }: PageProps<"/sign-up">) {
   if (await getSession()) redirect("/chats");
-  const { error } = await searchParams;
+  const { error, from } = await searchParams;
   return (
     <AuthShell
       title="Plant your park"
@@ -18,7 +21,7 @@ export default async function SignUpPage({ searchParams }: PageProps<"/sign-up">
       <SignInForm
         mode="sign-up"
         providers={configuredProviders()}
-        notice={signInErrorMessage(typeof error === "string" ? error : undefined)}
+        notice={signInErrorMessage(one(error), one(from))}
       />
     </AuthShell>
   );
