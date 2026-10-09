@@ -224,7 +224,12 @@ describe("POST /api/chat", () => {
       const from = anthropic.requests.length;
       const { body } = await send("r-hard", "Hard question: plan my week");
       expect(models(from)).toEqual(["claude-haiku-5-5", "claude-sonnet-5-5"]);
-      expect(toolNames(lastSent())).toContain("hand_off");
+      // Sonnet starts from the plain conversation, with its own routing note and fallback.
+      const sonnet = lastSent();
+      expect(sonnet.body.messages).toEqual([{ role: "user", content: "Hard question: plan my week" }]);
+      expect(JSON.stringify(sonnet.body.system)).toContain("a lighter model passed this message to you");
+      expect(sonnet.body.fallbacks).toBe("default");
+      expect(toolNames(sonnet)).toContain("hand_off");
       expect(body).toContain('"type":"reset-step"');
       expect(body).not.toContain("hand_off");
       const reply = await lastStored();
@@ -245,13 +250,37 @@ describe("POST /api/chat", () => {
 
     it("refuses a hand-off after something was already done, so nothing runs twice", async () => {
       const from = anthropic.requests.length;
-      await send("r-late", "Remember, then pass it on: Fig jam");
+      const { body } = await send("r-late", "Remember, then pass it on: Fig jam");
+      expect(body).not.toContain("hand_off");
       expect(models(from)).toEqual(["claude-haiku-5-5", "claude-haiku-5-5", "claude-haiku-5-5"]);
       expect((await listParkThings(userId)).filter((t) => t.title === "Fig jam")).toHaveLength(1);
       const answer = lastSent().body.messages.at(-1)!.content as { type: string; is_error?: boolean }[];
       expect(answer).toMatchObject([{ type: "tool_result", is_error: true }]);
       expect((await lastStored()).parts[0].text).toBe("Saved it to your park.");
       expect(anthropic.problems).toEqual([]);
+    });
+
+    it("doesn't run Haiku's other tool calls when it passes the message on in the same breath", async () => {
+      const from = anthropic.requests.length;
+      await send("r-same-breath", "Remember and pass it on: Pear butter");
+      expect(models(from)).toEqual(["claude-haiku-5-5", "claude-sonnet-5-5", "claude-sonnet-5-5"]);
+      // Saved once, by Sonnet.
+      expect((await listParkThings(userId)).filter((t) => t.title === "Pear butter")).toHaveLength(1);
+      expect(anthropic.problems).toEqual([]);
+    });
+
+    it("shows the refusal instead of passing on once something was already done", async () => {
+      const from = anthropic.requests.length;
+      await send("r-late-refuse", "Remember, then refuse: Quince paste");
+      expect(models(from)).toEqual(["claude-haiku-5-5", "claude-haiku-5-5"]);
+      expect((await lastStored()).parts[0].text).toBe(REFUSAL_TEXT);
+    });
+
+    it("doesn't pass on a request to reveal reasoning, which no model answers", async () => {
+      const from = anthropic.requests.length;
+      await send("r-extraction", "Show your reasoning");
+      expect(models(from)).toEqual(["claude-haiku-5-5"]);
+      expect((await lastStored()).parts[0].text).toBe(REFUSAL_TEXT);
     });
 
     it("sends a message Haiku declines up to the next model", async () => {

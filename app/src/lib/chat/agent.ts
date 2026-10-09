@@ -143,8 +143,10 @@ export async function runAgent(opts: {
     result.costMicros += stepCost(message, model);
 
     if (message.stop_reason === "refusal") {
-      // A lighter model's decline goes up to the next model before anything was done.
-      if (handOff && step === 0) return passUp();
+      // A lighter model's decline goes up to the next model before anything was done,
+      // except a request to reveal its reasoning, which no model answers (Anthropic's docs).
+      const retryable = message.stop_details?.category !== "reasoning_extraction";
+      if (handOff && step === 0 && retryable) return passUp();
       // Even the fallback declined. Take back the partial reply and say so plainly.
       writer.write({ type: "reset-step" });
       writer.write({ type: "text-start", id: id(step, "refusal") });

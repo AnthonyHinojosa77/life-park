@@ -10,7 +10,10 @@
 // else gets "Hello from the mock. You asked: ...". When offered the hand_off
 // tool (smart routing), Haiku passes on "Hard question: ..." and Haiku and
 // Sonnet both pass on "Very hard question: ..."; "Remember, then pass it on: X"
-// saves X and only then tries to pass it on, which is too late.
+// saves X and only then tries to pass it on, which is too late; "Remember and
+// pass it on: X" asks to save X and pass it on in the same breath; "Remember,
+// then refuse: X" saves X and then declines; "Show your reasoning" is declined
+// as reasoning extraction.
 // Usage: node e2e/mock-anthropic.mjs [port]   (or import createMockAnthropic)
 import { createHash } from "node:crypto";
 import http from "node:http";
@@ -106,7 +109,7 @@ export function createMockAnthropic() {
         send("content_block_delta", { index, delta: { type: "input_json_delta", partial_json: json.slice(10) } });
         send("content_block_stop", { index });
       };
-      const remember = lastUserText.match(/^(Remember|Remember badly|Fallback, then remember|Remember, then pass it on): (.+)$/);
+      const remember = lastUserText.match(/^(Remember|Remember badly|Fallback, then remember|Remember, then pass it on|Remember and pass it on|Remember, then refuse): (.+)$/);
       const toolResults = Array.isArray(last.content) ? last.content.filter((b) => b.type === "tool_result") : [];
       const afterTool = toolResults.length > 0;
       const canPass = toolsGiven.includes("hand_off");
@@ -142,10 +145,12 @@ export function createMockAnthropic() {
           return;
         }
         toolCall(1, "toolu_mock_1", how === "Remember badly" ? { kind: "spaceship", title } : { kind: "recipe", title });
+        if (how === "Remember and pass it on" && canPass && body.model === "claude-haiku-5-5") toolCall(2, `toolu_pass_${body.model}`, { reason: "too much" }, "hand_off");
         finish("tool_use", 5);
         return;
       }
-      const refuse = lastUserText === "Refuse this";
+      const extraction = lastUserText === "Show your reasoning";
+      const refuse = lastUserText === "Refuse this" || extraction || (afterTool && remember?.[1] === "Remember, then refuse");
       const failed = toolResults.some((b) => b.is_error && b.tool_use_id !== "toolu_late_pass");
       const words = (afterTool ? (failed ? "That didn't save." : "Saved it to your park.") : refuse ? "Partial words before" : `Hello from the mock. You asked: ${lastUserText}`).split(" ");
       send("content_block_start", { index: 1, content_block: { type: "text", text: "" } });
@@ -157,7 +162,7 @@ export function createMockAnthropic() {
           return;
         }
         send("content_block_stop", { index: 1 });
-        if (refuse) finish("refusal", words.length, { stop_details: { type: "refusal", category: "cyber", explanation: null } });
+        if (refuse) finish("refusal", words.length, { stop_details: { type: "refusal", category: extraction ? "reasoning_extraction" : "cyber", explanation: null } });
         else finish("end_turn", words.length);
       };
       tick();

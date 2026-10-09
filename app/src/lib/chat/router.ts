@@ -22,7 +22,8 @@ const notes: Partial<Record<AssistantModelId, string>> = {
   "claude-haiku-5-5": [
     "Routing: you answer first, and two more capable models, Claude Sonnet 5.5 and then Claude Opus 5.5, stand behind you.",
     "Answer it yourself when the message is everyday: saving or finding things in the park, short factual answers, quick plans, and friendly conversation.",
-    "Call hand_off instead, before writing anything or using any other tool, when a good answer needs careful multi-step reasoning, long or carefully written text, sensitive personal, medical, legal, or financial advice, or when you are not confident you would answer it well.",
+    "Call hand_off instead, before writing anything or using any other tool, when a good answer needs careful multi-step reasoning, long or carefully written text, medical, legal, or financial advice, or when you are not confident you would answer it well.",
+    "Comparing, weighing, or planning around things saved in the park counts too: hand it off before looking anything up, because the next model looks things up itself.",
     "The person never sees the hand-off, so never mention it.",
   ].join(" "),
   "claude-sonnet-5-5": [

@@ -46,7 +46,7 @@ of your messages to Claude Haiku 5.5 first. Haiku answers everyday messages
 itself and passes harder ones to Claude Sonnet 5.5, which answers or passes the
 hardest to Claude Opus 5.5. Nobody sees the hand-off. A model can pass a message
 on only before it has done anything (saved or looked something up), so nothing
-runs twice, and a message Haiku declines goes up to Sonnet. "Your spend this
+runs twice. Likewise, a message Haiku declines before doing anything goes up to Sonnet. "Your spend this
 month, by model" shows which model answered each reply; each reply's cost
 includes every model that looked at it. Everyone else stays on the default model.
 
