@@ -23,7 +23,7 @@ available to selected commercial partners through a limited trial"
 
 It does **not** let people pay for LifePark's AI with their ChatGPT plan. OpenAI
 offers that ("ChatGPT plan usage") to open-source apps and selected private
-clients through a separate sign-up, so LifePark's AI stays on OpenRouter.
+clients through a separate sign-up, so LifePark's AI stays on Claude through Anthony's Anthropic API key.
 
 ## 1. Ask OpenAI for access
 

@@ -19,7 +19,7 @@ const dataDir = mkdtempSync(path.join(os.tmpdir(), "lifepark-shots-"));
 
 const google = createMockGoogle("big");
 await new Promise((r) => google.listen(3127, r));
-const openrouter = spawn("node", ["e2e/mock-openrouter.mjs", "3128"], { stdio: "ignore" });
+const anthropic = spawn("node", ["e2e/mock-anthropic.mjs", "3128"], { stdio: "ignore" });
 
 function startServer() {
   const server = spawn("npx", ["next", "start", "-p", String(port)], {
@@ -32,8 +32,8 @@ function startServer() {
       GOOGLE_CLIENT_ID: "stand-in-client",
       GOOGLE_CLIENT_SECRET: "stand-in-secret",
       GOOGLE_API_BASE: "http://127.0.0.1:3127",
-      OPENROUTER_API_KEY: "stand-in",
-      OPENROUTER_BASE_URL: "http://127.0.0.1:3128/api/v1",
+      ANTHROPIC_API_KEY: "stand-in",
+      ANTHROPIC_BASE_URL: "http://127.0.0.1:3128",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -151,6 +151,6 @@ try {
 } finally {
   await browser.close();
   await stopServer(server).catch(() => {});
-  openrouter.kill();
+  anthropic.kill();
   google.close();
 }

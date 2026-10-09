@@ -136,7 +136,7 @@ These are Claude's defaults. Any of them can be overturned by saying so.
 - **Growth rules:** a thing grows when it is added, used, or completed. A habit plot blooms on a streak and wilts gently when skipped, never harshly. Nothing ever disappears on its own.
 - **Chat is the front door.** The park is the second tab. A plain list of everything exists for people who want it.
 - **The AI confirms before filing** anything it is not sure about, in one short line, the same pattern as confirm-before-save memory.
-- **Model access stays on OpenRouter** behind the scenes, so the one model can be swapped without code changes.
+- **The assistant runs on Claude** (2026-10-09, Anthony): Claude Opus 5.5 by default, called directly through Anthropic's API with Anthony's own API key, so the model can be switched without code changes. Claude Sonnet 5.5 and Claude Haiku 5.5 are in his trial switch.
 - **Reminders arrive as phone notifications** through the home-screen app, plus an optional morning summary.
 - **Voice** keeps Speechify with the device voice as fallback, and hands-free mode stays.
 - **Accounts** keep Google, Apple, ChatGPT, passkey, and email with password. GitHub and Microsoft sign-in are dropped from the sign-in screen, since normal people rarely use them.
@@ -155,7 +155,7 @@ These are Claude's defaults. Any of them can be overturned by saying so.
 
 Listed so nothing is a surprise. Claude handles everything else.
 
-- **OpenRouter key.** The AI does not answer without it.
+- **Anthropic API key.** The AI does not answer without it (steps in docs/maintainer/CLAUDE_API.md).
 - **Google Cloud sign-in project.** Needed for Google sign-in and every Google connection. Google must review any app that reads calendars or contacts before more than 100 people can use it. Gmail and Drive are "restricted" permissions that also need a paid outside security assessment before public launch (price not yet checked). Claude prepares the reviews; the account must be Anthony's.
 - **Apple Developer account.** $99 a year, needed for Sign in with Apple.
 - **Payments account (Stripe).** Needed before charging anyone. It has to be in Anthony's name.
@@ -173,7 +173,7 @@ Carried over from Work Park unless noted.
 | --- | --- | --- |
 | Framework | Next.js on Vercel, TypeScript | Automatic deploys on every merge. Already live. |
 | Database | Postgres (Neon) with Drizzle | Structured data for people, events, habits, and recipes, synced across devices. |
-| AI | One model through OpenRouter and the Vercel AI SDK | Swappable without code changes. Tool calling files things into the database. |
+| AI | Claude through Anthropic's official TypeScript SDK; the Vercel AI SDK only carries the stream to the chat screen | Direct from Anthropic on the owner's account. Tool calling files things into the database. |
 | Photos | Vercel Blob, read by the model's image input | No file server to run. |
 | Google import | Google Calendar and People APIs through Google sign-in | The same sign-in grants import permission. |
 | Reminders | Web push through the service worker, scheduled with Vercel Cron | Works on installed home-screen apps on iPhone (iOS 16.4 and later) and Android. |

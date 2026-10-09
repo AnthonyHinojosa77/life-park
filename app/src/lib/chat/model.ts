@@ -1,36 +1,42 @@
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import Anthropic from "@anthropic-ai/sdk";
 
 export class ModelsUnavailableError extends Error {
   constructor() {
-    // Shown to people in the chat, so it stays plain. The missing setting is OPENROUTER_API_KEY.
+    // Shown to people in the chat, so it stays plain. The missing setting is ANTHROPIC_API_KEY.
     super("Your assistant isn't switched on yet. Please try again a little later.");
     this.name = "ModelsUnavailableError";
   }
 }
 
-/**
- * The one AI behind LifePark. Users never see or choose it.
- * Provisional default until candidates are tested on filing, reminders, and
- * recaps; LIFEPARK_MODEL overrides it without a code change.
- */
-export const defaultAssistantModel = "google/gemini-3.8-flash";
+/** The Claude models LifePark runs on, billed to the owner's own Anthropic account. */
+export const assistantModels = [
+  { id: "claude-opus-5-5", name: "Claude Opus 5.5" },
+  { id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5" },
+  { id: "claude-haiku-5-5", name: "Claude Haiku 5.5" },
+] as const;
 
-export function assistantModelId(env: Record<string, string | undefined> = process.env) {
-  return env.LIFEPARK_MODEL?.trim() || defaultAssistantModel;
+export type AssistantModelId = (typeof assistantModels)[number]["id"];
+
+/** The one AI behind LifePark. Users never see or choose it; LIFEPARK_MODEL can switch it. */
+export const defaultAssistantModel: AssistantModelId = "claude-opus-5-5";
+
+export function isAssistantModel(id: string | null | undefined): id is AssistantModelId {
+  return assistantModels.some((m) => m.id === id);
 }
 
-/** The language model for an OpenRouter slug. Defaults to the assistant model. */
-export function getLanguageModel(modelId: string = assistantModelId()) {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+export function assistantModelName(id: string) {
+  return assistantModels.find((m) => m.id === id)?.name ?? id;
+}
+
+export function assistantModelId(env: Record<string, string | undefined> = process.env): AssistantModelId {
+  const chosen = env.LIFEPARK_MODEL?.trim();
+  return isAssistantModel(chosen) ? chosen : defaultAssistantModel;
+}
+
+/** A client for the owner's Anthropic account. */
+export function anthropicClient(env: Record<string, string | undefined> = process.env) {
+  const apiKey = env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new ModelsUnavailableError();
-  const openrouter = createOpenRouter({
-    apiKey,
-    // Only set in tests, to point at a local stand-in for OpenRouter.
-    baseURL: process.env.OPENROUTER_BASE_URL || undefined,
-    headers: {
-      "HTTP-Referer": process.env.BETTER_AUTH_URL ?? "https://lifepark.app",
-      "X-Title": "LifePark",
-    },
-  });
-  return openrouter.chat(modelId);
+  // ANTHROPIC_BASE_URL is only set in tests, to point at a local stand-in.
+  return new Anthropic({ apiKey, baseURL: env.ANTHROPIC_BASE_URL || undefined });
 }

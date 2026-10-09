@@ -3,14 +3,14 @@ import { AppShell } from "@/components/app-shell";
 import { BudgetPicker, ModelSwitch } from "@/components/owner/owner-controls";
 import { PeopleList } from "@/components/owner/people-list";
 import { Card } from "@/components/ui/card";
-import { assistantModelId } from "@/lib/chat/model";
+import { assistantModelId, assistantModelName } from "@/lib/chat/model";
 import { listPeople } from "@/lib/account";
 import { formatDollars, monthlyCosts, type CostSummary } from "@/lib/costs";
 import { requireOwner, trialModels } from "@/lib/owner";
 
 export const metadata: Metadata = { title: "Owner dashboard" };
 
-const nameOf = (id: string) => trialModels.find((m) => m.id === id)?.name ?? id;
+const nameOf = assistantModelName;
 
 function ByModel({ costs }: { costs: CostSummary }) {
   if (costs.byModel.length === 0) {

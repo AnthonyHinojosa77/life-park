@@ -16,11 +16,11 @@
   },
   "dependencies": {
     "@ai-sdk/react": "^4.0.96",
+    "@anthropic-ai/sdk": "^0.133.0",
     "@better-auth/drizzle-adapter": "^1.7.2",
     "@better-auth/passkey": "^1.7.2",
     "@electric-sql/pglite": "^0.5.8",
     "@neondatabase/serverless": "^1.1.0",
-    "@openrouter/ai-sdk-provider": "^3.0.0",
     "ai": "^7.0.93",
     "better-auth": "^1.7.2",
     "drizzle-orm": "^0.45.2",

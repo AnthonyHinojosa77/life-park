@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { assistantModels, isAssistantModel } from "./chat/model";
 import { requireOnboarded } from "./session";
 
 type Env = Record<string, string | undefined>;
@@ -25,14 +26,7 @@ export async function requireOwner() {
   return result;
 }
 
-/** The models in Anthony's personal trial (plan step 5.1). */
-export const trialModels = [
-  { id: "openai/gpt-6-luna", name: "GPT-6 Luna" },
-  { id: "qwen/qwen3.8-flash", name: "Qwen 3.8 Flash" },
-  { id: "google/gemini-3.8-flash", name: "Gemini 3.8 Flash" },
-  { id: "z-ai/glm-5.3-flash", name: "GLM 5.3 Flash" },
-] as const;
+/** The models in Anthony's personal trial (plan step 5.1): the Claude 5.5 family. */
+export const trialModels = assistantModels;
 
-export function isTrialModel(id: string) {
-  return trialModels.some((m) => m.id === id);
-}
+export const isTrialModel = isAssistantModel;

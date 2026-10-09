@@ -70,16 +70,16 @@ await page.getByText(/across everyone so far/).waitFor();
 await page.getByText(/\d+ (person|people) active/).waitFor();
 
 // Switch the trial model; it persists and the next chat uses it.
-await page.getByRole("button", { name: "Qwen 3.8 Flash" }).click();
+await page.getByRole("button", { name: "Claude Sonnet 5.5" }).click();
 await page.waitForTimeout(800);
 await page.reload({ waitUntil: "networkidle" });
-if ((await page.getByRole("button", { name: "Qwen 3.8 Flash" }).getAttribute("aria-pressed")) !== "true") {
+if ((await page.getByRole("button", { name: "Claude Sonnet 5.5" }).getAttribute("aria-pressed")) !== "true") {
   throw new Error("Model switch did not persist.");
 }
 await page.screenshot({ path: `${dir}/owner-dashboard.png`, fullPage: true });
 await chat("Which model now");
 const trialModel = await (await fetch(mock + "/last-model")).text();
-if (trialModel !== "qwen/qwen3.8-flash") throw new Error(`Expected the trial model, got ${trialModel}.`);
+if (trialModel !== "claude-sonnet-5-5") throw new Error(`Expected the trial model, got ${trialModel}.`);
 if (defaultModel === trialModel) throw new Error("Default and trial models were the same.");
 
 // Back to the default for the next run.

@@ -1,4 +1,4 @@
-import { tool } from "ai";
+import { betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { listParkThings, saveChatThing } from "../things";
 
@@ -7,8 +7,9 @@ const chatKinds = ["person", "event", "habit", "recipe", "note", "list"] as cons
 
 /** Tools that let the assistant file things into, and look things up in, one person's park. */
 export function parkTools(userId: string) {
-  return {
-    save_to_park: tool({
+  return [
+    betaZodTool({
+      name: "save_to_park",
       description:
         "Save something the user told you about their life so it appears in their park: a person, an event, a habit, a recipe, a note, or a list.",
       inputSchema: z.object({
@@ -19,7 +20,7 @@ export function parkTools(userId: string) {
         details: z.string().max(2000).optional().describe("Anything else worth keeping, in plain words"),
         items: z.array(z.string().min(1).max(200)).max(50).optional().describe("For a list or recipe: its items or ingredients"),
       }),
-      execute: async ({ kind, title, date, birthday, details, items }) => {
+      run: async ({ kind, title, date, birthday, details, items }) => {
         const when = date && !Number.isNaN(Date.parse(date)) ? new Date(date) : null;
         const [month, day] = birthday ? birthday.split("-").map(Number) : [];
         await saveChatThing(userId, {
@@ -32,17 +33,18 @@ export function parkTools(userId: string) {
             ...(month && day ? { birthday: { month, day, year: null } } : {}),
           },
         });
-        return { saved: true, kind, title };
+        return JSON.stringify({ saved: true, kind, title });
       },
     }),
-    find_in_park: tool({
+    betaZodTool({
+      name: "find_in_park",
       description:
         "Look up things saved in the user's park, to answer questions about their life (birthdays, plans, recipes, lists, mail, files).",
       inputSchema: z.object({
         query: z.string().max(100).optional().describe("Words to look for in titles and details"),
         kind: z.enum([...chatKinds, "file", "mail", "repo"]).optional(),
       }),
-      execute: async ({ query, kind }) => {
+      run: async ({ query, kind }) => {
         const words = (query ?? "").toLowerCase().split(/\s+/).filter(Boolean);
         const matches = (await listParkThings(userId))
           .filter((t) => !kind || t.kind === kind)
@@ -53,8 +55,8 @@ export function parkTools(userId: string) {
           })
           .reverse()
           .slice(0, 30);
-        return matches.map((t) => ({ kind: t.kind, title: t.title, date: t.date, detail: t.detail }));
+        return JSON.stringify(matches.map((t) => ({ kind: t.kind, title: t.title, date: t.date, detail: t.detail })));
       },
     }),
-  };
+  ];
 }

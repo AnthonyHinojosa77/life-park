@@ -1,7 +1,7 @@
 // The park end to end: welcome, the Google permission request, chat filing
 // something into the park, and a connected Google account filling the park.
 // Starts its own server (from an existing `next build`), a stand-in Google, and
-// a stand-in OpenRouter, because it restarts the server midway to link Google.
+// a stand-in Anthropic, because it restarts the server midway to link Google.
 // Usage: node e2e/park-flow.mjs <screenshotDir>
 import { spawn } from "node:child_process";
 import { mkdtempSync } from "node:fs";
@@ -31,7 +31,7 @@ const keys = generateKeyPairSync("rsa", { modulusLength: 2048 });
 const github = createMockGitHub({ publicKey: keys.publicKey.export({ type: "spki", format: "pem" }).toString(), installed: false });
 github.appBase = base;
 await new Promise((r) => github.listen(3129, r));
-const openrouter = spawn("node", ["e2e/mock-openrouter.mjs", "3126"], { stdio: "ignore" });
+const anthropic = spawn("node", ["e2e/mock-anthropic.mjs", "3126"], { stdio: "ignore" });
 
 function startServer() {
   // Its own process group, so stopping it also stops the server npx starts underneath.
@@ -51,8 +51,8 @@ function startServer() {
       GITHUB_APP_PRIVATE_KEY: keys.privateKey.export({ type: "pkcs1", format: "pem" }).toString(),
       GITHUB_API_BASE: "http://127.0.0.1:3129",
       GITHUB_WEB_BASE: "http://127.0.0.1:3129",
-      OPENROUTER_API_KEY: "stand-in",
-      OPENROUTER_BASE_URL: "http://127.0.0.1:3126/api/v1",
+      ANTHROPIC_API_KEY: "stand-in",
+      ANTHROPIC_BASE_URL: "http://127.0.0.1:3126",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -338,7 +338,7 @@ try {
 } finally {
   await browser.close();
   await stopServer(server).catch(() => {});
-  openrouter.kill();
+  anthropic.kill();
   google.close();
   github.close();
 }

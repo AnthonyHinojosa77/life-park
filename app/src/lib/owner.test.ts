@@ -18,8 +18,8 @@ describe("owner", () => {
   });
 
   it("knows the trial models", () => {
-    expect(isTrialModel("openai/gpt-6-luna")).toBe(true);
-    expect(isTrialModel("z-ai/glm-5.3-flash")).toBe(true);
-    expect(isTrialModel("acme/other")).toBe(false);
+    expect(isTrialModel("claude-opus-5-5")).toBe(true);
+    expect(isTrialModel("claude-haiku-5-5")).toBe(true);
+    expect(isTrialModel("qwen/qwen3.8-flash")).toBe(false);
   });
 });
