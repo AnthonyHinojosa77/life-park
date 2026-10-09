@@ -11,6 +11,8 @@ assistant isn't switched on yet.
 1. Sign in at https://platform.claude.com (or create an account and add billing).
 2. Go to **Settings → API keys** (https://platform.claude.com/settings/keys) and
    click **Create key**. Name it `LifePark`, pick an expiration, and link it to yourself.
+   (Anthropic suggests a service account key for production services; a personal
+   key stops working only if you leave your own organization.)
 3. Copy the key (it starts with `sk-ant-`). The Console shows it only once.
 
 Source: [Get your Claude API key](https://platform.claude.com/docs/en/get-api-key) (read 2026-10-09).
@@ -51,8 +53,9 @@ shows what each reply cost, priced from Anthropic's published rates.
 | Claude Haiku 5.5 (prompts up to 100,000 tokens) | $0.10 | $0.50 | $0.01 |
 
 Source: https://platform.claude.com/docs/en/about-claude/pricing. LifePark reuses
-the start of each conversation from Anthropic's cache, so most input after the
-first message is billed at the cached rate.
+the start of each conversation from Anthropic's cache, so input in a back-and-forth
+is mostly billed at the cached rate. The cache lasts 5 minutes; a message after a
+longer pause re-stores it at 1.25 times the input price.
 
 ## For the next developer
 

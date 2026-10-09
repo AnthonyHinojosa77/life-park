@@ -126,6 +126,31 @@ describe("POST /api/chat", () => {
     expect((await lastStored()).metadata.costMicros).toBe(360);
   });
 
+  it("doesn't run a tool call whose input doesn't fit, and tells Claude why", async () => {
+    const { body } = await send("m-bad-input", "Remember badly: Moon pie");
+    expect(body).toContain('"type":"tool-input-error"');
+    expect(body).not.toContain('"type":"tool-output-available"');
+    expect((await listParkThings(userId)).some((t) => t.title === "Moon pie")).toBe(false);
+    const answer = lastSent().body.messages.at(-1)!.content as { type: string; is_error?: boolean }[];
+    expect(answer).toMatchObject([{ type: "tool_result", is_error: true }]);
+    expect((await lastStored()).parts[0].text).toBe("That didn't save.");
+    expect(anthropic.problems).toEqual([]);
+  });
+
+  it("after a refusal fallback, runs and sends back only the fallback model's tool call", async () => {
+    await send("m-fallback", "Fallback, then remember: Plum tart");
+    expect(anthropic.problems).toEqual([]);
+    const park = await listParkThings(userId);
+    expect(park.some((t) => t.title === "Plum tart")).toBe(true);
+    expect(park.some((t) => t.title === "declined Plum tart")).toBe(false);
+    const echoed = lastSent().body.messages.at(-2)!.content as { type: string; id?: string }[];
+    expect(echoed.map((b) => b.type)).toEqual(["fallback", "tool_use"]);
+    expect(echoed[1].id).toBe("toolu_fallback");
+    // Each attempt at its own model's price: Opus 5.5 (20 in, 3 out) and Opus 4.8 (20 in, 5 out),
+    // then the confirmation on Opus 5.5 (20 in, 5 out).
+    expect((await lastStored()).metadata.costMicros).toBe(80 + 60 + 100 + 125 + 80 + 100);
+  });
+
   it("sends earlier turns back as plain words only", async () => {
     await send("m-history", "And now?", [
       say("h1", "First question"),

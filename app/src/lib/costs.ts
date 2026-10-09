@@ -12,7 +12,7 @@ export type CostSummary = {
 };
 
 /**
- * Spend for the current calendar month, from OpenRouter's reported cost per
+ * Spend for the current calendar month, from Anthropic's published prices per
  * reply. Pass a user id for one person, or null for everyone (owner dashboard).
  */
 export async function monthlyCosts(userId: string | null, now = new Date()): Promise<CostSummary> {

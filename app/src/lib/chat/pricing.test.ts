@@ -26,6 +26,7 @@ describe("costMicros", () => {
 
   it("prices a fallback model at its own rate, and an unknown one as the requested model", () => {
     expect(costMicros(usage(1_000_000, 0), "claude-opus-4-8", "claude-opus-5-5")).toBe(5_000_000);
+    expect(costMicros(usage(0, 0, 0, 1_000_000), "claude-sonnet-5", "claude-sonnet-5-5")).toBe(200_000);
     expect(costMicros(usage(1_000_000, 0), "claude-someday-9", "claude-sonnet-5-5")).toBe(2_000_000);
   });
 });

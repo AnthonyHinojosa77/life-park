@@ -69,7 +69,6 @@ export type AgentResult = {
   inputTokens: number;
   outputTokens: number;
   costMicros: number;
-  refused: boolean;
 };
 
 /**
@@ -87,7 +86,7 @@ export async function runAgent(opts: {
   const { client, model, system, tools, writer } = opts;
   const turn: MessageParam[] = [];
   const said: string[] = [];
-  const result: AgentResult = { text: "", inputTokens: 0, outputTokens: 0, costMicros: 0, refused: false };
+  const result: AgentResult = { text: "", inputTokens: 0, outputTokens: 0, costMicros: 0 };
   // Only the definitions go to Claude; the tools run here. Inputs stream as they are written.
   const definitions = tools.flatMap((t) =>
     "input_schema" in t
@@ -133,12 +132,13 @@ export async function runAgent(opts: {
       writer.write({ type: "text-delta", id: `${step}-refusal`, delta: REFUSAL_TEXT });
       writer.write({ type: "text-end", id: `${step}-refusal` });
       said.push(REFUSAL_TEXT);
-      result.refused = true;
       break;
     }
 
     for (const block of message.content) if (block.type === "text" && block.text.trim()) said.push(block.text.trim());
-    const calls = message.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use");
+    // Only the calls that go back to Claude are run; a declined model's calls before a fallback are not.
+    const content = echoable(message.content);
+    const calls = content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use");
     // A tool call cut off by max_tokens may look complete; never run it.
     if (message.stop_reason !== "tool_use" || calls.length === 0) {
       writer.write({ type: "finish-step" });
@@ -170,7 +170,7 @@ export async function runAgent(opts: {
       }
     }
     writer.write({ type: "finish-step" });
-    turn.push({ role: "assistant", content: echoable(message.content) }, { role: "user", content: results });
+    turn.push({ role: "assistant", content }, { role: "user", content: results });
   }
 
   result.text = said.join("\n\n");

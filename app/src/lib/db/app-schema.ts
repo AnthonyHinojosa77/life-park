@@ -7,7 +7,7 @@ export const userSettings = pgTable("user_settings", {
   userId: text("user_id")
     .primaryKey()
     .references(() => user.id, { onDelete: "cascade" }),
-  /** OpenRouter model ids shown in the main picker, in order. */
+  /** Left over from Work Park's model picker; nothing reads it now. */
   favoriteModels: jsonb("favorite_models").$type<string[]>().notNull(),
   /** Primary navigation: a plain list or the park map. */
   navigation: text("navigation").$type<"list" | "park">().notNull(),
@@ -56,7 +56,7 @@ export const messages = pgTable(
     modelId: text("model_id"),
     inputTokens: integer("input_tokens"),
     outputTokens: integer("output_tokens"),
-    /** Millionths of a US dollar, from OpenRouter's usage accounting. */
+    /** Millionths of a US dollar, priced from Anthropic's published rates. */
     costMicros: integer("cost_micros"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
