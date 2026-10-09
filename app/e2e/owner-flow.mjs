@@ -82,6 +82,14 @@ const trialModel = await (await fetch(mock + "/last-model")).text();
 if (trialModel !== "claude-sonnet-5-5") throw new Error(`Expected the trial model, got ${trialModel}.`);
 if (defaultModel === trialModel) throw new Error("Default and trial models were the same.");
 
+// Smart routing starts on Claude Haiku 5.5, which answers an everyday message itself.
+await page.goto(base + "/owner", { waitUntil: "networkidle" });
+await page.getByRole("button", { name: "Smart routing (Haiku first)" }).click();
+await page.waitForTimeout(800);
+await chat("Routed hello");
+const routedModel = await (await fetch(mock + "/last-model")).text();
+if (routedModel !== "claude-haiku-5-5") throw new Error(`Smart routing should start on Haiku, got ${routedModel}.`);
+
 // Back to the default for the next run.
 await page.goto(base + "/owner", { waitUntil: "networkidle" });
 await page.getByRole("button", { name: /^Default/ }).click();

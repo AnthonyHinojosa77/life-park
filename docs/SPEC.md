@@ -136,7 +136,7 @@ These are Claude's defaults. Any of them can be overturned by saying so.
 - **Growth rules:** a thing grows when it is added, used, or completed. A habit plot blooms on a streak and wilts gently when skipped, never harshly. Nothing ever disappears on its own.
 - **Chat is the front door.** The park is the second tab. A plain list of everything exists for people who want it.
 - **The AI confirms before filing** anything it is not sure about, in one short line, the same pattern as confirm-before-save memory.
-- **The assistant runs on Claude** (2026-10-09, Anthony): Claude Opus 5.5 by default, called directly through Anthropic's API with Anthony's own API key, so the model can be switched without code changes. Claude Sonnet 5.5 and Claude Haiku 5.5 are in his trial switch.
+- **The assistant runs on Claude** (2026-10-09, Anthony): Claude Opus 5.5 by default, called directly through Anthropic's API with Anthony's own API key, so the model can be switched without code changes. Claude Sonnet 5.5, Claude Haiku 5.5, and smart routing (Haiku first, passing harder messages up to Sonnet and then Opus) are in his trial switch.
 - **Reminders arrive as phone notifications** through the home-screen app, plus an optional morning summary.
 - **Voice** keeps Speechify with the device voice as fallback, and hands-free mode stays.
 - **Accounts** keep Google, Apple, ChatGPT, passkey, and email with password. GitHub and Microsoft sign-in are dropped from the sign-in screen, since normal people rarely use them.

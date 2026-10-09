@@ -24,8 +24,20 @@ export function isAssistantModel(id: string | null | undefined): id is Assistant
   return assistantModels.some((m) => m.id === id);
 }
 
+/** Starts each message on Claude Haiku 5.5, which passes harder ones up to Sonnet 5.5 and then Opus 5.5. */
+export const SMART_ROUTING = "smart-routing";
+
+/** What the owner's trial switch offers: one model, or smart routing across all three. */
+export const modelChoices = [...assistantModels, { id: SMART_ROUTING, name: "Smart routing (Haiku first)" }] as const;
+
+export type ModelChoice = (typeof modelChoices)[number]["id"];
+
+export function isModelChoice(id: string | null | undefined): id is ModelChoice {
+  return modelChoices.some((m) => m.id === id);
+}
+
 export function assistantModelName(id: string) {
-  return assistantModels.find((m) => m.id === id)?.name ?? id;
+  return modelChoices.find((m) => m.id === id)?.name ?? id;
 }
 
 export function assistantModelId(env: Record<string, string | undefined> = process.env): AssistantModelId {

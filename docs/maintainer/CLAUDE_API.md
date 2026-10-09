@@ -39,6 +39,17 @@ model for everyone. Leave it out to keep Claude Opus 5.5.
 > 4. Open https://work-park.vercel.app, sign in, start a new chat, and send "Hello". Confirm a reply appears.
 > 5. Tell me that the key exists in the Claude Console and ANTHROPIC_API_KEY exists in Vercel (names only, never the key), that the redeploy is Ready, and whether the chat replied.
 
+## Smart routing (owner trial only)
+
+In the owner dashboard's trial switch, **Smart routing (Haiku first)** sends each
+of your messages to Claude Haiku 5.5 first. Haiku answers everyday messages
+itself and passes harder ones to Claude Sonnet 5.5, which answers or passes the
+hardest to Claude Opus 5.5. Nobody sees the hand-off. A model can pass a message
+on only before it has done anything (saved or looked something up), so nothing
+runs twice, and a message Haiku declines goes up to Sonnet. "Your spend this
+month, by model" shows which model answered each reply; each reply's cost
+includes every model that looked at it. Everyone else stays on the default model.
+
 ## 3. Check it
 
 Send a message in a new chat. The owner dashboard (Settings → Owner dashboard)
@@ -70,6 +81,10 @@ longer pause re-stores it at 1.25 times the input price.
   `server-side-fallback-2026-07-01`) on Opus and Sonnet so a safety-classifier
   decline is retried on Anthropic's recommended model. Haiku has no server-side
   fallback; a final decline shows "I can't help with that one."
+- Smart routing: `app/src/lib/chat/router.ts` gives Haiku and Sonnet a hidden
+  `hand_off` tool and a routing note in the system prompt; the agent loop honours
+  it only on a model's first step, discards that draft with `reset-step`, and the
+  next model answers from the same history.
 - Earlier turns go back as plain words; thinking blocks are only replayed, byte
   for byte, within one reply's tool loop (Claude rejects edited thinking).
 - Test: `e2e/mock-anthropic.mjs` is a stand-in that enforces those rules; the

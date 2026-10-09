@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { assistantModels, isAssistantModel } from "./chat/model";
+import { isModelChoice, modelChoices } from "./chat/model";
 import { requireOnboarded } from "./session";
 
 type Env = Record<string, string | undefined>;
@@ -26,7 +26,7 @@ export async function requireOwner() {
   return result;
 }
 
-/** The models in Anthony's personal trial (plan step 5.1): the Claude 5.5 family. */
-export const trialModels = assistantModels;
+/** The models in Anthony's personal trial (plan step 5.1): the Claude 5.5 family, or smart routing across it. */
+export const trialModels = modelChoices;
 
-export const isTrialModel = isAssistantModel;
+export const isTrialModel = isModelChoice;

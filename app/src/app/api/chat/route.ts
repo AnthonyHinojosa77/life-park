@@ -2,9 +2,10 @@ import Anthropic from "@anthropic-ai/sdk";
 import { createUIMessageStream, createUIMessageStreamResponse, type UIMessage } from "ai";
 import { z } from "zod";
 import { runAgent, toClaudeHistory } from "@/lib/chat/agent";
+import { runRoutedAgent } from "@/lib/chat/router";
 import { buildInstructions } from "@/lib/chat/instructions";
 import { parkTools } from "@/lib/chat/park-tools";
-import { anthropicClient, assistantModelId, isAssistantModel, ModelsUnavailableError } from "@/lib/chat/model";
+import { anthropicClient, assistantModelId, isModelChoice, ModelsUnavailableError, SMART_ROUTING } from "@/lib/chat/model";
 import { saveMessage, textOf, titleFromText, touchConversation } from "@/lib/chat/store";
 import { getRules } from "@/lib/rules";
 import { isOwner } from "@/lib/owner";
@@ -26,7 +27,7 @@ export async function POST(req: Request) {
   // Everyone gets the one assistant model. The owner can switch their own
   // account for the model trial; the override is ignored for anyone else.
   const settings = isOwner(session.user.email) ? await getSettings(session.user.id) : null;
-  const modelId = isAssistantModel(settings?.assistantModel) ? settings.assistantModel : assistantModelId();
+  const modelId = isModelChoice(settings?.assistantModel) ? settings.assistantModel : assistantModelId();
 
   let client;
   try {
@@ -54,25 +55,29 @@ export async function POST(req: Request) {
   const stream = createUIMessageStream({
     execute: async ({ writer }) => {
       writer.write({ type: "start", messageId: assistantId, messageMetadata: { modelId } });
-      const reply = await runAgent({
+      const shared = {
         client,
-        model: modelId,
         system: buildInstructions(session.user.name, rulesText),
         history: toClaudeHistory(messages),
         tools: parkTools(session.user.id),
         writer,
-      });
+      };
+      const reply =
+        modelId === SMART_ROUTING
+          ? await runRoutedAgent(shared)
+          : { ...(await runAgent({ ...shared, model: modelId })), model: modelId };
       await saveMessage({
         id: assistantId,
         conversationId,
         role: "assistant",
         parts: [{ type: "text", text: reply.text }],
-        modelId,
+        // The model that wrote the reply, so the owner dashboard shows where routed replies landed.
+        modelId: reply.model,
         inputTokens: reply.inputTokens,
         outputTokens: reply.outputTokens,
         costMicros: Math.round(reply.costMicros),
       });
-      writer.write({ type: "finish", messageMetadata: { modelId } });
+      writer.write({ type: "finish", messageMetadata: { modelId: reply.model } });
     },
     onError: plainError,
   });

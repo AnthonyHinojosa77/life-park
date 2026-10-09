@@ -78,7 +78,7 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 
 **What you get:** Safe and ready for invite-only testers, then the public.
 
-- [ ] 5.1 Model trial for Anthony. Anthony uses LifePark in his own daily life with each model in turn: Claude Opus 5.5, Claude Sonnet 5.5, then Claude Haiku 5.5. Claude switches the model on his account for each round and shows what each round cost. Anthony picks the one that worked best for him, and it becomes the one AI for everyone.
+- [ ] 5.1 Model trial for Anthony. Anthony uses LifePark in his own daily life with each model in turn: Claude Opus 5.5, Claude Sonnet 5.5, Claude Haiku 5.5, then smart routing (Haiku first, passing harder messages up). Claude switches the model on his account for each round and shows what each round cost. Anthony picks the one that worked best for him, and it becomes the one AI for everyone.
 - [~] 5.2 Export everything and delete everything, from Settings. Built: "Delete my account" in Settings removes the account and everything in it after typing "delete"; the same email can sign up again from the start. The owner dashboard lists everyone and can remove another person's account the same way. Export is not built yet.
 - [ ] 5.3 Share one thing by link, like a recipe or a gift list.
 - [ ] 5.4 Free tier limits and the monthly subscription, with price set from research and the trial's real cost per user.
@@ -101,6 +101,7 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 
 ## Decisions log
 
+- 2026-10-09: Smart routing joins Anthony's trial switch (Anthony): each message starts on Claude Haiku 5.5, which answers or passes it to Sonnet 5.5, which answers or passes it to Opus 5.5. Owner-only until the trial shows it saves money without losing quality.
 - 2026-10-09: The assistant runs on Claude 5.5 models through Anthony's own Anthropic API key instead of OpenRouter (Anthony). Claude Opus 5.5 is the default for everyone; Sonnet 5.5 and Haiku 5.5 replace the OpenRouter models in his trial switch. Built on Anthropic's official SDK, with refusal fallbacks on Opus and Sonnet.
 - 2026-10-08: Sign in with ChatGPT joins Google, Apple, passkey, and email (Anthony asked for it). Identity only: OpenAI offers paying for an app's AI with a ChatGPT plan only to open-source apps and selected private clients. OpenAI's tokens are not kept, and a ChatGPT sign-in never joins an existing account by itself; people add ChatGPT from Settings, as OpenAI's guide asks.
 - 2026-10-03: GitHub repositories join the park on a ninth lawn, the Workshop, through a GitHub App with read-only access to the repositories each person chooses (Anthony asked for GitHub; the App over plain GitHub sign-in because sign-in can only reach private repositories with write access).

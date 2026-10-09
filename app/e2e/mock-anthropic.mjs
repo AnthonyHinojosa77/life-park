@@ -7,7 +7,10 @@
 // sends the tool input it doesn't accept, "Fallback, then remember: X" has the
 // requested model start a tool call, decline, and hand over to a fallback
 // model that makes its own, "Refuse this" is declined outright, and anything
-// else gets "Hello from the mock. You asked: ...".
+// else gets "Hello from the mock. You asked: ...". When offered the hand_off
+// tool (smart routing), Haiku passes on "Hard question: ..." and Haiku and
+// Sonnet both pass on "Very hard question: ..."; "Remember, then pass it on: X"
+// saves X and only then tries to pass it on, which is too late.
 // Usage: node e2e/mock-anthropic.mjs [port]   (or import createMockAnthropic)
 import { createHash } from "node:crypto";
 import http from "node:http";
@@ -96,16 +99,35 @@ export function createMockAnthropic() {
         send("message_stop", {});
         res.end();
       };
-      const toolCall = (index, id, input) => {
+      const toolCall = (index, id, input, name = "save_to_park") => {
         const json = JSON.stringify(input);
-        send("content_block_start", { index, content_block: { type: "tool_use", id, name: "save_to_park", input: {} } });
+        send("content_block_start", { index, content_block: { type: "tool_use", id, name, input: {} } });
         send("content_block_delta", { index, delta: { type: "input_json_delta", partial_json: json.slice(0, 10) } });
         send("content_block_delta", { index, delta: { type: "input_json_delta", partial_json: json.slice(10) } });
         send("content_block_stop", { index });
       };
-      const remember = lastUserText.match(/^(Remember|Remember badly|Fallback, then remember): (.+)$/);
+      const remember = lastUserText.match(/^(Remember|Remember badly|Fallback, then remember|Remember, then pass it on): (.+)$/);
       const toolResults = Array.isArray(last.content) ? last.content.filter((b) => b.type === "tool_result") : [];
       const afterTool = toolResults.length > 0;
+      const canPass = toolsGiven.includes("hand_off");
+      const tooHard =
+        (/^Hard question/.test(lastUserText) && body.model === "claude-haiku-5-5") ||
+        (/^Very hard question/.test(lastUserText) && body.model !== "claude-opus-5-5");
+      if (canPass && !afterTool && tooHard) {
+        // A sentence slips out before the hand-off; the app must take it back.
+        send("content_block_start", { index: 1, content_block: { type: "text", text: "" } });
+        send("content_block_delta", { index: 1, delta: { type: "text_delta", text: "Let me think about" } });
+        send("content_block_stop", { index: 1 });
+        toolCall(2, `toolu_pass_${body.model}`, { reason: "needs more reasoning" }, "hand_off");
+        finish("tool_use", 8);
+        return;
+      }
+      const lateTry = remember?.[1] === "Remember, then pass it on" && canPass;
+      if (lateTry && afterTool && toolResults.some((b) => b.tool_use_id === "toolu_mock_1")) {
+        toolCall(1, "toolu_late_pass", { reason: "changed my mind" }, "hand_off");
+        finish("tool_use", 5);
+        return;
+      }
       if (remember && !afterTool && toolsGiven.includes("save_to_park")) {
         const [, how, title] = remember;
         if (how === "Fallback, then remember") {
@@ -124,7 +146,7 @@ export function createMockAnthropic() {
         return;
       }
       const refuse = lastUserText === "Refuse this";
-      const failed = toolResults.some((b) => b.is_error);
+      const failed = toolResults.some((b) => b.is_error && b.tool_use_id !== "toolu_late_pass");
       const words = (afterTool ? (failed ? "That didn't save." : "Saved it to your park.") : refuse ? "Partial words before" : `Hello from the mock. You asked: ${lastUserText}`).split(" ");
       send("content_block_start", { index: 1, content_block: { type: "text", text: "" } });
       let i = 0;

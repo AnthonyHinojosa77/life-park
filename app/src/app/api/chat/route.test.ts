@@ -79,7 +79,7 @@ describe("POST /api/chat", () => {
     const { res, body } = await send("m1", "Say hello");
     expect(res.status).toBe(200);
     // Words stream to the chat one at a time.
-    expect(body).toContain('"type":"text-delta","id":"0-1","delta":"Hello"');
+    expect(body).toContain('"type":"text-delta","id":"claude-opus-5-5-0-1","delta":"Hello"');
 
     const threads = await listConversations(userId);
     expect(threads[0].title).toBe("Say hello");
@@ -192,6 +192,81 @@ describe("POST /api/chat", () => {
     await send("m-guest", "hi");
     expect((await lastStored()).metadata.modelId).toBe("claude-opus-5-5");
     await setAssistantModel(userId, null);
+  });
+
+  describe("smart routing (owner trial)", () => {
+    const models = (from: number) => anthropic.requests.slice(from).map((r) => (r as Sent).body.model);
+    const toolNames = (r: Sent) => (r.body.tools as { name: string }[]).map((t) => t.name);
+    beforeAll(async () => {
+      process.env.OWNER_EMAILS = "chat@example.com";
+      await setAssistantModel(userId, "smart-routing");
+    });
+    afterAll(async () => {
+      await setAssistantModel(userId, null);
+      process.env.OWNER_EMAILS = "";
+    });
+
+    it("lets Claude Haiku 5.5 answer an everyday message itself", async () => {
+      const from = anthropic.requests.length;
+      const { body } = await send("r-simple", "hi there");
+      expect(models(from)).toEqual(["claude-haiku-5-5"]);
+      const asked = lastSent();
+      expect(toolNames(asked)).toEqual(["save_to_park", "find_in_park", "hand_off"]);
+      expect(JSON.stringify(asked.body.system)).toContain("Routing: you answer first");
+      expect(asked.body).not.toHaveProperty("fallbacks");
+      expect(body).not.toContain("hand_off");
+      // 20 input tokens at $0.10 and 8 output tokens at $0.50 per million.
+      expect((await lastStored()).metadata).toMatchObject({ modelId: "claude-haiku-5-5", costMicros: 6 });
+      expect(anthropic.problems).toEqual([]);
+    });
+
+    it("passes a harder message to Claude Sonnet 5.5, taking back Haiku's draft unseen", async () => {
+      const from = anthropic.requests.length;
+      const { body } = await send("r-hard", "Hard question: plan my week");
+      expect(models(from)).toEqual(["claude-haiku-5-5", "claude-sonnet-5-5"]);
+      expect(toolNames(lastSent())).toContain("hand_off");
+      expect(body).toContain('"type":"reset-step"');
+      expect(body).not.toContain("hand_off");
+      const reply = await lastStored();
+      expect(reply.parts[0].text).toBe("Hello from the mock. You asked: Hard question: plan my week");
+      // Haiku's look (20 in at $0.10, 8 out at $0.50) plus Sonnet's answer (20 in at $2, 11 out at $10).
+      expect(reply.metadata).toMatchObject({ modelId: "claude-sonnet-5-5", costMicros: 2 + 4 + 40 + 110 });
+      expect(anthropic.problems).toEqual([]);
+    });
+
+    it("goes all the way to Claude Opus 5.5, which has no one to pass to", async () => {
+      const from = anthropic.requests.length;
+      await send("r-very-hard", "Very hard question: weigh these offers");
+      expect(models(from)).toEqual(["claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5"]);
+      expect(toolNames(lastSent())).not.toContain("hand_off");
+      expect(lastSent().body.fallbacks).toBe("default");
+      expect((await lastStored()).metadata.modelId).toBe("claude-opus-5-5");
+    });
+
+    it("refuses a hand-off after something was already done, so nothing runs twice", async () => {
+      const from = anthropic.requests.length;
+      await send("r-late", "Remember, then pass it on: Fig jam");
+      expect(models(from)).toEqual(["claude-haiku-5-5", "claude-haiku-5-5", "claude-haiku-5-5"]);
+      expect((await listParkThings(userId)).filter((t) => t.title === "Fig jam")).toHaveLength(1);
+      const answer = lastSent().body.messages.at(-1)!.content as { type: string; is_error?: boolean }[];
+      expect(answer).toMatchObject([{ type: "tool_result", is_error: true }]);
+      expect((await lastStored()).parts[0].text).toBe("Saved it to your park.");
+      expect(anthropic.problems).toEqual([]);
+    });
+
+    it("sends a message Haiku declines up to the next model", async () => {
+      const from = anthropic.requests.length;
+      await send("r-refuse", "Refuse this");
+      expect(models(from)).toEqual(["claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5"]);
+      expect((await lastStored()).parts[0].text).toBe(REFUSAL_TEXT);
+    });
+
+    it("is for the owner only", async () => {
+      process.env.OWNER_EMAILS = "";
+      await send("r-guest", "hi");
+      process.env.OWNER_EMAILS = "chat@example.com";
+      expect((await lastStored()).metadata.modelId).toBe("claude-opus-5-5");
+    });
   });
 
   it("takes back a declined reply and says so plainly", async () => {
