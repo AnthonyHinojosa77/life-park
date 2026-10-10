@@ -76,7 +76,8 @@ longer pause re-stores it at 1.25 times the input price.
 - Built on Anthropic's official TypeScript SDK (`@anthropic-ai/sdk`). The Vercel
   AI SDK only carries the stream to the chat screen.
 - Request shape for the 5.5 models: no `thinking` field (thinking is always on),
-  `output_config.effort: "medium"`, no forced `tool_choice`, top-level
+  `output_config.effort: "high"` on every model (Anthony's choice, 2026-10-10; never
+  shown in the app), no forced `tool_choice`, top-level
   `cache_control` for automatic prompt caching, and `fallbacks: "default"` (beta
   `server-side-fallback-2026-07-01`) on Opus and Sonnet so a safety-classifier
   decline is retried on Anthropic's recommended model. Haiku has no server-side

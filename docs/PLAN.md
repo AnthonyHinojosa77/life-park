@@ -101,6 +101,7 @@ Accounts with email, password, and passkeys. Chat that saves across devices. Rea
 
 ## Decisions log
 
+- 2026-10-10: Every Claude model replies at high effort (Anthropic's levels: low, medium, high, xhigh, max), set in code and never shown in the app, including to Anthony (Anthony).
 - 2026-10-09: Smart routing joins Anthony's trial switch (Anthony): each message starts on Claude Haiku 5.5, which answers or passes it to Sonnet 5.5, which answers or passes it to Opus 5.5. Owner-only until the trial shows it saves money without losing quality.
 - 2026-10-09: The assistant runs on Claude 5.5 models through Anthony's own Anthropic API key instead of OpenRouter (Anthony). Claude Opus 5.5 is the default for everyone; Sonnet 5.5 and Haiku 5.5 replace the OpenRouter models in his trial switch. Built on Anthropic's official SDK, with refusal fallbacks on Opus and Sonnet.
 - 2026-10-08: Sign in with ChatGPT joins Google, Apple, passkey, and email (Anthony asked for it). Identity only: OpenAI offers paying for an app's AI with a ChatGPT plan only to open-source apps and selected private clients. OpenAI's tokens are not kept, and a ChatGPT sign-in never joins an existing account by itself; people add ChatGPT from Settings, as OpenAI's guide asks.

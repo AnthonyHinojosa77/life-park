@@ -10,6 +10,9 @@ type ContentBlock = Anthropic.Beta.BetaContentBlock;
 /** Room to save something, then reply about it. */
 const MAX_STEPS = 4;
 
+/** How much every model thinks before replying (Anthony's choice). Never shown in the app. */
+const EFFORT = "high";
+
 export const REFUSAL_TEXT = "I can't help with that one.";
 
 /** The hidden tool a lighter model calls to pass a message up (see router.ts). */
@@ -119,7 +122,7 @@ export async function runAgent(opts: {
       system: systemBlocks,
       messages: [...opts.history, ...turn],
       tools: definitions,
-      output_config: { effort: "medium" },
+      output_config: { effort: EFFORT },
       cache_control: { type: "ephemeral" },
       ...fallbackOptions(model),
     });

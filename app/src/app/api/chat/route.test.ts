@@ -78,6 +78,8 @@ describe("POST /api/chat", () => {
   it("streams Claude Opus 5.5's reply and stores both messages with cost", async () => {
     const { res, body } = await send("m1", "Say hello");
     expect(res.status).toBe(200);
+    // The thinking level never reaches the chat.
+    expect(body).not.toContain("effort");
     // Words stream to the chat one at a time.
     expect(body).toContain('"type":"text-delta","id":"claude-opus-5-5-0-1","delta":"Hello"');
 
@@ -98,7 +100,7 @@ describe("POST /api/chat", () => {
     expect(body.model).toBe("claude-opus-5-5");
     expect(body).not.toHaveProperty("thinking");
     expect(body).not.toHaveProperty("tool_choice");
-    expect(body.output_config).toEqual({ effort: "medium" });
+    expect(body.output_config).toEqual({ effort: "high" });
     expect(body.cache_control).toEqual({ type: "ephemeral" });
     expect(body.fallbacks).toBe("default");
     expect(headers["anthropic-beta"]).toContain("server-side-fallback-2026-07-01");
@@ -243,6 +245,8 @@ describe("POST /api/chat", () => {
       const from = anthropic.requests.length;
       await send("r-very-hard", "Very hard question: weigh these offers");
       expect(models(from)).toEqual(["claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5"]);
+      // Every model in the chain thinks at the same level, and the chat never mentions it.
+      for (const r of anthropic.requests.slice(from)) expect((r as Sent).body.output_config).toEqual({ effort: "high" });
       expect(toolNames(lastSent())).not.toContain("hand_off");
       expect(lastSent().body.fallbacks).toBe("default");
       expect((await lastStored()).metadata.modelId).toBe("claude-opus-5-5");
